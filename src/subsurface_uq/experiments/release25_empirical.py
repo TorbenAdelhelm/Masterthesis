@@ -10,6 +10,7 @@ from ..propagation import MonteCarloRunner
 from ..sampling import EmpiricalPermeabilitySampler, load_empirical_fields
 from ..surrogates import Release25Surrogate
 from ..surrogates.release25_runtime import Release25Runtime
+from ..visualization import save_release25_output_plots
 
 
 def _run_ids(value: str) -> list[str]:
@@ -61,6 +62,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--streamline-method", choices=("RK45", "RK23", "Radau"), default="RK45"
     )
     parser.add_argument("--output", default="run_output/release25_empirical_mc.npz")
+    parser.add_argument(
+        "--plots-dir",
+        help=(
+            "Optional directory for deterministic LGCNN diagnostic maps. "
+            "Plots show the fixed run's velocity, central/outer streamline "
+            "feature fields, and final temperature prediction."
+        ),
+    )
     return parser
 
 
@@ -122,6 +131,20 @@ def main() -> None:
     print(f"Saved Monte Carlo result to {destination}")
     print(f"Samples propagated: {result.count}")
     print(f"Temperature field shape: {result.mean.shape}")
+
+    if args.plots_dir:
+        # Diagnostic plots intentionally use the fixed prepared run's original
+        # permeability. In an empirical MC run these plots therefore describe
+        # the deterministic reference scenario, not the ensemble mean.
+        outputs = runtime.deterministic()
+        plots = save_release25_output_plots(
+            outputs,
+            args.plots_dir,
+            prefix=args.fixed_run_id,
+        )
+        print("Saved deterministic LGCNN diagnostic plots:")
+        for name, path in plots.items():
+            print(f"  {name}: {path}")
 
 
 if __name__ == "__main__":
