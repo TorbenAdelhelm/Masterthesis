@@ -7,7 +7,8 @@ venv/
 build/
 dist/
 
-# Local scientific data and model assets are intentionally external.
+# Local scientific data, upstream code and model assets are intentionally external.
+external/
 data/
 models/
 run_output/
