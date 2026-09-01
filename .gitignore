@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+
+# Local scientific data and model assets are intentionally external.
+data/
+models/
+run_output/
+*.h5
+*.pt
+*.pth
+*.npy
+*.npz
+
+# Keep committed example/config files.
+!configs/**
+!examples/**

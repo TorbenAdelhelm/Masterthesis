@@ -1,0 +1,18 @@
+# Phase-A empirical Monte Carlo baseline.
+# Paths are examples and are resolved by the calling experiment script.
+
+sampling:
+  path: ../data/permeability_samples.npy
+  key: null
+  batch_size: 4
+  require_positive: true
+
+propagation:
+  # null means use the complete empirical ensemble.
+  n_samples: null
+  store_all: false
+
+# The deterministic release25 model/scenario configuration is intentionally
+# kept separate from the model-agnostic Monte Carlo core. A later experiment
+# layer will construct the verified release25 adapter and wrap it with
+# Release25Surrogate.
