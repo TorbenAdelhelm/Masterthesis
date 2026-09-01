@@ -67,7 +67,7 @@ subsurface-uq-release25 \
   --cnn1-dir models/LGCNN_step1_randomK \
   --cnn2-dir models/LGCNN_step3_randomK \
   --prepared-pki-dir data/prepared_pki \
-  --fixed-run-id RUN_0 \
+  --fixed-run-id RUN_1 \
   --output run_output/release25_single.npz
 ```
 
@@ -80,14 +80,50 @@ subsurface-uq-release25 \
   --cnn1-dir models/LGCNN_step1_randomK \
   --cnn2-dir models/LGCNN_step3_randomK \
   --prepared-pki-dir data/prepared_pki \
-  --fixed-run-id RUN_0 \
-  --permeability-run-ids RUN_0,RUN_1,RUN_2 \
+  --fixed-run-id RUN_1 \
+  --permeability-run-ids RUN_1,RUN_2,RUN_4 \
   --device cuda \
   --output run_output/release25_empirical_mc.npz
 ```
 
 See `docs/release25_darus.md` for the required DaRUS assets, directory layout,
 and model-loading contract.
+
+## Temperature validation against prepared DaRUS labels
+
+The `subsurface_uq.validation` package compares one physical release25
+prediction against a prepared temperature label for the same run. It
+reverse-normalizes the stored label from its `info.yaml`, aligns the larger
+reference field to the valid-convolution model output by a center crop, and
+reports MAE, MSE, RMSE, maximum absolute error, and mean bias.
+
+After extracting a prepared `inputs_pki outputs_t` dataset to, for example,
+`data/prepared_pki_temperature`, run:
+
+```bash
+subsurface-uq-validate-temperature \
+  --prediction run_output/release25_single.npz \
+  --reference-dir data/prepared_pki_temperature \
+  --run-id RUN_1 \
+  --output run_output/release25_RUN_1_validation.npz
+```
+
+If console scripts are not available in the active shell, the equivalent module
+command is:
+
+```bash
+python -m subsurface_uq.validation.cli \
+  --prediction run_output/release25_single.npz \
+  --reference-dir data/prepared_pki_temperature \
+  --run-id RUN_1 \
+  --output run_output/release25_RUN_1_validation.npz
+```
+
+The output archive stores the aligned prediction/reference fields, signed and
+absolute error fields, and all scalar metrics. Use `--alignment strict` when
+comparing two already-aligned deterministic runtime outputs; the default
+`center-crop-reference` is intended for comparison with the larger prepared
+DaRUS temperature label.
 
 ## Minimal model-agnostic use
 
@@ -125,15 +161,18 @@ Normal CI covers:
 - physical recovery of a prepared `pki` scenario;
 - standard-model reconstruction from release25 metadata using a small fixture;
 - execution of the complete CNN1 -> Step 2 -> CNN3 adapter contract with a
-  deterministic lightweight Step-2 fixture.
+  deterministic lightweight Step-2 fixture;
+- reverse-normalization, center-crop alignment, and scalar metrics for prepared
+  temperature-reference validation.
 
 The large published DaRUS model/data archives are not downloaded in CI. A local
-smoke test with those assets is therefore the final acceptance test for exact
-numerical inference with the pretrained networks.
+smoke test with those assets remains the acceptance test for numerical inference
+with the pretrained networks; the temperature-validation CLI then quantifies the
+surrogate error against a stored prepared reference label.
 
 ## Next phases
 
-After the real-model smoke test, the next implementation layers are an
+After deterministic/reference validation, the next implementation layers are an
 extensible QoI framework and a borehole-conditioned geostatistical sampler.
 Advanced propagation approaches such as JVP/first-order Gaussian propagation
 remain optional comparison methods rather than baseline dependencies.
