@@ -12,10 +12,15 @@ dependencies = [
     "numpy>=1.24",
     "torch>=2.1",
     "PyYAML>=6.0",
+    "scipy>=1.10",
+    "tqdm>=4.65",
 ]
 
 [project.optional-dependencies]
 test = ["pytest>=7.4"]
+
+[project.scripts]
+subsurface-uq-release25 = "subsurface_uq.experiments.release25_empirical:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
