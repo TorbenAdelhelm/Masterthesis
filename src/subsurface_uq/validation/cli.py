@@ -4,6 +4,10 @@ import argparse
 from pathlib import Path
 
 from .diagnostics import save_temperature_diagnostic_plots, summarize_temperature_errors
+from .overlays import (
+    build_release25_validation_overlay_context,
+    save_validation_overlay_plots,
+)
 from .temperature import (
     compare_temperature_fields,
     load_prediction_field,
@@ -56,7 +60,66 @@ def build_parser() -> argparse.ArgumentParser:
             "absolute-error PNG maps."
         ),
     )
+    parser.add_argument(
+        "--overlay-plots-dir",
+        help=(
+            "Optional directory for prediction/reference/absolute-error maps "
+            "overlaid with regenerated release25 streamlines and heat-pump locations."
+        ),
+    )
+    parser.add_argument(
+        "--release25-repo",
+        help="External release25 checkout; required together with --overlay-plots-dir.",
+    )
+    parser.add_argument(
+        "--cnn1-dir",
+        help="Pretrained release25 Step-1 model directory for overlay regeneration.",
+    )
+    parser.add_argument(
+        "--cnn2-dir",
+        help="Pretrained release25 Step-3 model directory for overlay regeneration.",
+    )
+    parser.add_argument(
+        "--prepared-pki-dir",
+        help="Prepared p,k,i dataset used by the deterministic release25 run.",
+    )
+    parser.add_argument(
+        "--random-k",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--streamline-method",
+        choices=("RK45", "RK23", "Radau"),
+        default="RK45",
+    )
+    parser.add_argument(
+        "--cell-size-m",
+        type=float,
+        default=5.0,
+        help="Grid-cell size in metres for validation overlay axes (default: 5).",
+    )
+    parser.add_argument(
+        "--streamline-plot-threshold",
+        type=float,
+        default=0.05,
+        help="Threshold for the central streamline contour overlay (default: 0.05).",
+    )
     return parser
+
+
+def _require_overlay_arguments(args: argparse.Namespace) -> None:
+    required = {
+        "--release25-repo": args.release25_repo,
+        "--cnn1-dir": args.cnn1_dir,
+        "--cnn2-dir": args.cnn2_dir,
+        "--prepared-pki-dir": args.prepared_pki_dir,
+    }
+    missing = [name for name, value in required.items() if not value]
+    if missing:
+        raise ValueError(
+            "--overlay-plots-dir requires " + ", ".join(missing)
+        )
 
 
 def main() -> None:
@@ -112,6 +175,33 @@ def main() -> None:
             prefix=prefix,
         )
         print("Saved diagnostic plots:")
+        for name, path in paths.items():
+            print(f"  {name}: {path}")
+
+    if args.overlay_plots_dir:
+        _require_overlay_arguments(args)
+        context = build_release25_validation_overlay_context(
+            release25_repo=args.release25_repo,
+            cnn1_dir=args.cnn1_dir,
+            cnn2_dir=args.cnn2_dir,
+            prepared_pki_dir=args.prepared_pki_dir,
+            run_id=args.run_id,
+            target_shape=comparison.shape,
+            device=args.device,
+            random_k=args.random_k,
+            streamline_method=args.streamline_method,
+        )
+        paths = save_validation_overlay_plots(
+            prediction=comparison.prediction,
+            reference=comparison.reference,
+            absolute_error=comparison.absolute_error,
+            overlay_context=context,
+            directory=args.overlay_plots_dir,
+            prefix=f"release25_{args.run_id}",
+            cell_size_m=args.cell_size_m,
+            streamline_threshold=args.streamline_plot_threshold,
+        )
+        print("Saved validation overlay plots:")
         for name, path in paths.items():
             print(f"  {name}: {path}")
 
