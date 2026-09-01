@@ -21,6 +21,7 @@ test = ["pytest>=7.4"]
 
 [project.scripts]
 subsurface-uq-release25 = "subsurface_uq.experiments.release25_empirical:main"
+subsurface-uq-validate-temperature = "subsurface_uq.validation.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
