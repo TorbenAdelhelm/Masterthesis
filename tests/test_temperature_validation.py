@@ -10,6 +10,8 @@ from subsurface_uq.validation import (
     load_prediction_field,
     load_prepared_temperature_label,
     save_temperature_comparison,
+    save_temperature_diagnostic_plots,
+    summarize_temperature_errors,
 )
 
 
@@ -33,6 +35,31 @@ def test_compare_temperature_fields_center_crops_reference() -> None:
     assert result.max_absolute_error == 2.0
     assert result.bias == 2.0
     np.testing.assert_allclose(result.reference, aligned)
+
+
+def test_temperature_diagnostics_report_percentiles_and_threshold_fractions() -> None:
+    reference = np.zeros((2, 5), dtype=np.float64)
+    prediction = np.array(
+        [[0.0, 0.05, 0.1, 0.2, 0.4], [0.6, 0.8, 1.0, 1.2, 2.0]],
+        dtype=np.float64,
+    )
+    comparison = compare_temperature_fields(prediction, reference, alignment="strict")
+
+    diagnostics = summarize_temperature_errors(comparison)
+
+    np.testing.assert_allclose(
+        [
+            diagnostics.p50_absolute_error,
+            diagnostics.p90_absolute_error,
+            diagnostics.p95_absolute_error,
+            diagnostics.p99_absolute_error,
+            diagnostics.p999_absolute_error,
+        ],
+        np.percentile(np.abs(prediction), [50.0, 90.0, 95.0, 99.0, 99.9]),
+    )
+    assert diagnostics.fraction_above_0p1 == 0.7
+    assert diagnostics.fraction_above_0p5 == 0.5
+    assert diagnostics.fraction_above_1p0 == 0.2
 
 
 def test_load_prepared_temperature_label_reverse_standardizes(tmp_path) -> None:
@@ -79,3 +106,21 @@ def test_prediction_loading_and_comparison_save(tmp_path) -> None:
         assert float(archive["mae"]) == 0.5
         assert archive["prediction"].shape == (3, 4)
         assert archive["reference"].shape == (3, 4)
+
+
+def test_save_temperature_diagnostic_plots(tmp_path) -> None:
+    reference = np.zeros((4, 5), dtype=np.float64)
+    prediction = np.linspace(0.0, 1.0, 20, dtype=np.float64).reshape(4, 5)
+    comparison = compare_temperature_fields(prediction, reference, alignment="strict")
+
+    paths = save_temperature_diagnostic_plots(
+        comparison,
+        tmp_path / "plots",
+        prefix="RUN_1",
+    )
+
+    assert set(paths) == {"prediction", "reference", "signed_error", "absolute_error"}
+    for path in paths.values():
+        assert path.is_file()
+        assert path.suffix == ".png"
+        assert path.stat().st_size > 0
