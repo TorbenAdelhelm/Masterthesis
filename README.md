@@ -95,7 +95,9 @@ The `subsurface_uq.validation` package compares one physical release25
 prediction against a prepared temperature label for the same run. It
 reverse-normalizes the stored label from its `info.yaml`, aligns the larger
 reference field to the valid-convolution model output by a center crop, and
-reports MAE, MSE, RMSE, maximum absolute error, and mean bias.
+reports MAE, MSE, RMSE, maximum absolute error, mean bias, absolute-error
+percentiles (p50, p90, p95, p99 and p99.9), and the spatial fractions above
+0.1 °C, 0.5 °C and 1.0 °C absolute error.
 
 After extracting a prepared `inputs_pki outputs_t` dataset to, for example,
 `data/prepared_pki_temperature`, run:
@@ -105,7 +107,8 @@ subsurface-uq-validate-temperature \
   --prediction run_output/release25_single.npz \
   --reference-dir data/prepared_pki_temperature \
   --run-id RUN_1 \
-  --output run_output/release25_RUN_1_validation.npz
+  --output run_output/release25_RUN_1_validation.npz \
+  --plots-dir run_output/release25_RUN_1_plots
 ```
 
 If console scripts are not available in the active shell, the equivalent module
@@ -116,14 +119,16 @@ python -m subsurface_uq.validation.cli \
   --prediction run_output/release25_single.npz \
   --reference-dir data/prepared_pki_temperature \
   --run-id RUN_1 \
-  --output run_output/release25_RUN_1_validation.npz
+  --output run_output/release25_RUN_1_validation.npz \
+  --plots-dir run_output/release25_RUN_1_plots
 ```
 
 The output archive stores the aligned prediction/reference fields, signed and
-absolute error fields, and all scalar metrics. Use `--alignment strict` when
-comparing two already-aligned deterministic runtime outputs; the default
-`center-crop-reference` is intended for comparison with the larger prepared
-DaRUS temperature label.
+absolute error fields, and scalar metrics. `--plots-dir` additionally creates
+four PNG maps: predicted temperature, reference temperature, signed error, and
+absolute error. Use `--alignment strict` when comparing two already-aligned
+deterministic runtime outputs; the default `center-crop-reference` is intended
+for comparison with the larger prepared DaRUS temperature label.
 
 ## Minimal model-agnostic use
 
@@ -137,10 +142,8 @@ k = np.stack([
     np.full((8, 12), 1.0e-10),
     np.full((8, 12), 2.0e-10),
 ])
-
-sampler = EmpiricalPermeabilitySampler(k, batch_size=2)
 surrogate = CallableTemperatureSurrogate(lambda field: 10.0 - field / 1.0e-10)
-result = MonteCarloRunner(sampler, surrogate).run()
+result = MonteCarloRunner(EmpiricalPermeabilitySampler(k, batch_size=2), surrogate).run()
 
 print(result.count)
 print(result.mean.shape)
@@ -162,7 +165,8 @@ Normal CI covers:
 - standard-model reconstruction from release25 metadata using a small fixture;
 - execution of the complete CNN1 -> Step 2 -> CNN3 adapter contract with a
   deterministic lightweight Step-2 fixture;
-- reverse-normalization, center-crop alignment, and scalar metrics for prepared
+- reverse-normalization, center-crop alignment, scalar metrics, spatial error
+  percentiles/threshold fractions, and diagnostic-map generation for prepared
   temperature-reference validation.
 
 The large published DaRUS model/data archives are not downloaded in CI. A local
