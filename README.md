@@ -89,6 +89,33 @@ subsurface-uq-release25 \
 See `docs/release25_darus.md` for the required DaRUS assets, directory layout,
 and model-loading contract.
 
+## LGCNN diagnostic and publication plots
+
+Supplying `--plots-dir` to the release25 runner generates deterministic plots for
+the fixed run: velocity x/y/magnitude, central and outer streamline feature
+fields, and temperature. It also creates three combined figures: temperature
+with central streamline contours, temperature with heat-pump markers, and a
+combined temperature/streamline/heat-pump overlay.
+
+```bash
+python -m subsurface_uq.experiments.release25_empirical \
+  --release25-repo external/release25-repo/Heat-Plume-Prediction \
+  --cnn1-dir models/LGCNN_step1_randomK \
+  --cnn2-dir models/LGCNN_step3_randomK \
+  --prepared-pki-dir data/prepared_pki \
+  --fixed-run-id RUN_1 \
+  --device cpu \
+  --output run_output/release25_single.npz \
+  --plots-dir run_output/release25_RUN_1_lgcnn
+```
+
+The plotting default `--cell-size-m 5.0` matches the release25 synthetic grid
+and expresses spatial axes in kilometres. `--streamline-plot-threshold` controls
+which values of the actual rasterized central streamline feature are shown as
+contours in the overlays. Heat-pump markers are derived from connected
+`Material ID == 2` regions after center alignment to the temperature output.
+For other grids, pass the correct cell size explicitly.
+
 ## Temperature validation against prepared DaRUS labels
 
 The `subsurface_uq.validation` package compares one physical release25
@@ -165,6 +192,7 @@ Normal CI covers:
 - standard-model reconstruction from release25 metadata using a small fixture;
 - execution of the complete CNN1 -> Step 2 -> CNN3 adapter contract with a
   deterministic lightweight Step-2 fixture;
+- release25 diagnostic-map and combined-overlay generation;
 - reverse-normalization, center-crop alignment, scalar metrics, spatial error
   percentiles/threshold fractions, and diagnostic-map generation for prepared
   temperature-reference validation.
