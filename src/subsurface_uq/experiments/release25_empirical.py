@@ -10,7 +10,7 @@ from ..propagation import MonteCarloRunner
 from ..sampling import EmpiricalPermeabilitySampler, load_empirical_fields
 from ..surrogates import Release25Surrogate
 from ..surrogates.release25_runtime import Release25Runtime
-from ..visualization import save_release25_output_plots
+from ..visualization import save_release25_output_plots, save_release25_overlay_plots
 
 
 def _run_ids(value: str) -> list[str]:
@@ -65,9 +65,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--plots-dir",
         help=(
-            "Optional directory for deterministic LGCNN diagnostic maps. "
-            "Plots show the fixed run's velocity, central/outer streamline "
-            "feature fields, and final temperature prediction."
+            "Optional directory for deterministic LGCNN diagnostic maps and "
+            "publication-style temperature/streamline/heat-pump overlays."
+        ),
+    )
+    parser.add_argument(
+        "--cell-size-m",
+        type=float,
+        default=5.0,
+        help=(
+            "Grid-cell size used for plot axes in metres. Default 5.0 matches "
+            "the release25 synthetic baseline."
+        ),
+    )
+    parser.add_argument(
+        "--streamline-plot-threshold",
+        type=float,
+        default=0.05,
+        help=(
+            "Threshold for converting the central streamline feature into overlay "
+            "contours (default: 0.05)."
         ),
     )
     return parser
@@ -141,9 +158,18 @@ def main() -> None:
             outputs,
             args.plots_dir,
             prefix=args.fixed_run_id,
+            cell_size_m=args.cell_size_m,
+        )
+        overlays = save_release25_overlay_plots(
+            outputs,
+            runtime.scenario.fixed.material_id,
+            args.plots_dir,
+            prefix=args.fixed_run_id,
+            cell_size_m=args.cell_size_m,
+            streamline_threshold=args.streamline_plot_threshold,
         )
         print("Saved deterministic LGCNN diagnostic plots:")
-        for name, path in plots.items():
+        for name, path in {**plots, **overlays}.items():
             print(f"  {name}: {path}")
 
 
