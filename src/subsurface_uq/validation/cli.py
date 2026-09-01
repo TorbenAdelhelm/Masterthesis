@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
+from .diagnostics import save_temperature_diagnostic_plots, summarize_temperature_errors
 from .temperature import (
     compare_temperature_fields,
     load_prediction_field,
@@ -47,6 +49,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--output",
         default="run_output/release25_temperature_validation.npz",
     )
+    parser.add_argument(
+        "--plots-dir",
+        help=(
+            "Optional directory for prediction, reference, signed-error and "
+            "absolute-error PNG maps."
+        ),
+    )
     return parser
 
 
@@ -64,6 +73,7 @@ def main() -> None:
         reference,
         alignment=args.alignment,
     )
+    diagnostics = summarize_temperature_errors(comparison)
     destination = save_temperature_comparison(
         comparison,
         args.output,
@@ -82,7 +92,28 @@ def main() -> None:
     print(f"RMSE: {comparison.rmse:.6f} degC")
     print(f"Max absolute error: {comparison.max_absolute_error:.6f} degC")
     print(f"Mean bias: {comparison.bias:.6f} degC")
+    print("Absolute-error percentiles:")
+    print(f"  p50:  {diagnostics.p50_absolute_error:.6f} degC")
+    print(f"  p90:  {diagnostics.p90_absolute_error:.6f} degC")
+    print(f"  p95:  {diagnostics.p95_absolute_error:.6f} degC")
+    print(f"  p99:  {diagnostics.p99_absolute_error:.6f} degC")
+    print(f"  p99.9:{diagnostics.p999_absolute_error:.6f} degC")
+    print("Spatial fraction above absolute-error thresholds:")
+    print(f"  > 0.1 degC: {100.0 * diagnostics.fraction_above_0p1:.4f}%")
+    print(f"  > 0.5 degC: {100.0 * diagnostics.fraction_above_0p5:.4f}%")
+    print(f"  > 1.0 degC: {100.0 * diagnostics.fraction_above_1p0:.4f}%")
     print(f"Saved validation result to {destination}")
+
+    if args.plots_dir:
+        prefix = f"release25_{args.run_id}"
+        paths = save_temperature_diagnostic_plots(
+            comparison,
+            Path(args.plots_dir),
+            prefix=prefix,
+        )
+        print("Saved diagnostic plots:")
+        for name, path in paths.items():
+            print(f"  {name}: {path}")
 
 
 if __name__ == "__main__":
