@@ -157,6 +157,31 @@ absolute error. Use `--alignment strict` when comparing two already-aligned
 deterministic runtime outputs; the default `center-crop-reference` is intended
 for comparison with the larger prepared DaRUS temperature label.
 
+Validation can also regenerate the deterministic central streamline feature and
+heat-pump locations for the same run and overlay them on the aligned prediction,
+reference and absolute-error fields:
+
+```bash
+python -m subsurface_uq.validation.cli \
+  --prediction run_output/release25_single.npz \
+  --reference-dir data/prepared_pki_temperature \
+  --run-id RUN_1 \
+  --output run_output/release25_RUN_1_validation.npz \
+  --plots-dir run_output/release25_RUN_1_plots \
+  --overlay-plots-dir run_output/release25_RUN_1_overlay_plots \
+  --release25-repo external/release25-repo/Heat-Plume-Prediction \
+  --cnn1-dir models/LGCNN_step1_randomK \
+  --cnn2-dir models/LGCNN_step3_randomK \
+  --prepared-pki-dir data/prepared_pki \
+  --device cpu
+```
+
+This produces `release25_RUN_1_prediction_streamlines_heatpumps.png`,
+`release25_RUN_1_reference_streamlines_heatpumps.png` and
+`release25_RUN_1_absolute_error_streamlines_heatpumps.png`. The overlays use the
+same `--cell-size-m` and `--streamline-plot-threshold` conventions as the
+release25 diagnostic plots.
+
 ## Minimal model-agnostic use
 
 ```python
@@ -194,8 +219,9 @@ Normal CI covers:
   deterministic lightweight Step-2 fixture;
 - release25 diagnostic-map and combined-overlay generation;
 - reverse-normalization, center-crop alignment, scalar metrics, spatial error
-  percentiles/threshold fractions, and diagnostic-map generation for prepared
-  temperature-reference validation.
+  percentiles/threshold fractions, diagnostic-map generation, and aligned
+  prediction/reference/error overlay generation for prepared temperature-reference
+  validation.
 
 The large published DaRUS model/data archives are not downloaded in CI. A local
 smoke test with those assets remains the acceptance test for numerical inference
