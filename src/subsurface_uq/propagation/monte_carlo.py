@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Sequence
 
 import numpy as np
 
 from ..sampling.base import PermeabilitySampler
-from ..statistics import OnlineFieldStatistics
+from ..statistics import OnlineExceedanceStatistics, OnlineFieldStatistics
 from ..surrogates.base import TemperatureSurrogate
 
 Array = np.ndarray
@@ -20,11 +21,14 @@ class MonteCarloResult:
     minimum: Array
     maximum: Array
     samples: Array | None = None
+    exceedance_thresholds: tuple[float, ...] = ()
+    exceedance_probabilities: Array | None = None
+    background_temperature: float | None = None
 
 
 @dataclass
 class MonteCarloRunner:
-    """Propagate empirical permeability realizations through a deterministic surrogate."""
+    """Propagate permeability realizations through a deterministic surrogate."""
 
     sampler: PermeabilitySampler
     surrogate: TemperatureSurrogate
@@ -35,11 +39,27 @@ class MonteCarloRunner:
         n_samples: int | None = None,
         store_all: bool = False,
         ddof: int = 1,
+        background_temperature: float | None = None,
+        exceedance_thresholds: Sequence[float] = (),
     ) -> MonteCarloResult:
         if n_samples is not None and n_samples <= 0:
             raise ValueError("n_samples must be positive or None")
 
+        thresholds = tuple(float(value) for value in exceedance_thresholds)
+        if thresholds and background_temperature is None:
+            raise ValueError(
+                "background_temperature is required when exceedance thresholds are requested"
+            )
+
         statistics = OnlineFieldStatistics()
+        exceedance = (
+            OnlineExceedanceStatistics(
+                thresholds,
+                background_temperature=float(background_temperature),
+            )
+            if thresholds
+            else None
+        )
         stored: list[Array] | None = [] if store_all else None
         seen = 0
 
@@ -72,6 +92,8 @@ class MonteCarloRunner:
                 )
 
             statistics.update(temperatures)
+            if exceedance is not None:
+                exceedance.update(temperatures)
             if stored is not None:
                 stored.append(temperatures.astype(np.float32, copy=True))
             seen += int(batch.shape[0])
@@ -80,6 +102,7 @@ class MonteCarloRunner:
             raise RuntimeError("Monte Carlo propagation produced no samples")
 
         summary = statistics.finalize(ddof=ddof)
+        exceedance_summary = None if exceedance is None else exceedance.finalize()
         samples = None if stored is None else np.concatenate(stored, axis=0)
         return MonteCarloResult(
             count=summary.count,
@@ -89,4 +112,15 @@ class MonteCarloRunner:
             minimum=summary.minimum,
             maximum=summary.maximum,
             samples=samples,
+            exceedance_thresholds=(
+                () if exceedance_summary is None else exceedance_summary.thresholds
+            ),
+            exceedance_probabilities=(
+                None
+                if exceedance_summary is None
+                else exceedance_summary.probabilities
+            ),
+            background_temperature=(
+                None if exceedance_summary is None else float(background_temperature)
+            ),
         )
