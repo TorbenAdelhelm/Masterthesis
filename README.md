@@ -8,14 +8,15 @@ framework around deterministic subsurface heat-plume surrogate models.
 The first implementation deliberately keeps the UQ core small and model-agnostic:
 
 ```text
-EmpiricalPermeabilitySampler
+PermeabilitySampler
         -> TemperatureSurrogate
         -> MonteCarloRunner
         -> OnlineFieldStatistics
+        -> OnlineExceedanceStatistics (optional)
 ```
 
-The baseline treats an existing ensemble of permeability fields as uncertain
-realizations. This allows propagation, statistics, batching, validation and
+The baseline treats an ensemble of permeability fields as uncertain realizations.
+This allows propagation, statistics, batching, validation, visualization and
 later QoI layers to be developed before a conditional geostatistical sampler is
 introduced.
 
@@ -38,7 +39,7 @@ python -m pytest
 
 ## Real release25 + DaRUS execution
 
-The repository now contains an executable integration layer for the published
+The repository contains an executable integration layer for the published
 LGCNN pipeline:
 
 ```text
@@ -89,13 +90,78 @@ subsurface-uq-release25 \
 See `docs/release25_darus.md` for the required DaRUS assets, directory layout,
 and model-loading contract.
 
+## Historical Perlin Monte Carlo UQ
+
+`Release25PerlinPermeabilitySampler` reproduces the historical synthetic
+`perlin_v2` input law used for the released LGCNN training data: 2-D
+`pnoise2`, field-wise min/max normalization, mapping in `log10(k)` space and
+base-10 exponentiation. The release25 defaults are a 2560 x 2560 grid,
+frequency `(18, 18)`, `k_min=1.0193679918450561e-11 m^2` and
+`k_max=5.09683995922528e-09 m^2`. The sampler uses an explicit UQ seed so new
+Monte Carlo experiments are reproducible even though the historical generator's
+NumPy seeding call was commented out.
+
+A Perlin forward-UQ run with fixed pressure/heat-pump inputs is:
+
+```bash
+python -m subsurface_uq.experiments.release25_perlin \
+  --release25-repo external/release25-repo/Heat-Plume-Prediction \
+  --cnn1-dir models/LGCNN_step1_randomK \
+  --cnn2-dir models/LGCNN_step3_randomK \
+  --prepared-pki-dir data/prepared_pki \
+  --fixed-run-id RUN_1 \
+  --n-samples 5 \
+  --seed 2907 \
+  --device cpu \
+  --output run_output/release25_perlin_mc_5.npz \
+  --plots-dir run_output/release25_perlin_mc_5_plots
+```
+
+By default the run also accumulates the empirical spatial probabilities
+`P(Delta T >= 0.1 degC)` and `P(Delta T >= 1.0 degC)` online relative to a
+10 degC background. These defaults are configurable with
+`--background-temperature` and `--exceedance-thresholds`. The probability
+counters are streaming, so individual temperature realizations do not need to
+be retained. Use `--store-all` only when the individual model outputs are
+needed for a separate analysis.
+
+The saved NPZ contains mean, variance, standard deviation, minimum, maximum,
+reproducibility metadata and, for new runs, the exceedance thresholds/maps.
+A neighboring `.metadata.json` contains the same run metadata in readable form.
+
+## Monte Carlo/UQ visualization
+
+The dedicated UQ plotting layer creates publication-style physical-space maps
+with axes in kilometres. For a new Perlin run, `--plots-dir` creates:
+
+- mean temperature;
+- temperature standard deviation;
+- sample temperature range (`max - min`);
+- mean temperature with standard-deviation contours;
+- mean `Delta T` relative to the configured background temperature;
+- one empirical exceedance-probability map per configured `Delta T` threshold.
+
+Existing MC archives can be plotted without re-running the LGCNN:
+
+```bash
+python -m subsurface_uq.visualization.cli \
+  --input run_output/release25_perlin_mc_5.npz \
+  --output-dir run_output/release25_perlin_mc_5_plots \
+  --background-temperature 10.0
+```
+
+The explicit `--background-temperature 10.0` is useful for older archives made
+before the background temperature was stored in their metadata. New Perlin
+archives carry the value automatically. The default `--cell-size-m 5.0` matches
+the synthetic release25 grid.
+
 ## LGCNN diagnostic and publication plots
 
-Supplying `--plots-dir` to the release25 runner generates deterministic plots for
-the fixed run: velocity x/y/magnitude, central and outer streamline feature
-fields, and temperature. It also creates three combined figures: temperature
-with central streamline contours, temperature with heat-pump markers, and a
-combined temperature/streamline/heat-pump overlay.
+Supplying `--plots-dir` to the release25 empirical runner generates deterministic
+plots for the fixed run: velocity x/y/magnitude, central and outer streamline
+feature fields, and temperature. It also creates three combined figures:
+temperature with central streamline contours, temperature with heat-pump
+markers, and a combined temperature/streamline/heat-pump overlay.
 
 ```bash
 python -m subsurface_uq.experiments.release25_empirical \
@@ -211,6 +277,11 @@ Normal CI covers:
 - online Welford statistics against direct NumPy statistics;
 - zero variance for identical realizations;
 - Monte-Carlo invariance to sampler batch size;
+- online `Delta T` exceedance probabilities against direct sample counting;
+- historical Perlin formula/reproducibility tests;
+- Monte Carlo result metadata and exceedance-map persistence;
+- Monte Carlo/UQ mean, standard-deviation, range, overlay, Delta-T and
+  exceedance-probability plot generation;
 - delegation through `Release25Surrogate`;
 - release25 normalization round-trips;
 - physical recovery of a prepared `pki` scenario;
@@ -230,7 +301,8 @@ surrogate error against a stored prepared reference label.
 
 ## Next phases
 
-After deterministic/reference validation, the next implementation layers are an
-extensible QoI framework and a borehole-conditioned geostatistical sampler.
-Advanced propagation approaches such as JVP/first-order Gaussian propagation
-remain optional comparison methods rather than baseline dependencies.
+After deterministic/reference validation and the synthetic Perlin forward-UQ
+baseline, the next implementation layers are an extensible QoI framework,
+Monte Carlo convergence diagnostics and a borehole-conditioned geostatistical
+sampler. Advanced propagation approaches such as JVP/first-order Gaussian
+propagation remain optional comparison methods rather than baseline dependencies.
