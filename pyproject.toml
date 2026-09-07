@@ -15,6 +15,7 @@ dependencies = [
     "scipy>=1.10",
     "tqdm>=4.65",
     "matplotlib>=3.7",
+    "noise>=1.2.2",
 ]
 
 [project.optional-dependencies]
@@ -22,6 +23,7 @@ test = ["pytest>=7.4"]
 
 [project.scripts]
 subsurface-uq-release25 = "subsurface_uq.experiments.release25_empirical:main"
+subsurface-uq-release25-perlin = "subsurface_uq.experiments.release25_perlin:main"
 subsurface-uq-validate-temperature = "subsurface_uq.validation.cli:main"
 
 [tool.setuptools.packages.find]
