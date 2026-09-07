@@ -3,9 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-import numpy as np
-
-from ..io import load_prepared_permeability_ensemble
+from ..io import load_prepared_permeability_ensemble, save_monte_carlo_result
 from ..propagation import MonteCarloRunner
 from ..sampling import EmpiricalPermeabilitySampler, load_empirical_fields
 from ..surrogates import Release25Surrogate
@@ -105,14 +103,17 @@ def main() -> None:
 
     if args.ensemble_file:
         fields = load_empirical_fields(args.ensemble_file, key=args.ensemble_key)
+        source_kind = "ensemble_file"
     elif args.permeability_run_ids:
         fields = load_prepared_permeability_ensemble(
             args.prepared_pki_dir,
             args.permeability_run_ids,
             device="cpu",
         )
+        source_kind = "prepared_run_ids"
     else:
         fields = runtime.scenario.original_permeability.detach().cpu().numpy()[None, ...]
+        source_kind = "fixed_run_only"
 
     if tuple(fields.shape[1:]) != runtime.scenario.shape:
         raise ValueError(
@@ -132,20 +133,36 @@ def main() -> None:
         ddof=args.ddof,
     )
 
-    destination = Path(args.output).expanduser().resolve()
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    payload: dict[str, np.ndarray] = {
-        "count": np.asarray(result.count, dtype=np.int64),
-        "mean": result.mean,
-        "variance": result.variance,
-        "std": result.std,
-        "minimum": result.minimum,
-        "maximum": result.maximum,
+    metadata = {
+        "uq_mode": "empirical_forward_monte_carlo",
+        "sampler": "EmpiricalPermeabilitySampler",
+        "source_kind": source_kind,
+        "fixed_run_id": args.fixed_run_id,
+        "prepared_pki_dir": str(Path(args.prepared_pki_dir)),
+        "release25_repo": str(Path(args.release25_repo)),
+        "cnn1_dir": str(Path(args.cnn1_dir)),
+        "cnn2_dir": str(Path(args.cnn2_dir)),
+        "ensemble_file": args.ensemble_file,
+        "ensemble_key": args.ensemble_key,
+        "permeability_run_ids": args.permeability_run_ids,
+        "available_sample_count": len(sampler),
+        "requested_sample_count": args.n_samples,
+        "batch_size": args.batch_size,
+        "device": args.device,
+        "streamline_method": args.streamline_method,
+        "random_k": bool(args.random_k),
+        "ddof": int(args.ddof),
+        "store_all": bool(args.store_all),
+        "permeability_shape": [int(value) for value in runtime.scenario.shape],
+        "temperature_shape": [int(value) for value in result.mean.shape],
     }
-    if result.samples is not None:
-        payload["samples"] = result.samples
-    np.savez_compressed(destination, **payload)
+    destination, metadata_path = save_monte_carlo_result(
+        result,
+        args.output,
+        metadata=metadata,
+    )
     print(f"Saved Monte Carlo result to {destination}")
+    print(f"Saved reproducibility metadata to {metadata_path}")
     print(f"Samples propagated: {result.count}")
     print(f"Temperature field shape: {result.mean.shape}")
 
