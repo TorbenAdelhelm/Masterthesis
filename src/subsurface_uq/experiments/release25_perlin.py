@@ -14,6 +14,7 @@ from ..sampling import (
 )
 from ..surrogates import Release25Surrogate
 from ..surrogates.release25_runtime import Release25Runtime
+from ..visualization import plot_monte_carlo_archive
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -71,7 +72,34 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--streamline-method", choices=("RK45", "RK23", "Radau"), default="RK45"
     )
+    parser.add_argument(
+        "--background-temperature",
+        type=float,
+        default=10.0,
+        help="Background temperature for Delta-T UQ statistics in degC (default: 10.0).",
+    )
+    parser.add_argument(
+        "--exceedance-thresholds",
+        type=float,
+        nargs="+",
+        default=(0.1, 1.0),
+        metavar="DELTA_T",
+        help=(
+            "Delta-T thresholds in degC for online exceedance probabilities. "
+            "Default: 0.1 1.0."
+        ),
+    )
     parser.add_argument("--output", default="run_output/release25_perlin_mc.npz")
+    parser.add_argument(
+        "--plots-dir",
+        help="Optional directory for mean/std/range/Delta-T/exceedance UQ maps.",
+    )
+    parser.add_argument(
+        "--cell-size-m",
+        type=float,
+        default=5.0,
+        help="Grid-cell size used for UQ plot axes in metres (default: 5.0).",
+    )
     return parser
 
 
@@ -113,6 +141,8 @@ def main() -> None:
         n_samples=args.n_samples,
         store_all=args.store_all,
         ddof=args.ddof,
+        background_temperature=args.background_temperature,
+        exceedance_thresholds=args.exceedance_thresholds,
     )
 
     metadata = {
@@ -128,6 +158,7 @@ def main() -> None:
         "random_k": bool(args.random_k),
         "ddof": int(args.ddof),
         "store_all": bool(args.store_all),
+        "cell_size_m": float(args.cell_size_m),
         "temperature_shape": [int(value) for value in result.mean.shape],
         "provenance": {
             "dataset": "dataset_giant_100hp_varyK",
@@ -161,6 +192,21 @@ def main() -> None:
         f"seed={sampler.seed}, frequency={sampler.frequency}, "
         f"k_min={sampler.k_min:.16e}, k_max={sampler.k_max:.16e}"
     )
+    print(
+        "Delta-T exceedance probabilities: "
+        f"background={args.background_temperature:g} degC, "
+        f"thresholds={tuple(float(value) for value in args.exceedance_thresholds)}"
+    )
+
+    if args.plots_dir:
+        paths = plot_monte_carlo_archive(
+            destination,
+            args.plots_dir,
+            cell_size_m=args.cell_size_m,
+        )
+        print("Saved Monte Carlo/UQ plots:")
+        for name, path in paths.items():
+            print(f"  {name}: {path}")
 
 
 if __name__ == "__main__":
