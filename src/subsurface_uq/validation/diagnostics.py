@@ -25,6 +25,21 @@ class TemperatureDiagnostics:
     fraction_above_1p0: float
 
 
+def _fraction_strictly_above(values: Array, threshold: float) -> float:
+    """Return a strict exceedance fraction without float32 threshold artifacts.
+
+    ``TemperatureComparison`` stores fields as float32. A decimal boundary such
+    as 0.1 is therefore represented internally as approximately
+    0.10000000149. Quantizing the threshold to the field dtype before the strict
+    comparison keeps a value that is exactly 0.1 at field precision from being
+    spuriously counted as ``> 0.1`` after conversion to float64.
+    """
+
+    source = np.asarray(values)
+    typed_threshold = np.asarray(threshold, dtype=source.dtype).item()
+    return float(np.mean(source > typed_threshold))
+
+
 def summarize_temperature_errors(
     comparison: TemperatureComparison,
 ) -> TemperatureDiagnostics:
@@ -33,7 +48,8 @@ def summarize_temperature_errors(
     Fractions are returned as unit fractions in [0, 1]. Thresholds are in °C.
     """
 
-    absolute = np.asarray(comparison.absolute_error, dtype=np.float64)
+    absolute_source = np.asarray(comparison.absolute_error)
+    absolute = np.asarray(absolute_source, dtype=np.float64)
     if absolute.ndim != 2:
         raise ValueError(f"absolute error must be 2-D, got {absolute.shape}")
     if not np.all(np.isfinite(absolute)):
@@ -46,9 +62,9 @@ def summarize_temperature_errors(
         p95_absolute_error=float(percentiles[2]),
         p99_absolute_error=float(percentiles[3]),
         p999_absolute_error=float(percentiles[4]),
-        fraction_above_0p1=float(np.mean(absolute > 0.1)),
-        fraction_above_0p5=float(np.mean(absolute > 0.5)),
-        fraction_above_1p0=float(np.mean(absolute > 1.0)),
+        fraction_above_0p1=_fraction_strictly_above(absolute_source, 0.1),
+        fraction_above_0p5=_fraction_strictly_above(absolute_source, 0.5),
+        fraction_above_1p0=_fraction_strictly_above(absolute_source, 1.0),
     )
 
 
