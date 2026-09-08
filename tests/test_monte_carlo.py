@@ -95,3 +95,31 @@ def test_exceedance_probabilities_are_invariant_to_sampler_batch_size():
         EmpiricalPermeabilitySampler(fields, batch_size=4), _surrogate()
     ).run(**kwargs)
     np.testing.assert_array_equal(a.exceedance_probabilities, b.exceedance_probabilities)
+
+
+class _DomainMeanAccumulator:
+    name = "domain_mean_temperature"
+
+    def __init__(self):
+        self.values = []
+
+    def update(self, temperatures):
+        batch = np.asarray(temperatures)
+        self.values.extend(np.mean(batch, axis=(1, 2)).tolist())
+
+    def finalize(self):
+        return np.asarray(self.values, dtype=np.float32)
+
+
+def test_custom_temperature_accumulator_extends_runner_without_core_changes():
+    fields = _ensemble()[:4]
+    accumulator = _DomainMeanAccumulator()
+    result = MonteCarloRunner(
+        EmpiricalPermeabilitySampler(fields, batch_size=3), _surrogate()
+    ).run(accumulators=(accumulator,))
+
+    direct = np.stack([_surrogate().predict_temperature(k) for k in fields])
+    expected = np.mean(direct, axis=(1, 2))
+    np.testing.assert_allclose(
+        result.accumulator_results["domain_mean_temperature"], expected
+    )
