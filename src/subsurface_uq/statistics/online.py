@@ -22,6 +22,19 @@ class OnlineFieldStatistics:
 
     Temperature fields are two-dimensional. ``update`` accepts either one
     ``[H,W]`` field or a batch ``[B,H,W]`` and stores only aggregate statistics.
+
+    For a field value :math:`T_m(x)` at spatial cell ``x``, the running state
+    stores the sample count ``n``, mean ``mu`` and centered sum of squares
+    ``M2 = sum_m (T_m-mu)^2``. Two batches ``A`` and ``B`` are merged with
+
+    ``mu = mu_A + delta * n_B/(n_A+n_B)``
+
+    and
+
+    ``M2 = M2_A + M2_B + delta^2*n_A*n_B/(n_A+n_B)``,
+
+    where ``delta = mu_B-mu_A``. This is algebraically equivalent to direct
+    accumulation but avoids retaining all Monte Carlo fields.
     """
 
     def __init__(self) -> None:
@@ -90,14 +103,18 @@ class OnlineFieldStatistics:
         if ddof < 0:
             raise ValueError("ddof must be non-negative")
 
+        denominator = self.count - ddof
+        if denominator <= 0:
+            raise ValueError(
+                "variance is undefined because sample_count <= ddof; "
+                f"got sample_count={self.count}, ddof={ddof}. "
+                "Use ddof=0 for a one-sample deterministic diagnostic."
+            )
+
         assert self.m2 is not None
         assert self.minimum is not None
         assert self.maximum is not None
-        denominator = self.count - ddof
-        if denominator <= 0:
-            variance = np.zeros_like(self.mean)
-        else:
-            variance = self.m2 / denominator
+        variance = self.m2 / denominator
         variance = np.maximum(variance, 0.0)
         return FieldStatistics(
             count=self.count,
