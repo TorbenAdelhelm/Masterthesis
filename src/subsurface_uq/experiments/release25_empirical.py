@@ -3,7 +3,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from ..io import load_prepared_permeability_ensemble, save_monte_carlo_result
+from ..io import (
+    git_head,
+    load_prepared_permeability_ensemble,
+    runtime_versions,
+    save_monte_carlo_result,
+    sha256_file,
+)
 from ..propagation import MonteCarloRunner
 from ..sampling import EmpiricalPermeabilitySampler, load_empirical_fields
 from ..surrogates import Release25Surrogate
@@ -27,7 +33,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--release25-repo", required=True)
     parser.add_argument("--cnn1-dir", required=True)
-    parser.add_argument("--cnn2-dir", required=True)
+    parser.add_argument(
+        "--cnn2-dir",
+        required=True,
+        help=(
+            "Legacy CLI name for the second CNN model folder, i.e. LGCNN Step 3/CNN3. "
+            "Retained for backwards compatibility."
+        ),
+    )
     parser.add_argument("--prepared-pki-dir", required=True)
     parser.add_argument(
         "--fixed-run-id",
@@ -50,7 +63,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ensemble-key")
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--n-samples", type=int)
-    parser.add_argument("--ddof", type=int, default=1)
+    parser.add_argument(
+        "--ddof",
+        type=int,
+        default=None,
+        help=(
+            "Variance degrees of freedom. By default uses ddof=1 for N>=2 and "
+            "ddof=0 for a one-sample deterministic smoke run."
+        ),
+    )
     parser.add_argument("--store-all", action="store_true")
     parser.add_argument("--device", default="cpu")
     parser.add_argument(
@@ -122,6 +143,9 @@ def main() -> None:
         )
 
     sampler = EmpiricalPermeabilitySampler(fields, batch_size=args.batch_size)
+    requested_count = len(sampler) if args.n_samples is None else min(args.n_samples, len(sampler))
+    effective_ddof = args.ddof if args.ddof is not None else (0 if requested_count == 1 else 1)
+
     surrogate = Release25Surrogate(
         adapter=runtime.adapter,
         fixed_inputs=runtime.scenario.fixed,
@@ -130,9 +154,10 @@ def main() -> None:
     result = MonteCarloRunner(sampler=sampler, surrogate=surrogate).run(
         n_samples=args.n_samples,
         store_all=args.store_all,
-        ddof=args.ddof,
+        ddof=effective_ddof,
     )
 
+    project_root = Path(__file__).resolve().parents[3]
     metadata = {
         "uq_mode": "empirical_forward_monte_carlo",
         "sampler": "EmpiricalPermeabilitySampler",
@@ -142,6 +167,7 @@ def main() -> None:
         "release25_repo": str(Path(args.release25_repo)),
         "cnn1_dir": str(Path(args.cnn1_dir)),
         "cnn2_dir": str(Path(args.cnn2_dir)),
+        "cnn2_dir_role": "LGCNN Step 3 / CNN3 (legacy argument name)",
         "ensemble_file": args.ensemble_file,
         "ensemble_key": args.ensemble_key,
         "permeability_run_ids": args.permeability_run_ids,
@@ -151,10 +177,19 @@ def main() -> None:
         "device": args.device,
         "streamline_method": args.streamline_method,
         "random_k": bool(args.random_k),
-        "ddof": int(args.ddof),
+        "ddof": int(effective_ddof),
+        "ddof_requested": args.ddof,
         "store_all": bool(args.store_all),
         "permeability_shape": [int(value) for value in runtime.scenario.shape],
         "temperature_shape": [int(value) for value in result.mean.shape],
+        "runtime": runtime_versions(),
+        "provenance": {
+            "masterthesis_git_sha": git_head(project_root),
+            "release25_git_sha": git_head(args.release25_repo),
+            "cnn1_checkpoint_sha256": sha256_file(runtime.adapter.cnn1.checkpoint),
+            "cnn3_checkpoint_sha256": sha256_file(runtime.adapter.cnn2.checkpoint),
+            "published_model_doi": "10.18419/DARUS-5080",
+        },
     }
     destination, metadata_path = save_monte_carlo_result(
         result,
@@ -165,6 +200,7 @@ def main() -> None:
     print(f"Saved reproducibility metadata to {metadata_path}")
     print(f"Samples propagated: {result.count}")
     print(f"Temperature field shape: {result.mean.shape}")
+    print(f"Variance ddof: {effective_ddof}")
 
     if args.plots_dir:
         # Diagnostic plots intentionally use the fixed prepared run's original
