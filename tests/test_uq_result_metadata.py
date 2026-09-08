@@ -44,8 +44,10 @@ def test_save_monte_carlo_result_persists_required_metadata(tmp_path) -> None:
     assert sidecar["k_min"] == metadata["k_min"]
     assert sidecar["k_max"] == metadata["k_max"]
     assert sidecar["sample_count"] == 5
+    assert sidecar["result_schema_version"] == 2
 
     with np.load(archive_path, allow_pickle=False) as archive:
         embedded = json.loads(str(archive["metadata_json"]))
         assert int(archive["count"]) == 5
+        assert int(archive["schema_version"]) == 2
         assert embedded == sidecar
