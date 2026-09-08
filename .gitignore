@@ -18,6 +18,5 @@ run_output/
 *.npy
 *.npz
 
-# Keep committed example/config files.
-!configs/**
+# Keep committed example files if/when they are added.
 !examples/**
