@@ -3,18 +3,22 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from ..io import save_monte_carlo_result
+from ..io import git_head, runtime_versions, save_monte_carlo_result, sha256_file
 from ..propagation import MonteCarloRunner
 from ..sampling import (
     RELEASE25_PERLIN_DEFAULT_SEED,
     RELEASE25_PERLIN_FREQUENCY,
     RELEASE25_PERLIN_K_MAX,
     RELEASE25_PERLIN_K_MIN,
+    RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C,
     Release25PerlinPermeabilitySampler,
 )
 from ..surrogates import Release25Surrogate
 from ..surrogates.release25_runtime import Release25Runtime
 from ..visualization import plot_monte_carlo_archive
+
+HISTORICAL_GENERATOR_COMMIT = "8549bbd9e22d2bc75ce2038c1a0397359e45c971"
+HISTORICAL_GENERATOR_PATH = "scripts/create_varying_field.py"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -27,7 +31,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--release25-repo", required=True)
     parser.add_argument("--cnn1-dir", required=True)
-    parser.add_argument("--cnn2-dir", required=True)
+    parser.add_argument(
+        "--cnn2-dir",
+        required=True,
+        help=(
+            "Legacy CLI name for the second CNN model folder, i.e. LGCNN Step 3/CNN3. "
+            "Retained for backwards compatibility."
+        ),
+    )
     parser.add_argument("--prepared-pki-dir", required=True)
     parser.add_argument(
         "--fixed-run-id",
@@ -63,7 +74,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum permeability in m^2 from the released synthetic dataset.",
     )
     parser.add_argument("--base-start", type=int, default=0)
-    parser.add_argument("--ddof", type=int, default=1)
+    parser.add_argument(
+        "--ddof",
+        type=int,
+        default=None,
+        help=(
+            "Variance degrees of freedom. By default uses ddof=1 for N>=2 and "
+            "ddof=0 for a one-sample deterministic diagnostic."
+        ),
+    )
     parser.add_argument("--store-all", action="store_true")
     parser.add_argument("--device", default="cpu")
     parser.add_argument(
@@ -75,8 +94,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--background-temperature",
         type=float,
-        default=10.0,
-        help="Background temperature for Delta-T UQ statistics in degC (default: 10.0).",
+        default=RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C,
+        help=(
+            "Background temperature for Delta-T UQ statistics in degC. "
+            "Default: 10.6, the initial groundwater temperature in the historical "
+            "synthetic PFLOTRAN setup."
+        ),
     )
     parser.add_argument(
         "--exceedance-thresholds",
@@ -137,14 +160,16 @@ def main() -> None:
         fixed_inputs=runtime.scenario.fixed,
         device=args.device,
     )
+    effective_ddof = args.ddof if args.ddof is not None else (0 if args.n_samples == 1 else 1)
     result = MonteCarloRunner(sampler=sampler, surrogate=surrogate).run(
         n_samples=args.n_samples,
         store_all=args.store_all,
-        ddof=args.ddof,
+        ddof=effective_ddof,
         background_temperature=args.background_temperature,
         exceedance_thresholds=args.exceedance_thresholds,
     )
 
+    project_root = Path(__file__).resolve().parents[3]
     metadata = {
         **sampler.metadata,
         "uq_mode": "synthetic_perlin_forward_monte_carlo",
@@ -153,14 +178,22 @@ def main() -> None:
         "release25_repo": str(Path(args.release25_repo)),
         "cnn1_dir": str(Path(args.cnn1_dir)),
         "cnn2_dir": str(Path(args.cnn2_dir)),
+        "cnn2_dir_role": "LGCNN Step 3 / CNN3 (legacy argument name)",
         "device": args.device,
         "streamline_method": args.streamline_method,
         "random_k": bool(args.random_k),
-        "ddof": int(args.ddof),
+        "ddof": int(effective_ddof),
+        "ddof_requested": args.ddof,
         "store_all": bool(args.store_all),
         "cell_size_m": float(args.cell_size_m),
         "temperature_shape": [int(value) for value in result.mean.shape],
+        "runtime": runtime_versions(),
         "provenance": {
+            "masterthesis_git_sha": git_head(project_root),
+            "release25_git_sha": git_head(args.release25_repo),
+            "cnn1_checkpoint_sha256": sha256_file(runtime.adapter.cnn1.checkpoint),
+            "cnn3_checkpoint_sha256": sha256_file(runtime.adapter.cnn2.checkpoint),
+            "published_model_doi": "10.18419/DARUS-5080",
             "dataset": "dataset_giant_100hp_varyK",
             "darus_settings": {
                 "case": "perlin_v2",
@@ -170,11 +203,12 @@ def main() -> None:
                 "grid": [2560, 2560, 1],
                 "domain_m": [12800, 12800, 5.0],
                 "pressure_gradient": -0.003,
+                "background_temperature_c": RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C,
+                "injection_temperature_c": 15.6,
             },
-            "historical_generator": (
-                "Dataset-generation-with-Pflotran/scripts/create_varying_field.py "
-                "perlin_v2 branch"
-            ),
+            "historical_generator_repository": "JuliaPelzer/Dataset-generation-with-Pflotran",
+            "historical_generator_commit": HISTORICAL_GENERATOR_COMMIT,
+            "historical_generator_path": HISTORICAL_GENERATOR_PATH,
         },
     }
 
@@ -192,6 +226,7 @@ def main() -> None:
         f"seed={sampler.seed}, frequency={sampler.frequency}, "
         f"k_min={sampler.k_min:.16e}, k_max={sampler.k_max:.16e}"
     )
+    print(f"Variance ddof: {effective_ddof}")
     print(
         "Delta-T exceedance probabilities: "
         f"background={args.background_temperature:g} degC, "
