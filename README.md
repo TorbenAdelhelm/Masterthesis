@@ -1,34 +1,39 @@
 # Master Thesis — Subsurface UQ
 
-This repository contains the thesis-specific uncertainty-quantification (UQ)
-framework around deterministic subsurface heat-plume surrogate models.
+This repository contains the thesis-specific forward uncertainty-quantification
+(UQ) framework around deterministic groundwater heat-plume surrogate models.
+The current scientific baseline focuses on uncertainty in the permeability
+field while pressure and heat-pump locations are held fixed.
 
-## Phase A: empirical Monte Carlo baseline
-
-The first implementation deliberately keeps the UQ core small and model-agnostic:
+The implementation is designed around interchangeable components:
 
 ```text
 PermeabilitySampler
         -> TemperatureSurrogate
         -> MonteCarloRunner
-        -> OnlineFieldStatistics
-        -> OnlineExceedanceStatistics (optional)
+        -> TemperatureAccumulator(s)
+             |- field statistics
+             |- exceedance probabilities
+             `- future QoIs
 ```
 
-The baseline treats an ensemble of permeability fields as uncertain realizations.
-This allows propagation, statistics, batching, validation, visualization and
-later QoI layers to be developed before a conditional geostatistical sampler is
-introduced.
+The original `Heat-Plume-Prediction` release25 implementation remains the
+external deterministic reference, and `VampireMan` / the PFLOTRAN generation
+repository remain external data-generation references. Scientific data, model
+checkpoints and generated outputs are intentionally not committed.
 
-### Design rules
+## Documentation
 
-- The original `Heat-Plume-Prediction` release25 implementation remains an
-  external deterministic reference; its source is not copied into this repository.
-- `VampireMan` remains an external data-generation/PFLOTRAN reference.
-- PFLOTRAN is not a runtime dependency of surrogate inference or Monte Carlo UQ.
-- Monte Carlo is the baseline propagation method. First-order/JVP propagation
-  and conditional kriging are intentionally not part of the Phase-A core.
-- Scientific data, model checkpoints and generated outputs are not committed.
+The mathematical definition of the current pipeline is documented in
+[`docs/methodology.md`](docs/methodology.md), including the LGCNN composition,
+Monte Carlo estimators, streaming Welford statistics, exceedance probabilities,
+the historical Perlin transformation, release25 normalization and output
+alignment.
+
+Runtime/data details are in
+[`docs/release25_darus.md`](docs/release25_darus.md), and the synthetic Perlin
+baseline is documented in
+[`docs/release25_perlin_uq.md`](docs/release25_perlin_uq.md).
 
 ## Installation
 
@@ -37,71 +42,87 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
-## Real release25 + DaRUS execution
+`noise>=1.2.2` is currently required because the historical synthetic generator
+uses `noise.pnoise2`. On Windows this package may require a working MSVC/Windows
+SDK build environment.
 
-The repository contains an executable integration layer for the published
-LGCNN pipeline:
+## Deterministic release25 integration
+
+The real pretrained LGCNN execution path is
 
 ```text
 physical p,k,i
-      -> pretrained Step-1 CNN
+      -> pretrained CNN1 / Step 1
       -> physical vx,vy
       -> original release25 Step-2 streamline solver
       -> [i,vx,vy,s,k,s_outer]
-      -> pretrained Step-3 CNN
+      -> pretrained CNN3 / Step 3
       -> physical temperature
-      -> MonteCarloRunner
 ```
 
-`Release25Runtime` loads the standard pretrained model folders from their
-`model.pt`, `info.yaml`, and `HPS_options.yaml` files and dynamically imports the
-network definitions and Step-2 routine from an external release25 checkout.
-`PreparedLGCNNScenario` reverse-normalizes a prepared DaRUS `pki` sample and
-uses its pressure and material/heat-pump fields as the fixed scenario.
-
-After downloading/extracting the external assets, a single deterministic smoke
-run is:
+A deterministic smoke run is:
 
 ```bash
-subsurface-uq-release25 \
-  --release25-repo external/Heat-Plume-Prediction \
+python -m subsurface_uq.experiments.release25_empirical \
+  --release25-repo external/release25-repo/Heat-Plume-Prediction \
   --cnn1-dir models/LGCNN_step1_randomK \
   --cnn2-dir models/LGCNN_step3_randomK \
   --prepared-pki-dir data/prepared_pki \
   --fixed-run-id RUN_1 \
+  --device cpu \
   --output run_output/release25_single.npz
 ```
 
-An empirical Monte Carlo run can use physical permeability fields from several
-prepared datapoints while keeping pressure and heat-pump positions fixed:
+`--cnn2-dir` is retained as a backwards-compatible CLI name. It denotes the
+**second CNN in the LGCNN, i.e. Step 3 / CNN3**.
+
+For a one-sample deterministic diagnostic, the experiment automatically uses
+`ddof=0`. For a real Monte Carlo ensemble the default is `ddof=1`; the code does
+not report a one-sample sample variance as zero because that estimator is
+undefined for `N=1, ddof=1`.
+
+## Empirical Monte Carlo baseline
+
+Existing permeability fields can be propagated while pressure and heat-pump
+locations stay fixed to one prepared run:
 
 ```bash
-subsurface-uq-release25 \
-  --release25-repo external/Heat-Plume-Prediction \
+python -m subsurface_uq.experiments.release25_empirical \
+  --release25-repo external/release25-repo/Heat-Plume-Prediction \
   --cnn1-dir models/LGCNN_step1_randomK \
   --cnn2-dir models/LGCNN_step3_randomK \
   --prepared-pki-dir data/prepared_pki \
   --fixed-run-id RUN_1 \
   --permeability-run-ids RUN_1,RUN_2,RUN_4 \
-  --device cuda \
+  --device cpu \
   --output run_output/release25_empirical_mc.npz
 ```
 
-See `docs/release25_darus.md` for the required DaRUS assets, directory layout,
-and model-loading contract.
+Alternatively, `--ensemble-file` accepts an `[N,H,W]` permeability array/tensor
+stored as `.npy`, `.npz`, `.pt`, or `.pth`.
 
-## Historical Perlin Monte Carlo UQ
+## Historical Perlin forward UQ
 
-`Release25PerlinPermeabilitySampler` reproduces the historical synthetic
-`perlin_v2` input law used for the released LGCNN training data: 2-D
-`pnoise2`, field-wise min/max normalization, mapping in `log10(k)` space and
-base-10 exponentiation. The release25 defaults are a 2560 x 2560 grid,
-frequency `(18, 18)`, `k_min=1.0193679918450561e-11 m^2` and
-`k_max=5.09683995922528e-09 m^2`. The sampler uses an explicit UQ seed so new
-Monte Carlo experiments are reproducible even though the historical generator's
-NumPy seeding call was commented out.
+`Release25PerlinPermeabilitySampler` reproduces the historical `perlin_v2`
+spatial formula used for the released random-permeability data. For raw Perlin
+field `P(x)`,
 
-A Perlin forward-UQ run with fixed pressure/heat-pump inputs is:
+$$
+U(x)=\frac{P(x)-\min P}{\max P-\min P},
+$$
+
+and the permeability is generated in base-10 logarithmic space,
+
+$$
+K(x)=10^{\log_{10}k_{\min}
++U(x)(\log_{10}k_{\max}-\log_{10}k_{\min})}.
+$$
+
+The released synthetic defaults are a `2560 x 2560` grid, `(18,18)` Perlin
+frequency and permeability range
+`1.0193679918450561e-11 ... 5.09683995922528e-09 m^2`.
+
+A five-sample end-to-end smoke run is:
 
 ```bash
 python -m subsurface_uq.experiments.release25_perlin \
@@ -117,95 +138,77 @@ python -m subsurface_uq.experiments.release25_perlin \
   --plots-dir run_output/release25_perlin_mc_5_plots
 ```
 
-By default the run also accumulates the empirical spatial probabilities
-`P(Delta T >= 0.1 degC)` and `P(Delta T >= 1.0 degC)` online relative to a
-10 degC background. These defaults are configurable with
-`--background-temperature` and `--exceedance-thresholds`. The probability
-counters are streaming, so individual temperature realizations do not need to
-be retained. Use `--store-all` only when the individual model outputs are
-needed for a separate analysis.
+The exact initial groundwater temperature in the historical synthetic PFLOTRAN
+setup is **10.6 °C** and the injection temperature is `15.6 °C`. Therefore the
+Perlin baseline defines
 
-The saved NPZ contains mean, variance, standard deviation, minimum, maximum,
-reproducibility metadata and, for new runs, the exceedance thresholds/maps.
-A neighboring `.metadata.json` contains the same run metadata in readable form.
+$$
+\Delta T = T-10.6\ ^\circ\mathrm C
+$$
+
+and by default accumulates the empirical spatial probabilities
+
+$$
+\widehat P_\tau(x)=\frac1N\sum_{m=1}^N
+\mathbf 1[\Delta T^{(m)}(x)\ge\tau]
+$$
+
+for `tau=0.1 °C` and `1.0 °C`. Background and thresholds are configurable.
+These statistics are accumulated online; `--store-all` is only needed if the
+individual temperature realizations are required.
+
+## Monte Carlo statistics and extensible QoIs
+
+For propagated temperature fields `T^(m)(x)`, the core computes
+
+$$
+\hat\mu_T(x)=\frac1N\sum_{m=1}^N T^{(m)}(x)
+$$
+
+and
+
+$$
+\hat\sigma_T^2(x)=\frac1{N-d}\sum_{m=1}^N
+(T^{(m)}(x)-\hat\mu_T(x))^2,
+$$
+
+where `d` is `ddof`. Mean, variance, standard deviation and extrema are updated
+with a streaming batch-merge form of Welford's algorithm.
+
+Additional quantities of interest use the `TemperatureAccumulator` interface.
+An accumulator receives temperature batches through `update(...)` and returns
+its final result through `finalize()`. This keeps future monitoring-point,
+plume-length, plume-area or other QoIs out of the propagation core.
 
 ## Monte Carlo/UQ visualization
 
-The dedicated UQ plotting layer creates publication-style physical-space maps
-with axes in kilometres. For a new Perlin run, `--plots-dir` creates:
+A Perlin run with `--plots-dir` creates physical-space maps of:
 
 - mean temperature;
-- temperature standard deviation;
-- sample temperature range (`max - min`);
+- standard deviation;
+- sample range `max-min`;
 - mean temperature with standard-deviation contours;
-- mean `Delta T` relative to the configured background temperature;
-- one empirical exceedance-probability map per configured `Delta T` threshold.
+- mean `Delta T`;
+- one exceedance-probability map per threshold.
 
-Existing MC archives can be plotted without re-running the LGCNN:
+Existing MC archives can be plotted without rerunning the surrogate:
 
 ```bash
 python -m subsurface_uq.visualization.cli \
   --input run_output/release25_perlin_mc_5.npz \
-  --output-dir run_output/release25_perlin_mc_5_plots \
-  --background-temperature 10.0
+  --output-dir run_output/release25_perlin_mc_5_plots
 ```
 
-The explicit `--background-temperature 10.0` is useful for older archives made
-before the background temperature was stored in their metadata. New Perlin
-archives carry the value automatically. The default `--cell-size-m 5.0` matches
-the synthetic release25 grid.
+For older archives that do not store a background temperature, use
+`--background-temperature 10.6` for the historical synthetic dataset.
 
-## LGCNN diagnostic and publication plots
+## Deterministic diagnostics and temperature validation
 
-Supplying `--plots-dir` to the release25 empirical runner generates deterministic
-plots for the fixed run: velocity x/y/magnitude, central and outer streamline
-feature fields, and temperature. It also creates three combined figures:
-temperature with central streamline contours, temperature with heat-pump
-markers, and a combined temperature/streamline/heat-pump overlay.
+The empirical release25 runner can additionally create velocity, streamline and
+temperature diagnostic plots with `--plots-dir`.
 
-```bash
-python -m subsurface_uq.experiments.release25_empirical \
-  --release25-repo external/release25-repo/Heat-Plume-Prediction \
-  --cnn1-dir models/LGCNN_step1_randomK \
-  --cnn2-dir models/LGCNN_step3_randomK \
-  --prepared-pki-dir data/prepared_pki \
-  --fixed-run-id RUN_1 \
-  --device cpu \
-  --output run_output/release25_single.npz \
-  --plots-dir run_output/release25_RUN_1_lgcnn
-```
-
-The plotting default `--cell-size-m 5.0` matches the release25 synthetic grid
-and expresses spatial axes in kilometres. `--streamline-plot-threshold` controls
-which values of the actual rasterized central streamline feature are shown as
-contours in the overlays. Heat-pump markers are derived from connected
-`Material ID == 2` regions after center alignment to the temperature output.
-For other grids, pass the correct cell size explicitly.
-
-## Temperature validation against prepared DaRUS labels
-
-The `subsurface_uq.validation` package compares one physical release25
-prediction against a prepared temperature label for the same run. It
-reverse-normalizes the stored label from its `info.yaml`, aligns the larger
-reference field to the valid-convolution model output by a center crop, and
-reports MAE, MSE, RMSE, maximum absolute error, mean bias, absolute-error
-percentiles (p50, p90, p95, p99 and p99.9), and the spatial fractions above
-0.1 °C, 0.5 °C and 1.0 °C absolute error.
-
-After extracting a prepared `inputs_pki outputs_t` dataset to, for example,
-`data/prepared_pki_temperature`, run:
-
-```bash
-subsurface-uq-validate-temperature \
-  --prediction run_output/release25_single.npz \
-  --reference-dir data/prepared_pki_temperature \
-  --run-id RUN_1 \
-  --output run_output/release25_RUN_1_validation.npz \
-  --plots-dir run_output/release25_RUN_1_plots
-```
-
-If console scripts are not available in the active shell, the equivalent module
-command is:
+A physical prediction can be compared against a prepared reference-temperature
+label with:
 
 ```bash
 python -m subsurface_uq.validation.cli \
@@ -216,93 +219,46 @@ python -m subsurface_uq.validation.cli \
   --plots-dir run_output/release25_RUN_1_plots
 ```
 
-The output archive stores the aligned prediction/reference fields, signed and
-absolute error fields, and scalar metrics. `--plots-dir` additionally creates
-four PNG maps: predicted temperature, reference temperature, signed error, and
-absolute error. Use `--alignment strict` when comparing two already-aligned
-deterministic runtime outputs; the default `center-crop-reference` is intended
-for comparison with the larger prepared DaRUS temperature label.
+The validation layer reverse-normalizes the reference, center-crops the larger
+reference to the valid-convolution prediction shape when requested, and reports
+MAE, MSE, RMSE, maximum absolute error, bias and spatial error diagnostics.
+Optional overlays regenerate the release25 central streamline feature and
+heat-pump locations.
 
-Validation can also regenerate the deterministic central streamline feature and
-heat-pump locations for the same run and overlay them on the aligned prediction,
-reference and absolute-error fields:
+## Reproducibility
 
-```bash
-python -m subsurface_uq.validation.cli \
-  --prediction run_output/release25_single.npz \
-  --reference-dir data/prepared_pki_temperature \
-  --run-id RUN_1 \
-  --output run_output/release25_RUN_1_validation.npz \
-  --plots-dir run_output/release25_RUN_1_plots \
-  --overlay-plots-dir run_output/release25_RUN_1_overlay_plots \
-  --release25-repo external/release25-repo/Heat-Plume-Prediction \
-  --cnn1-dir models/LGCNN_step1_randomK \
-  --cnn2-dir models/LGCNN_step3_randomK \
-  --prepared-pki-dir data/prepared_pki \
-  --device cpu
-```
+New Monte Carlo results use a versioned NPZ schema and write the same run
+metadata to a neighboring `.metadata.json` sidecar. Release25 experiment runs
+record, where available, the realized sample count, variance `ddof`, sampler
+parameters, fixed run, Git SHAs, SHA-256 hashes of the two model checkpoints,
+Python/platform and dependency versions, release25 settings, and historical
+Perlin generator provenance.
 
-This produces `release25_RUN_1_prediction_streamlines_heatpumps.png`,
-`release25_RUN_1_reference_streamlines_heatpumps.png` and
-`release25_RUN_1_absolute_error_streamlines_heatpumps.png`. The overlays use the
-same `--cell-size-m` and `--streamline-plot-threshold` conventions as the
-release25 diagnostic plots.
+The historical Perlin formula is tested against an independent transcription of
+the original generator. The historical generator itself did not effectively use
+the DaRUS `seed_id` because its NumPy seeding line was commented out; the thesis
+sampler makes the seed explicit for reproducible *new* UQ experiments and does
+not claim bitwise recovery of the original training fields.
 
-## Minimal model-agnostic use
+## Current validation scope
 
-```python
-import numpy as np
-from subsurface_uq.propagation import MonteCarloRunner
-from subsurface_uq.sampling import EmpiricalPermeabilitySampler
-from subsurface_uq.surrogates import CallableTemperatureSurrogate
+CI uses lightweight fixtures and tests sampler behavior, batch-invariant Monte
+Carlo statistics, custom accumulator extensibility, historical Perlin formula,
+result metadata, UQ plotting, release25 normalization/model reconstruction,
+three-stage adapter execution and temperature validation utilities.
 
-k = np.stack([
-    np.full((8, 12), 1.0e-10),
-    np.full((8, 12), 2.0e-10),
-])
-surrogate = CallableTemperatureSurrogate(lambda field: 10.0 - field / 1.0e-10)
-result = MonteCarloRunner(EmpiricalPermeabilitySampler(k, batch_size=2), surrogate).run()
-
-print(result.count)
-print(result.mean.shape)
-print(result.std.shape)
-```
-
-## Validation guarantees
-
-Normal CI covers:
-
-- empirical sample order and batching;
-- `.npy` empirical-field loading;
-- online Welford statistics against direct NumPy statistics;
-- zero variance for identical realizations;
-- Monte-Carlo invariance to sampler batch size;
-- online `Delta T` exceedance probabilities against direct sample counting;
-- historical Perlin formula/reproducibility tests;
-- Monte Carlo result metadata and exceedance-map persistence;
-- Monte Carlo/UQ mean, standard-deviation, range, overlay, Delta-T and
-  exceedance-probability plot generation;
-- delegation through `Release25Surrogate`;
-- release25 normalization round-trips;
-- physical recovery of a prepared `pki` scenario;
-- standard-model reconstruction from release25 metadata using a small fixture;
-- execution of the complete CNN1 -> Step 2 -> CNN3 adapter contract with a
-  deterministic lightweight Step-2 fixture;
-- release25 diagnostic-map and combined-overlay generation;
-- reverse-normalization, center-crop alignment, scalar metrics, spatial error
-  percentiles/threshold fractions, diagnostic-map generation, and aligned
-  prediction/reference/error overlay generation for prepared temperature-reference
-  validation.
-
-The large published DaRUS model/data archives are not downloaded in CI. A local
-smoke test with those assets remains the acceptance test for numerical inference
-with the pretrained networks; the temperature-validation CLI then quantifies the
-surrogate error against a stored prepared reference label.
+The actual released DaRUS models/data have also been exercised locally with a
+real deterministic RUN_1 prediction and prepared reference comparison. This is
+not yet the stronger claim of numerical equivalence to a separately executed
+original release25 runtime; that remains a distinct validation step.
 
 ## Next phases
 
-After deterministic/reference validation and the synthetic Perlin forward-UQ
-baseline, the next implementation layers are an extensible QoI framework,
-Monte Carlo convergence diagnostics and a borehole-conditioned geostatistical
-sampler. Advanced propagation approaches such as JVP/first-order Gaussian
-propagation remain optional comparison methods rather than baseline dependencies.
+The cleaned baseline is intended to support the next scientific layers without
+changing the propagation core: first QoIs and Monte Carlo convergence
+diagnostics, then a borehole-conditioned geostatistical permeability sampler.
+The latter will replace the synthetic/empirical `PermeabilitySampler` with draws
+from a conditional spatial uncertainty model while retaining the release25
+surrogate, Monte Carlo runner, accumulators and visualization interfaces.
+Model uncertainty and alternative propagation methods remain later/optional
+extensions.
