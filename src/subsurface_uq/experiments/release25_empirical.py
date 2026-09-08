@@ -188,7 +188,7 @@ def main() -> None:
             "release25_git_sha": git_head(args.release25_repo),
             "cnn1_checkpoint_sha256": sha256_file(runtime.adapter.cnn1.checkpoint),
             "cnn3_checkpoint_sha256": sha256_file(runtime.adapter.cnn2.checkpoint),
-            "published_model_doi": "10.18419/DARUS-5080",
+            "reference_published_model_doi": "10.18419/DARUS-5080",
         },
     }
     destination, metadata_path = save_monte_carlo_result(
