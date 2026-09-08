@@ -7,6 +7,7 @@ from .perlin import (
     RELEASE25_PERLIN_K_MAX,
     RELEASE25_PERLIN_K_MIN,
     RELEASE25_PERLIN_SHAPE,
+    RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C,
     Release25PerlinPermeabilitySampler,
     historical_perlin_v2_field,
 )
@@ -20,6 +21,7 @@ __all__ = [
     "RELEASE25_PERLIN_K_MAX",
     "RELEASE25_PERLIN_K_MIN",
     "RELEASE25_PERLIN_SHAPE",
+    "RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C",
     "Release25PerlinPermeabilitySampler",
     "historical_perlin_v2_field",
     "load_empirical_fields",
