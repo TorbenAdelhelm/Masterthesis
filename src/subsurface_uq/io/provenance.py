@@ -5,7 +5,6 @@ from importlib import metadata as importlib_metadata
 from pathlib import Path
 import platform
 import subprocess
-import sys
 from typing import Iterable
 
 
@@ -41,7 +40,7 @@ def git_head(path: str | Path) -> str | None:
 
 
 def runtime_versions(packages: Iterable[str] = ("numpy", "torch", "scipy", "noise")) -> dict[str, object]:
-    """Record the interpreter/platform and selected installed package versions."""
+    """Record platform/interpreter and selected package versions without local paths."""
 
     versions: dict[str, str | None] = {}
     for package in packages:
@@ -53,6 +52,5 @@ def runtime_versions(packages: Iterable[str] = ("numpy", "torch", "scipy", "nois
         "python": platform.python_version(),
         "python_implementation": platform.python_implementation(),
         "platform": platform.platform(),
-        "executable": sys.executable,
         "packages": versions,
     }
