@@ -3,7 +3,10 @@ from __future__ import annotations
 import noise
 import numpy as np
 
-from subsurface_uq.sampling import Release25PerlinPermeabilitySampler
+from subsurface_uq.sampling import (
+    RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C,
+    Release25PerlinPermeabilitySampler,
+)
 
 
 def _historical_reference(
@@ -113,3 +116,7 @@ def test_sampler_metadata_records_required_reproducibility_parameters() -> None:
     assert metadata["k_max"] == 4.0e-9
     assert metadata["sample_count"] == 4
     assert len(metadata["base_offset"]) == 3
+
+
+def test_release25_synthetic_background_temperature_is_exact_dataset_value() -> None:
+    assert RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C == 10.6
