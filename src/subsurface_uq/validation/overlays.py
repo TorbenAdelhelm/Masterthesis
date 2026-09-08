@@ -8,57 +8,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import ndimage
 import torch
 
+from ..spatial import center_crop_2d, extent_km, heat_pump_centers, to_2d_array
 from ..surrogates.release25_runtime import Release25Runtime
 
 Array = np.ndarray
 Tensor = torch.Tensor
-
-
-def _to_2d_array(value: Tensor | Array, name: str) -> Array:
-    if isinstance(value, torch.Tensor):
-        array = value.detach().cpu().numpy()
-    else:
-        array = np.asarray(value)
-    while array.ndim > 2 and array.shape[0] == 1:
-        array = array[0]
-    if array.ndim != 2:
-        raise ValueError(f"{name} must be 2-D, got {array.shape}")
-    if not np.all(np.isfinite(array)):
-        raise ValueError(f"{name} contains non-finite values")
-    return np.asarray(array, dtype=np.float32)
-
-
-def _center_crop(field: Array, target_shape: tuple[int, int]) -> Array:
-    values = np.asarray(field)
-    h, w = values.shape
-    th, tw = target_shape
-    if th > h or tw > w:
-        raise ValueError(f"cannot center-crop {values.shape} to {target_shape}")
-    y0 = (h - th) // 2
-    x0 = (w - tw) // 2
-    return values[y0 : y0 + th, x0 : x0 + tw]
-
-
-def _extent_km(shape: tuple[int, int], cell_size_m: float) -> tuple[float, float, float, float]:
-    if cell_size_m <= 0:
-        raise ValueError("cell_size_m must be positive")
-    h, w = shape
-    return (0.0, w * cell_size_m / 1000.0, 0.0, h * cell_size_m / 1000.0)
-
-
-def _heat_pump_centers(material_id: Tensor | Array, target_shape: tuple[int, int]) -> Array:
-    material = _to_2d_array(material_id, "material id")
-    if material.shape != target_shape:
-        material = _center_crop(material, target_shape)
-    mask = np.isclose(material, 2.0)
-    labels, count = ndimage.label(mask)
-    if count == 0:
-        return np.empty((0, 2), dtype=np.float64)
-    centers = ndimage.center_of_mass(mask, labels, range(1, count + 1))
-    return np.asarray(centers, dtype=np.float64)
 
 
 def build_release25_validation_overlay_context(
@@ -92,10 +48,10 @@ def build_release25_validation_overlay_context(
     if streamlines.ndim != 3 or streamlines.shape[0] != 2:
         raise ValueError(f"streamlines must have shape [2,H,W], got {tuple(streamlines.shape)}")
 
-    center = _to_2d_array(streamlines[0], "central streamline field")
+    center = to_2d_array(streamlines[0], "central streamline field")
     if center.shape != target_shape:
-        center = _center_crop(center, target_shape)
-    pumps = _heat_pump_centers(runtime.scenario.fixed.material_id, target_shape)
+        center = center_crop_2d(center, target_shape)
+    pumps = heat_pump_centers(runtime.scenario.fixed.material_id, target_shape)
     return {
         "central_streamline": center,
         "heat_pump_centers": pumps,
@@ -105,7 +61,7 @@ def build_release25_validation_overlay_context(
 def _save_overlay(
     field: Array,
     central_streamline: Array,
-    heat_pump_centers: Array,
+    heat_pump_centers_array: Array,
     destination: Path,
     *,
     title: str,
@@ -113,14 +69,14 @@ def _save_overlay(
     cell_size_m: float,
     streamline_threshold: float,
 ) -> Path:
-    values = _to_2d_array(field, "overlay field")
-    center = _to_2d_array(central_streamline, "central streamline field")
+    values = to_2d_array(field, "overlay field")
+    center = to_2d_array(central_streamline, "central streamline field")
     if center.shape != values.shape:
-        center = _center_crop(center, values.shape)
+        center = center_crop_2d(center, values.shape)
     if not (0.0 <= streamline_threshold <= 1.0):
         raise ValueError("streamline_threshold must lie in [0, 1]")
 
-    extent = _extent_km(values.shape, cell_size_m)
+    extent = extent_km(values.shape, cell_size_m)
     mask = center >= streamline_threshold
     x = np.linspace(extent[0], extent[1], center.shape[1])
     y = np.linspace(extent[2], extent[3], center.shape[0])
@@ -130,10 +86,10 @@ def _save_overlay(
     image = ax.imshow(values, origin="lower", extent=extent, aspect="equal")
     if np.any(mask):
         ax.contour(x, y, mask.astype(np.float32), levels=[0.5], colors="white", linewidths=0.55)
-    if len(heat_pump_centers):
+    if len(heat_pump_centers_array):
         ax.scatter(
-            heat_pump_centers[:, 1] * cell_size_m / 1000.0,
-            heat_pump_centers[:, 0] * cell_size_m / 1000.0,
+            heat_pump_centers_array[:, 1] * cell_size_m / 1000.0,
+            heat_pump_centers_array[:, 0] * cell_size_m / 1000.0,
             s=22,
             facecolors="none",
             edgecolors="red",
