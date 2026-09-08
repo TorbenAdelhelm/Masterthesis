@@ -193,9 +193,9 @@ def main() -> None:
             "release25_git_sha": git_head(args.release25_repo),
             "cnn1_checkpoint_sha256": sha256_file(runtime.adapter.cnn1.checkpoint),
             "cnn3_checkpoint_sha256": sha256_file(runtime.adapter.cnn2.checkpoint),
-            "published_model_doi": "10.18419/DARUS-5080",
-            "dataset": "dataset_giant_100hp_varyK",
-            "darus_settings": {
+            "reference_published_model_doi": "10.18419/DARUS-5080",
+            "reference_dataset": "dataset_giant_100hp_varyK",
+            "reference_darus_settings": {
                 "case": "perlin_v2",
                 "frequency": [18, 18],
                 "k_min": RELEASE25_PERLIN_K_MIN,
