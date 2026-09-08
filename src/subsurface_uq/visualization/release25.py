@@ -9,46 +9,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
 import numpy as np
-from scipy import ndimage
 import torch
 
+from ..spatial import center_crop_2d, extent_km, heat_pump_centers, to_2d_array
+
 Tensor = torch.Tensor
-
-
-def _to_2d_array(value: Tensor | np.ndarray, name: str) -> np.ndarray:
-    if isinstance(value, torch.Tensor):
-        array = value.detach().cpu().numpy()
-    else:
-        array = np.asarray(value)
-    while array.ndim > 2 and array.shape[0] == 1:
-        array = array[0]
-    if array.ndim != 2:
-        raise ValueError(
-            f"{name} must be 2-D after removing singleton leading axes, got {array.shape}"
-        )
-    if not np.all(np.isfinite(array)):
-        raise ValueError(f"{name} contains non-finite values")
-    return np.asarray(array, dtype=np.float32)
-
-
-def _center_crop_array(field: np.ndarray, target_shape: tuple[int, int]) -> np.ndarray:
-    values = np.asarray(field)
-    if values.ndim != 2:
-        raise ValueError(f"center crop expects a 2-D field, got {values.shape}")
-    h, w = values.shape
-    th, tw = target_shape
-    if th > h or tw > w:
-        raise ValueError(f"cannot center-crop {values.shape} to {target_shape}")
-    y0 = (h - th) // 2
-    x0 = (w - tw) // 2
-    return values[y0 : y0 + th, x0 : x0 + tw]
-
-
-def _extent_km(shape: tuple[int, int], cell_size_m: float) -> tuple[float, float, float, float]:
-    if cell_size_m <= 0:
-        raise ValueError("cell_size_m must be positive")
-    h, w = shape
-    return (0.0, w * cell_size_m / 1000.0, 0.0, h * cell_size_m / 1000.0)
 
 
 def _save_field(
@@ -70,7 +35,7 @@ def _save_field(
     image = ax.imshow(
         field,
         origin="lower",
-        extent=_extent_km(field.shape, cell_size_m),
+        extent=extent_km(field.shape, cell_size_m),
         aspect="equal",
         **kwargs,
     )
@@ -83,23 +48,6 @@ def _save_field(
     fig.savefig(destination, dpi=180, bbox_inches="tight")
     plt.close(fig)
     return destination
-
-
-def _heat_pump_centers(
-    material_id: Tensor | np.ndarray,
-    target_shape: tuple[int, int],
-) -> np.ndarray:
-    """Return one [y,x] centroid per connected heat-pump region in the target crop."""
-
-    material = _to_2d_array(material_id, "material id")
-    if material.shape != target_shape:
-        material = _center_crop_array(material, target_shape)
-    mask = np.isclose(material, 2.0)
-    labels, count = ndimage.label(mask)
-    if count == 0:
-        return np.empty((0, 2), dtype=np.float64)
-    centers = ndimage.center_of_mass(mask, labels, range(1, count + 1))
-    return np.asarray(centers, dtype=np.float64)
 
 
 def save_release25_output_plots(
@@ -133,9 +81,9 @@ def save_release25_output_plots(
             f"got {tuple(streamlines.shape)}"
         )
 
-    center = _to_2d_array(streamlines[0], "central streamline field")
-    outer = _to_2d_array(streamlines[1], "outer streamline field")
-    temperature = _to_2d_array(outputs["temperature"], "temperature")
+    center = to_2d_array(streamlines[0], "central streamline field")
+    outer = to_2d_array(streamlines[1], "outer streamline field")
+    temperature = to_2d_array(outputs["temperature"], "temperature")
 
     saved: dict[str, Path] = {}
     saved["streamline_center"] = _save_field(
@@ -168,8 +116,8 @@ def save_release25_output_plots(
             velocity = torch.as_tensor(velocity)
         if velocity.ndim != 3 or velocity.shape[0] != 2:
             raise ValueError(f"velocity must have shape [2,H,W], got {tuple(velocity.shape)}")
-        vx = _to_2d_array(velocity[0], "velocity x")
-        vy = _to_2d_array(velocity[1], "velocity y")
+        vx = to_2d_array(velocity[0], "velocity x")
+        vy = to_2d_array(velocity[1], "velocity y")
         magnitude = np.sqrt(vx.astype(np.float64) ** 2 + vy.astype(np.float64) ** 2).astype(
             np.float32
         )
@@ -227,12 +175,12 @@ def save_release25_overlay_plots(
     if streamlines.ndim != 3 or streamlines.shape[0] != 2:
         raise ValueError("streamlines must have shape [2,H,W]")
 
-    temperature = _to_2d_array(outputs["temperature"], "temperature")
-    center = _to_2d_array(streamlines[0], "central streamline field")
+    temperature = to_2d_array(outputs["temperature"], "temperature")
+    center = to_2d_array(streamlines[0], "central streamline field")
     if center.shape != temperature.shape:
-        center = _center_crop_array(center, temperature.shape)
-    pumps = _heat_pump_centers(material_id, temperature.shape)
-    extent = _extent_km(temperature.shape, cell_size_m)
+        center = center_crop_2d(center, temperature.shape)
+    pumps = heat_pump_centers(material_id, temperature.shape)
+    extent = extent_km(temperature.shape, cell_size_m)
 
     root = Path(directory).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
