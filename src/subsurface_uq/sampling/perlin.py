@@ -14,6 +14,7 @@ RELEASE25_PERLIN_FREQUENCY = (18.0, 18.0)
 RELEASE25_PERLIN_K_MIN = 1.0193679918450561e-11
 RELEASE25_PERLIN_K_MAX = 5.09683995922528e-09
 RELEASE25_PERLIN_DEFAULT_SEED = 2907
+RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C = 10.6
 
 
 def historical_perlin_v2_field(
@@ -35,6 +36,11 @@ def historical_perlin_v2_field(
     2. min-max normalize the realized Perlin field to [0, 1],
     3. map that field to ``[log10(k_min), log10(k_max)]``, and
     4. exponentiate with base 10.
+
+    Mathematically, if ``P(x)`` is the raw Perlin realization and
+    ``U(x)=(P(x)-P_min)/(P_max-P_min)``, the permeability is
+
+    ``K(x)=10**(log10(k_min) + U(x)*(log10(k_max)-log10(k_min)))``.
 
     The historical generator used one random base offset and shifted successive
     realizations in x by integer ``base`` values. The caller supplies the final
