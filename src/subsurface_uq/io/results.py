@@ -6,6 +6,8 @@ from typing import Any, Mapping
 
 import numpy as np
 
+MONTE_CARLO_RESULT_SCHEMA_VERSION = 2
+
 
 def save_monte_carlo_result(
     result: Any,
@@ -18,13 +20,15 @@ def save_monte_carlo_result(
     Metadata is stored twice: as JSON text inside the NPZ archive and as a
     neighboring ``*.metadata.json`` sidecar. ``sample_count`` is always set from
     the realized Monte Carlo result so truncated/requested runs cannot report an
-    inconsistent count.
+    inconsistent count. ``result_schema_version`` allows future readers to
+    distinguish archive layouts without relying on filenames or dates.
     """
 
     target = Path(destination).expanduser().resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
 
     run_metadata = dict(metadata)
+    run_metadata["result_schema_version"] = MONTE_CARLO_RESULT_SCHEMA_VERSION
     run_metadata["sample_count"] = int(result.count)
     if getattr(result, "background_temperature", None) is not None:
         run_metadata["background_temperature"] = float(result.background_temperature)
@@ -34,6 +38,7 @@ def save_monte_carlo_result(
     metadata_json = json.dumps(run_metadata, indent=2, sort_keys=True)
 
     payload: dict[str, np.ndarray] = {
+        "schema_version": np.asarray(MONTE_CARLO_RESULT_SCHEMA_VERSION, dtype=np.int64),
         "count": np.asarray(result.count, dtype=np.int64),
         "mean": np.asarray(result.mean),
         "variance": np.asarray(result.variance),
