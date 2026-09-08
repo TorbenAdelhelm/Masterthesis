@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from subsurface_uq.statistics import OnlineFieldStatistics
 
@@ -27,3 +28,14 @@ def test_identical_fields_have_zero_variance():
     np.testing.assert_array_equal(result.mean, field)
     np.testing.assert_array_equal(result.variance, np.zeros_like(field))
     np.testing.assert_array_equal(result.std, np.zeros_like(field))
+
+
+def test_sample_variance_is_undefined_when_count_does_not_exceed_ddof():
+    online = OnlineFieldStatistics()
+    online.update(np.ones((3, 4), dtype=np.float32))
+
+    with pytest.raises(ValueError, match="sample_count <= ddof"):
+        online.finalize(ddof=1)
+
+    population = online.finalize(ddof=0)
+    np.testing.assert_array_equal(population.variance, np.zeros((3, 4), dtype=np.float32))
