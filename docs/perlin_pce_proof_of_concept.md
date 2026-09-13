@@ -12,6 +12,13 @@ purpose is to separate two questions:
 2. does the pretrained LGCNN remain credible when the permeability law is later
    changed from the Perlin training regime to a Gaussian random field.
 
+The first question has an important qualification: low stochastic dimension
+alone does not imply that a low-order global polynomial is appropriate. The
+historical Perlin randomness is parameterized through spatial offsets, so the
+map from an offset coordinate to a permeability field can be highly oscillatory.
+A failed Perlin PCE must therefore not automatically be attributed to the LGCNN
+or streamline stage.
+
 ## Stochastic input
 
 The input coordinates are
@@ -33,6 +40,38 @@ $$
 formula and permeability transformation. The exact interpretation of the two
 coordinates versus the finite historical training sequence is documented in
 `docs/perlin_stochastic_coordinates.md`.
+
+### Offset periodicity and smoothness caveat
+
+The Python `noise` implementation used by the historical generator defines
+`pnoise2` with default `repeatx = repeaty = 1024`. The historical code does not
+override these repeat parameters. Since the generator evaluates
+
+$$
+x=(x_{\mathrm{grid}}+o_x)f_x,
+\qquad
+y=(y_{\mathrm{grid}}+o_y)f_y,
+$$
+
+an offset change of approximately
+
+$$
+\Delta o_x=\frac{1024}{f_x},
+\qquad
+\Delta o_y=\frac{1024}{f_y}
+$$
+
+traverses one nominal repeat interval of the underlying `pnoise2` coordinates.
+For the release25 value `f_x=f_y=18`, this is about `56.89` in offset units,
+whereas the historical random offset span is `[0,4242]`. The full coordinate
+interval therefore traverses many repeated/lattice regions.
+
+This observation does not invalidate the Perlin experiment, but it changes its
+interpretation. The experiment is an in-generator-family baseline and an
+empirical stress test for global PCE, not a guarantee that the response should
+have rapid spectral convergence merely because `m=2`. Degree convergence must
+be inspected directly. If convergence is poor, diagnostics of the input map
+itself should be considered before assigning the failure to the LGCNN.
 
 ## Deterministic forward model and first QoI
 
@@ -129,7 +168,9 @@ This ensemble therefore acts as the scalar Monte Carlo reference under exactly
 the same permeability law used for PCE. The PCE is evaluated on the identical
 coordinates.
 
-This isolates PCE error from a change in input distribution.
+This isolates PCE approximation error from a change in input distribution, but
+not from possible global non-smoothness/oscillation already present in the
+coordinate-to-Perlin-field map.
 
 The current diagnostics are:
 
@@ -196,3 +237,5 @@ The code alone therefore establishes software and mathematical readiness, not
 that degree 4 (or any other degree) is adequate for the real LGCNN response.
 The actual thesis experiment should compare several degrees and training budgets
 and report convergence against the independent LGCNN-MC validation ensemble.
+If convergence is poor, the Perlin offset parameterization should be diagnosed
+before concluding that the downstream LGCNN itself is not PCE-friendly.
