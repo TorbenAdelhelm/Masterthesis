@@ -34,6 +34,7 @@ def test_perlin_pce_cli_uses_reproducible_scientific_defaults():
     assert args.streamline_max_nfev == 100_000
     assert args.streamline_diagnostics is False
     assert args.streamline_slow_seconds == 2.0
+    assert args.plots_dir is None
 
 
 def test_perlin_pce_cli_accepts_documented_module_invocation_arguments():
@@ -70,6 +71,8 @@ def test_perlin_pce_cli_accepts_documented_module_invocation_arguments():
             "1.5",
             "--output",
             "run_output/release25_perlin_pce_d4_n60.npz",
+            "--plots-dir",
+            "run_output/release25_perlin_pce_d4_n60_plots",
         ]
     )
 
@@ -89,3 +92,4 @@ def test_perlin_pce_cli_accepts_documented_module_invocation_arguments():
     assert args.streamline_diagnostics is True
     assert args.streamline_slow_seconds == 1.5
     assert args.output == "run_output/release25_perlin_pce_d4_n60.npz"
+    assert args.plots_dir == "run_output/release25_perlin_pce_d4_n60_plots"
