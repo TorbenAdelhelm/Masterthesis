@@ -21,6 +21,7 @@ from ..sampling import (
 from ..surrogates import Release25Surrogate
 from ..surrogates.bounded_streamlines import configure_release25_streamlines
 from ..surrogates.release25_runtime import Release25Runtime
+from ..visualization.pce import plot_pce_archive
 
 HISTORICAL_GENERATOR_COMMIT = "8549bbd9e22d2bc75ce2038c1a0397359e45c971"
 HISTORICAL_GENERATOR_PATH = "scripts/create_varying_field.py"
@@ -137,6 +138,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         default="run_output/release25_perlin_pce.npz",
+    )
+    parser.add_argument(
+        "--plots-dir",
+        help=(
+            "Optional directory for three compact PCE diagnostic plots: validation "
+            "parity, validation residuals, and fitted coefficients."
+        ),
     )
     return parser
 
@@ -281,6 +289,12 @@ def main() -> None:
         f"LGCNN-MC variance={diagnostics.validation_variance:.6g}, "
         f"PCE variance={diagnostics.pce_variance:.6g}"
     )
+
+    if args.plots_dir:
+        paths = plot_pce_archive(destination, args.plots_dir)
+        print(f"Saved {len(paths)} PCE diagnostic plots:")
+        for name, path in paths.items():
+            print(f"  {name}: {path}")
 
 
 if __name__ == "__main__":
