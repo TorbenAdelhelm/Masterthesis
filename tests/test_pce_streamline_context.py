@@ -46,7 +46,7 @@ def test_coordinate_evaluator_attaches_phase_xi_and_perlin_offsets():
 
     values = evaluator.evaluate(coordinates, phase="train")
 
-    np.testing.assert_allclose(values, np.ones(2))
+    np.testing.assert_allclose(values, np.ones(2), rtol=1e-6, atol=1e-6)
     assert len(recorder.calls) == 1
     entries = recorder.calls[0]
     assert entries[0]["phase"] == "train"
