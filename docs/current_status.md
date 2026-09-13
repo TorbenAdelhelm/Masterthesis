@@ -18,21 +18,38 @@ PermeabilitySampler
                |
                `--> StochasticPermeabilityMap: xi -> K
                     `- PerlinCoordinatePermeabilityMap
-            |
-            v
+
+Coordinate-aware PCE path
+  xi_train / xi_validation
+        |
+        v
+StochasticPermeabilityMap
+        |
+        v
 TemperatureSurrogate
-  |- CallableTemperatureSurrogate
-  `- Release25Surrogate
-            |
-            v
+        |
+        v
+TemperatureFunctional
+  `- MeanTemperatureAnomaly
+        |
+        v
+PolynomialChaosRegressor
+        |
+        +--> held-out LGCNN-vs-PCE diagnostics
+        `--> analytic PCE mean/variance
+
+Field Monte Carlo path
+PermeabilitySampler
+        |
+        v
+TemperatureSurrogate
+        |
+        v
 MonteCarloRunner
-            |
-            +--> FieldStatisticsAccumulator
-            +--> ExceedanceProbabilityAccumulator
-            `--> arbitrary future TemperatureAccumulator
-            |
-            v
-versioned NPZ + metadata JSON + UQ plots
+        |
+        +--> FieldStatisticsAccumulator
+        +--> ExceedanceProbabilityAccumulator
+        `--> arbitrary future TemperatureAccumulator
 ```
 
 The release25 surrogate executes the real pretrained three-stage LGCNN path
@@ -40,10 +57,10 @@ using an external release25 checkout and external model/data assets. The current
 release25 input-UQ experiments vary permeability only; pressure and heat-pump
 locations are fixed by the selected prepared scenario.
 
-The stochastic-coordinate layer is implemented and tested independently. The
-new coordinate maps are deliberately **not yet wired into the release25
-experiment CLIs**. This keeps the input-law work separable from validation of
-the published LGCNN path.
+The stochastic-coordinate layer and the generic PCE proof-of-concept machinery
+are implemented and independently testable. A release25-specific Perlin-PCE CLI
+is also implemented, but the scientifically meaningful run still requires the
+external published model/data assets and is therefore not executed by CI.
 
 ## Implemented uncertainty models
 
@@ -97,10 +114,9 @@ integer x-shifts. The distinction is documented in
 thesis.
 
 `UniformCoordinatePermeabilitySampler` supplies iid `U(-1,1)` coordinates for
-Monte Carlo use. The map itself remains independent of the experimental design,
-so future PCE code can pass deterministic or randomized coordinate matrices
-directly. Because the coordinates are independent uniform variables, Legendre
-polynomials are the natural PCE family for this baseline.
+ordinary Monte Carlo use. The map itself remains independent of the
+experimental design, so PCE training can pass its own coordinate matrix
+directly.
 
 ### KL log-Gaussian stochastic-coordinate map
 
@@ -119,14 +135,68 @@ full `(H*W) x (H*W)` covariance matrix.
 The KL truncation can use either a fixed number of modes or a requested global
 variance/energy fraction. `GaussianCoordinatePermeabilitySampler` samples
 independent standard-normal coordinates and adapts the map to the existing
-`PermeabilitySampler` interface. The map itself does not select a Monte Carlo or
-PCE experimental design, which preserves the same `xi -> K` map for future PCE
-training.
+`PermeabilitySampler` interface.
 
 The current KL parameters are configuration inputs, not calibrated scientific
 defaults. In particular, the Matérn length scales and log-permeability moments
 still need to be estimated or selected before scientific LGCNN-UQ experiments
 are run.
+
+## Implemented Perlin PCE proof-of-concept machinery
+
+`PolynomialChaosRegressor` currently implements scalar non-intrusive PCE for
+independent `U(-1,1)` coordinates. The basis is an orthonormal tensor-product
+Legendre basis with total-degree truncation.
+
+For degree `p` and dimension `m=2`, the basis size is
+
+$$
+P=\binom{m+p}{p}.
+$$
+
+Training uses a randomized Latin-hypercube design and ordinary least squares.
+Underdetermined and rank-deficient designs are rejected. The fitted model stores
+its basis rank, singular values, design condition number and training RMSE.
+
+Because the basis is orthonormal,
+
+$$
+\mathbb E[\widehat Q]=c_{\mathbf 0},
+$$
+
+and
+
+$$
+\operatorname{Var}[\widehat Q]
+=\sum_{\boldsymbol\alpha\neq\mathbf0}c_{\boldsymbol\alpha}^2.
+$$
+
+`CoordinateQoIEvaluator` preserves paired `(xi,Q)` data without changing
+`MonteCarloRunner`. The first implemented continuous target is
+`MeanTemperatureAnomaly`, i.e. the spatial mean of `T-T_bg`.
+
+`run_uniform_pce_proof_of_concept` fits the PCE on the Latin-hypercube training
+set and validates it on an independent iid `U(-1,1)^2` ensemble. That validation
+ensemble is evaluated by the expensive temperature surrogate and therefore acts
+as a scalar Monte Carlo reference under exactly the same Perlin coordinate law.
+The current diagnostics are RMSE, MAE, maximum absolute error, relative L2 error,
+`Q2`, and comparison of Monte Carlo versus analytic-PCE mean and variance.
+
+The module command
+
+```text
+python -m subsurface_uq.experiments.release25_perlin_pce
+```
+
+constructs the real release25 LGCNN, the Perlin coordinate map and the mean
+Delta-T QoI, then runs this train/validation workflow and stores coordinates,
+QoIs, coefficients, predictions and metadata in a versioned NPZ archive plus
+JSON sidecar. The installed alias is `subsurface-uq-release25-perlin-pce`. The
+code path exists, but a real scientific result requires running it with the
+external release25 model/data assets.
+
+The detailed formulation is documented in
+`docs/perlin_pce_proof_of_concept.md`.
 
 ## Implemented propagation/statistics
 
@@ -141,9 +211,9 @@ provide mean, variance, standard deviation, minimum, maximum and threshold
 exceedance probabilities. Individual model outputs are only retained when
 `--store-all` is requested.
 
-The propagation loop is QoI-extensible through `TemperatureAccumulator`, so new
-monitoring-point or plume-geometry quantities should be implemented as
-accumulators rather than as new special-case arguments in the core runner.
+The propagation loop is QoI-extensible through `TemperatureAccumulator`, while
+the PCE path uses per-sample `TemperatureFunctional` objects because regression
+must retain one QoI value for each stochastic coordinate vector.
 
 ## Implemented validation/visualization
 
@@ -161,7 +231,10 @@ The repository contains:
   KL basis and compare it to the direct Kronecker covariance;
 - KL mode-selection, coordinate-shape, positivity and reproducibility tests;
 - Perlin coordinate-to-offset tests against the historical formula;
-- Perlin batch, domain-validation and uniform-sampler reproducibility tests.
+- Perlin batch, domain-validation and uniform-sampler reproducibility tests;
+- exact-polynomial recovery tests for the orthonormal Legendre regression;
+- an end-to-end coordinate-map -> deterministic surrogate -> QoI -> PCE unit test;
+- PCE archive/metadata serialization tests.
 
 For the historical synthetic data, temperature change uses the exact
 `10.6 °C` initial groundwater temperature from the PFLOTRAN setup.
@@ -169,19 +242,18 @@ For the historical synthetic data, temperature change uses the exact
 ## Reproducibility state
 
 New Monte Carlo result files use an explicit schema version and a JSON metadata
-sidecar. Release25 experiment metadata records code/model provenance where it can
-be determined from the local checkout, including Git SHAs, model checkpoint
-SHA-256 hashes and software versions.
+sidecar. PCE proof-of-concept archives likewise use a versioned schema and store
+training/validation coordinates, scalar targets, PCE predictions, multi-indices,
+coefficients and JSON metadata.
 
 The historical Perlin generator source/commit is recorded separately from the
-new UQ seed. The original generator's NumPy seeding statement was commented out,
+new UQ seeds. The original generator's NumPy seeding statement was commented out,
 so the repository does not claim bitwise reconstruction of the original random
 base offset from `seed_id=2907`.
 
-The Gaussian- and uniform-coordinate samplers use explicit NumPy generator seeds.
-The stochastic maps expose their coordinate law and physical-field parameters in
-metadata. This metadata is not yet written by a release25 experiment because
-that integration is intentionally deferred.
+The Gaussian- and uniform-coordinate samplers and the PCE training/validation
+designs use explicit seeds. The stochastic maps expose their coordinate law and
+physical-field parameters in metadata.
 
 ## Validation level
 
@@ -190,30 +262,34 @@ assets. The real published models/data have additionally been exercised locally
 through the deterministic release25 path and against a prepared RUN_1
 reference-temperature field.
 
-The stochastic-coordinate infrastructure is tested independently of the
-release25 runtime. A direct numerical comparison against an independently
-executed original release25 runtime is a stronger validation level for the
-LGCNN adapter and remains outstanding.
+The stochastic-coordinate and PCE mathematics are tested independently of the
+release25 runtime. The release25 Perlin-PCE CLI is implemented but has not been
+executed in CI because the published model/data assets are external. A direct
+numerical comparison against an independently executed original release25
+runtime also remains outstanding for the LGCNN adapter.
 
 ## Not implemented yet
 
-The following are planned thesis layers rather than current functionality:
+The following remain planned thesis layers or scientific experiments:
 
-- PCE basis construction, experimental design and coefficient fitting;
-- release25 propagation of the explicit Perlin coordinate law;
-- MC-vs-PCE convergence/error comparison for Perlin QoIs;
-- calibration/selection of KL/GRF hyperparameters for a scientific experiment;
-- connection of the KL sampler to a release25 experiment CLI;
-- monitoring-point QoIs;
+- execute the release25 Perlin-PCE experiment with real model/data assets and
+  perform degree/training-budget convergence studies;
+- add additional smooth scalar QoIs such as monitoring-point temperatures;
+- calibrate/select KL/GRF hyperparameters for a scientific synthetic-GRF
+  experiment;
+- connect the KL/GRF coordinate law to the PCE workflow (Hermite rather than
+  Legendre basis);
+- quantify Perlin-to-GRF distribution shift before interpreting LGCNN output;
 - plume length/area QoIs;
-- Monte Carlo convergence diagnostics;
+- Monte Carlo convergence diagnostics/error bars for full field statistics;
 - borehole-conditioned GRF/kriging simulation and conditioning diagnostics;
 - systematic comparison of geostatistical uncertainty models;
 - model/surrogate uncertainty;
 - global sensitivity analysis;
 - alternative propagation methods such as first-order/JVP approximations.
 
-The next roadmap step is the Perlin MC/PCE proof of concept. It should use the
-same `PerlinCoordinatePermeabilityMap` for both reference Monte Carlo and the
-PCE training/evaluation design, so discrepancies measure the propagation method
-rather than a change in the permeability generator.
+The immediate next scientific step is to run the implemented Perlin PCE
+proof-of-concept on the real release25 assets and inspect convergence with PCE
+degree and LGCNN training budget. Only after that baseline should the workflow
+move to the synthetic Matérn/KL random-field experiment, where distribution
+shift of the pretrained LGCNN becomes an explicit additional issue.

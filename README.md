@@ -157,6 +157,34 @@ for `tau=0.1 °C` and `1.0 °C`. Background and thresholds are configurable.
 These statistics are accumulated online; `--store-all` is only needed if the
 individual temperature realizations are required.
 
+## Perlin PCE proof of concept
+
+The coordinate-aware PCE experiment uses the same release25 asset paths as the
+Perlin Monte Carlo command. It fits on a Latin-hypercube design and validates
+against a separate expensive LGCNN ensemble:
+
+```bash
+python -m subsurface_uq.experiments.release25_perlin_pce \
+  --release25-repo external/release25-repo/Heat-Plume-Prediction \
+  --cnn1-dir models/LGCNN_step1_randomK \
+  --cnn2-dir models/LGCNN_step3_randomK \
+  --prepared-pki-dir data/prepared_pki \
+  --fixed-run-id RUN_1 \
+  --degree 4 \
+  --n-train 60 \
+  --n-validation 100 \
+  --train-seed 2907 \
+  --validation-seed 2908 \
+  --device cpu \
+  --output run_output/release25_perlin_pce_d4_n60.npz
+```
+
+The output contains the training and validation coordinates and QoIs, PCE
+coefficients, held-out predictions, diagnostics and reproducibility metadata.
+See [`docs/perlin_pce_proof_of_concept.md`](docs/perlin_pce_proof_of_concept.md)
+for the mathematical definition and the important Perlin-offset smoothness
+caveat.
+
 ## Monte Carlo statistics and extensible QoIs
 
 For propagated temperature fields `T^(m)(x)`, the core computes
