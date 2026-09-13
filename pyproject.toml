@@ -27,6 +27,7 @@ subsurface-uq-release25-perlin = "subsurface_uq.experiments.release25_perlin:mai
 subsurface-uq-release25-perlin-pce = "subsurface_uq.experiments.release25_perlin_pce:main"
 subsurface-uq-release25-streamline-equivalence = "subsurface_uq.experiments.release25_streamline_equivalence:main"
 subsurface-uq-plot-mc = "subsurface_uq.visualization.cli:main"
+subsurface-uq-plot-pce = "subsurface_uq.visualization.pce_cli:main"
 subsurface-uq-validate-temperature = "subsurface_uq.validation.cli:main"
 
 [tool.setuptools.packages.find]
