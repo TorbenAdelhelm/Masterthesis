@@ -10,10 +10,14 @@ current functionality.
 PermeabilitySampler
   |- EmpiricalPermeabilitySampler
   |- Release25PerlinPermeabilitySampler
-  `- GaussianCoordinatePermeabilitySampler
+  |- GaussianCoordinatePermeabilitySampler
+  |            |
+  |            `--> StochasticPermeabilityMap: xi -> K
+  |                 `- KLLogGaussianPermeabilityMap
+  `- UniformCoordinatePermeabilitySampler
                |
                `--> StochasticPermeabilityMap: xi -> K
-                    `- KLLogGaussianPermeabilityMap
+                    `- PerlinCoordinatePermeabilityMap
             |
             v
 TemperatureSurrogate
@@ -36,10 +40,10 @@ using an external release25 checkout and external model/data assets. The current
 release25 input-UQ experiments vary permeability only; pressure and heat-pump
 locations are fixed by the selected prepared scenario.
 
-The stochastic-coordinate/KL layer is currently implemented and tested as an
-independent sampling layer. It is deliberately **not yet wired into the
-release25 experiment CLIs**. This keeps the new random-field model separable
-from validation of the published LGCNN path.
+The stochastic-coordinate layer is implemented and tested independently. The
+new coordinate maps are deliberately **not yet wired into the release25
+experiment CLIs**. This keeps the input-law work separable from validation of
+the published LGCNN path.
 
 ## Implemented uncertainty models
 
@@ -57,10 +61,46 @@ borehole-conditioned uncertainty.
 
 ### Historical synthetic Perlin prior
 
-New permeability realizations are generated with the historical `perlin_v2`
-formula used by the released synthetic data. The sampler is lazy and
-reproducible for new UQ experiments. It should be described as an unconditional
-synthetic prior/input distribution.
+`Release25PerlinPermeabilitySampler` generates new permeability realizations
+with the historical `perlin_v2` spatial formula used by the released synthetic
+data. The sampler is lazy and reproducible for new UQ experiments. It should be
+described as an unconditional synthetic prior/input distribution rather than as
+an exact reconstruction of the finite training fields.
+
+### Explicit Perlin stochastic-coordinate map
+
+`PerlinCoordinatePermeabilityMap` exposes a low-dimensional stochastic map
+
+$$
+G_{\mathrm{Perlin}}:[-1,1]^2\to\mathbb R_+^{H\times W}.
+$$
+
+For the historical 2-D `perlin_v2` implementation, only the first two elements
+of the random three-component `base_offset` affect `pnoise2`; the third element
+is only relevant to the 3-D branch. The new map therefore uses two independent
+standardized coordinates
+
+$$
+\xi_x,\xi_y\sim\mathcal U(-1,1)
+$$
+
+and maps them affinely to the historical random-offset span `[0,4242]` before
+calling the same `historical_perlin_v2_field` transformation. An optional
+`x_base_shift` represents the historical deterministic integer sample shift
+without treating sample index as a stochastic coordinate.
+
+This is an iid continuous law from the same generator family, **not** the exact
+joint law of the historical finite training set: the original generator drew
+one random base offset and shared it across fields while applying successive
+integer x-shifts. The distinction is documented in
+`docs/perlin_stochastic_coordinates.md` and should remain explicit in the
+thesis.
+
+`UniformCoordinatePermeabilitySampler` supplies iid `U(-1,1)` coordinates for
+Monte Carlo use. The map itself remains independent of the experimental design,
+so future PCE code can pass deterministic or randomized coordinate matrices
+directly. Because the coordinates are independent uniform variables, Legendre
+polynomials are the natural PCE family for this baseline.
 
 ### KL log-Gaussian stochastic-coordinate map
 
@@ -85,8 +125,8 @@ training.
 
 The current KL parameters are configuration inputs, not calibrated scientific
 defaults. In particular, the Matérn length scales and log-permeability moments
-still need to be estimated/selected from the intended permeability regime before
-scientific LGCNN-UQ experiments are run.
+still need to be estimated or selected before scientific LGCNN-UQ experiments
+are run.
 
 ## Implemented propagation/statistics
 
@@ -119,7 +159,9 @@ The repository contains:
 - empirical spatial exceedance-probability maps;
 - unit tests that reconstruct the full small-grid covariance from the factorized
   KL basis and compare it to the direct Kronecker covariance;
-- KL mode-selection, coordinate-shape, positivity and reproducibility tests.
+- KL mode-selection, coordinate-shape, positivity and reproducibility tests;
+- Perlin coordinate-to-offset tests against the historical formula;
+- Perlin batch, domain-validation and uniform-sampler reproducibility tests.
 
 For the historical synthetic data, temperature change uses the exact
 `10.6 °C` initial groundwater temperature from the PFLOTRAN setup.
@@ -133,11 +175,11 @@ SHA-256 hashes and software versions.
 
 The historical Perlin generator source/commit is recorded separately from the
 new UQ seed. The original generator's NumPy seeding statement was commented out,
-so the repository does not claim bitwise reconstruction of the three original
-training fields from `seed_id=2907`.
+so the repository does not claim bitwise reconstruction of the original random
+base offset from `seed_id=2907`.
 
-The Gaussian-coordinate sampler uses an explicit NumPy generator seed and the
-KL map exposes covariance, domain, log-space, mode-selection and retained-energy
+The Gaussian- and uniform-coordinate samplers use explicit NumPy generator seeds.
+The stochastic maps expose their coordinate law and physical-field parameters in
 metadata. This metadata is not yet written by a release25 experiment because
 that integration is intentionally deferred.
 
@@ -148,7 +190,7 @@ assets. The real published models/data have additionally been exercised locally
 through the deterministic release25 path and against a prepared RUN_1
 reference-temperature field.
 
-The KL stochastic-coordinate infrastructure is tested independently of the
+The stochastic-coordinate infrastructure is tested independently of the
 release25 runtime. A direct numerical comparison against an independently
 executed original release25 runtime is a stronger validation level for the
 LGCNN adapter and remains outstanding.
@@ -157,9 +199,11 @@ LGCNN adapter and remains outstanding.
 
 The following are planned thesis layers rather than current functionality:
 
+- PCE basis construction, experimental design and coefficient fitting;
+- release25 propagation of the explicit Perlin coordinate law;
+- MC-vs-PCE convergence/error comparison for Perlin QoIs;
 - calibration/selection of KL/GRF hyperparameters for a scientific experiment;
 - connection of the KL sampler to a release25 experiment CLI;
-- PCE basis construction, experimental design and coefficient fitting;
 - monitoring-point QoIs;
 - plume length/area QoIs;
 - Monte Carlo convergence diagnostics;
@@ -169,7 +213,7 @@ The following are planned thesis layers rather than current functionality:
 - global sensitivity analysis;
 - alternative propagation methods such as first-order/JVP approximations.
 
-The next scientific step is to validate/calibrate the unconditional KL/GRF
-input model and its effective stochastic dimension before it is propagated
-through the release25 LGCNN. PCE should then reuse exactly the same stochastic
-coordinate map rather than introduce a second permeability generator.
+The next roadmap step is the Perlin MC/PCE proof of concept. It should use the
+same `PerlinCoordinatePermeabilityMap` for both reference Monte Carlo and the
+PCE training/evaluation design, so discrepancies measure the propagation method
+rather than a change in the permeability generator.
