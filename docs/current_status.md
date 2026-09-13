@@ -9,7 +9,11 @@ current functionality.
 ```text
 PermeabilitySampler
   |- EmpiricalPermeabilitySampler
-  `- Release25PerlinPermeabilitySampler
+  |- Release25PerlinPermeabilitySampler
+  `- GaussianCoordinatePermeabilitySampler
+               |
+               `--> StochasticPermeabilityMap: xi -> K
+                    `- KLLogGaussianPermeabilityMap
             |
             v
 TemperatureSurrogate
@@ -29,8 +33,13 @@ versioned NPZ + metadata JSON + UQ plots
 
 The release25 surrogate executes the real pretrained three-stage LGCNN path
 using an external release25 checkout and external model/data assets. The current
-input-UQ experiments vary permeability only; pressure and heat-pump locations
-are fixed by the selected prepared scenario.
+release25 input-UQ experiments vary permeability only; pressure and heat-pump
+locations are fixed by the selected prepared scenario.
+
+The stochastic-coordinate/KL layer is currently implemented and tested as an
+independent sampling layer. It is deliberately **not yet wired into the
+release25 experiment CLIs**. This keeps the new random-field model separable
+from validation of the published LGCNN path.
 
 ## Implemented uncertainty models
 
@@ -53,6 +62,32 @@ formula used by the released synthetic data. The sampler is lazy and
 reproducible for new UQ experiments. It should be described as an unconditional
 synthetic prior/input distribution.
 
+### KL log-Gaussian stochastic-coordinate map
+
+`KLLogGaussianPermeabilityMap` implements an explicit finite-dimensional map
+
+$$
+G_m:\mathbb R^m\to\mathbb R^{H\times W},\qquad \boldsymbol\xi\mapsto K.
+$$
+
+The log10-permeability field uses a truncated discrete Karhunen-Loève expansion
+with independent standard-normal coordinates. The covariance is a separable
+product of one-dimensional Matérn-3/2 correlation matrices. This permits the
+2-D KL modes to be formed from two 1-D eigensystems rather than constructing a
+full `(H*W) x (H*W)` covariance matrix.
+
+The KL truncation can use either a fixed number of modes or a requested global
+variance/energy fraction. `GaussianCoordinatePermeabilitySampler` samples
+independent standard-normal coordinates and adapts the map to the existing
+`PermeabilitySampler` interface. The map itself does not select a Monte Carlo or
+PCE experimental design, which preserves the same `xi -> K` map for future PCE
+training.
+
+The current KL parameters are configuration inputs, not calibrated scientific
+defaults. In particular, the Matérn length scales and log-permeability moments
+still need to be estimated/selected from the intended permeability regime before
+scientific LGCNN-UQ experiments are run.
+
 ## Implemented propagation/statistics
 
 For every sampled permeability field,
@@ -66,8 +101,8 @@ provide mean, variance, standard deviation, minimum, maximum and threshold
 exceedance probabilities. Individual model outputs are only retained when
 `--store-all` is requested.
 
-The propagation loop is now QoI-extensible through `TemperatureAccumulator`, so
-new monitoring-point or plume-geometry quantities should be implemented as
+The propagation loop is QoI-extensible through `TemperatureAccumulator`, so new
+monitoring-point or plume-geometry quantities should be implemented as
 accumulators rather than as new special-case arguments in the core runner.
 
 ## Implemented validation/visualization
@@ -81,7 +116,10 @@ The repository contains:
 - Monte Carlo mean/std/range maps;
 - mean-temperature/std-contour overlays;
 - mean temperature-change maps;
-- empirical spatial exceedance-probability maps.
+- empirical spatial exceedance-probability maps;
+- unit tests that reconstruct the full small-grid covariance from the factorized
+  KL basis and compare it to the direct Kronecker covariance;
+- KL mode-selection, coordinate-shape, positivity and reproducibility tests.
 
 For the historical synthetic data, temperature change uses the exact
 `10.6 °C` initial groundwater temperature from the PFLOTRAN setup.
@@ -98,6 +136,11 @@ new UQ seed. The original generator's NumPy seeding statement was commented out,
 so the repository does not claim bitwise reconstruction of the three original
 training fields from `seed_id=2907`.
 
+The Gaussian-coordinate sampler uses an explicit NumPy generator seed and the
+KL map exposes covariance, domain, log-space, mode-selection and retained-energy
+metadata. This metadata is not yet written by a release25 experiment because
+that integration is intentionally deferred.
+
 ## Validation level
 
 Lightweight CI validates the package without downloading the large DaRUS
@@ -105,13 +148,18 @@ assets. The real published models/data have additionally been exercised locally
 through the deterministic release25 path and against a prepared RUN_1
 reference-temperature field.
 
-A direct numerical comparison against an independently executed original
-release25 runtime is a stronger validation level and remains outstanding.
+The KL stochastic-coordinate infrastructure is tested independently of the
+release25 runtime. A direct numerical comparison against an independently
+executed original release25 runtime is a stronger validation level for the
+LGCNN adapter and remains outstanding.
 
 ## Not implemented yet
 
 The following are planned thesis layers rather than current functionality:
 
+- calibration/selection of KL/GRF hyperparameters for a scientific experiment;
+- connection of the KL sampler to a release25 experiment CLI;
+- PCE basis construction, experimental design and coefficient fitting;
 - monitoring-point QoIs;
 - plume length/area QoIs;
 - Monte Carlo convergence diagnostics;
@@ -121,6 +169,7 @@ The following are planned thesis layers rather than current functionality:
 - global sensitivity analysis;
 - alternative propagation methods such as first-order/JVP approximations.
 
-The next scientific implementation should add QoIs/convergence diagnostics and
-then introduce a conditional geostatistical `PermeabilitySampler` without
-changing the existing surrogate or propagation interfaces.
+The next scientific step is to validate/calibrate the unconditional KL/GRF
+input model and its effective stochastic dimension before it is propagated
+through the release25 LGCNN. PCE should then reuse exactly the same stochastic
+coordinate map rather than introduce a second permeability generator.
