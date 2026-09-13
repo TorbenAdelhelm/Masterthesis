@@ -23,6 +23,10 @@ def test_perlin_cli_uses_exact_synthetic_background_and_auto_ddof():
     assert args.background_temperature == RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C
     assert args.exceedance_thresholds == (0.1, 1.0)
     assert args.ddof is None
+    assert args.streamline_mode == "release25"
+    assert args.streamline_max_nfev == 100_000
+    assert args.streamline_diagnostics is False
+    assert args.streamline_slow_seconds == 2.0
 
 
 def test_perlin_cli_accepts_documented_module_invocation_arguments():
@@ -44,6 +48,13 @@ def test_perlin_cli_accepts_documented_module_invocation_arguments():
             "2907",
             "--device",
             "cpu",
+            "--streamline-mode",
+            "bounded",
+            "--streamline-max-nfev",
+            "50000",
+            "--streamline-diagnostics",
+            "--streamline-slow-seconds",
+            "1.5",
             "--output",
             "run_output/release25_perlin_mc_5_v3.npz",
             "--plots-dir",
@@ -59,5 +70,9 @@ def test_perlin_cli_accepts_documented_module_invocation_arguments():
     assert args.n_samples == 5
     assert args.seed == 2907
     assert args.device == "cpu"
+    assert args.streamline_mode == "bounded"
+    assert args.streamline_max_nfev == 50_000
+    assert args.streamline_diagnostics is True
+    assert args.streamline_slow_seconds == 1.5
     assert args.output == "run_output/release25_perlin_mc_5_v3.npz"
     assert args.plots_dir == "run_output/release25_perlin_mc_5_v3_plots"
