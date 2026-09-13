@@ -11,6 +11,10 @@ import pytest
     [
         ("subsurface_uq.experiments.release25_perlin", "--n-samples"),
         ("subsurface_uq.experiments.release25_perlin_pce", "--n-train"),
+        (
+            "subsurface_uq.experiments.release25_streamline_equivalence",
+            "--sample-indices",
+        ),
     ],
 )
 def test_experiment_module_help_is_executable(module: str, expected_option: str):
