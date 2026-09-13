@@ -182,17 +182,18 @@ as a scalar Monte Carlo reference under exactly the same Perlin coordinate law.
 The current diagnostics are RMSE, MAE, maximum absolute error, relative L2 error,
 `Q2`, and comparison of Monte Carlo versus analytic-PCE mean and variance.
 
-The command
+The module command
 
 ```text
-subsurface-uq-release25-perlin-pce
+python -m subsurface_uq.experiments.release25_perlin_pce
 ```
 
 constructs the real release25 LGCNN, the Perlin coordinate map and the mean
 Delta-T QoI, then runs this train/validation workflow and stores coordinates,
 QoIs, coefficients, predictions and metadata in a versioned NPZ archive plus
-JSON sidecar. The code path exists, but a real scientific result requires
-running it with the external release25 model/data assets.
+JSON sidecar. The installed alias is `subsurface-uq-release25-perlin-pce`. The
+code path exists, but a real scientific result requires running it with the
+external release25 model/data assets.
 
 The detailed formulation is documented in
 `docs/perlin_pce_proof_of_concept.md`.

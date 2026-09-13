@@ -19,6 +19,41 @@ map from an offset coordinate to a permeability field can be highly oscillatory.
 A failed Perlin PCE must therefore not automatically be attributed to the LGCNN
 or streamline stage.
 
+## Run
+
+Run the experiment from the repository root after installing the package. The
+module invocation follows the same release25 path arguments as the Perlin Monte
+Carlo experiment; PCE adds separate training and validation budgets and seeds.
+
+```bash
+python -m pip install -e ".[test]"
+
+python -m subsurface_uq.experiments.release25_perlin_pce \
+  --release25-repo external/release25-repo/Heat-Plume-Prediction \
+  --cnn1-dir models/LGCNN_step1_randomK \
+  --cnn2-dir models/LGCNN_step3_randomK \
+  --prepared-pki-dir data/prepared_pki \
+  --fixed-run-id RUN_1 \
+  --degree 4 \
+  --n-train 60 \
+  --n-validation 100 \
+  --train-seed 2907 \
+  --validation-seed 2908 \
+  --device cpu \
+  --output run_output/release25_perlin_pce_d4_n60.npz
+```
+
+The equivalent installed entry point is
+`subsurface-uq-release25-perlin-pce`. Relative paths are resolved from the
+current working directory, so the paths above assume that the command is run
+from the repository root. The command performs `n_train + n_validation`
+expensive LGCNN evaluations; the values above are an invocation example, not a
+claim that this budget or degree has converged.
+
+The multiline examples in this repository use Bash line continuations. In
+PowerShell, put the command on one line or replace each trailing backslash with
+a backtick.
+
 ## Stochastic input
 
 The input coordinates are
