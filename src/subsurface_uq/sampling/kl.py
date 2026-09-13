@@ -88,6 +88,8 @@ class KLLogGaussianPermeabilityMap:
     _eigenvalues: Array = field(init=False, repr=False)
     _total_variance: float = field(init=False, repr=False)
     _retained_energy_fraction: float = field(init=False, repr=False)
+    _selection_method: str = field(init=False, repr=False)
+    _requested_n_modes: int | None = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         if len(self.shape) != 2 or any(int(value) <= 0 for value in self.shape):
@@ -121,12 +123,16 @@ class KLLogGaussianPermeabilityMap:
         self.energy_threshold = float(self.energy_threshold)
 
         total_modes = self.shape[0] * self.shape[1]
-        if self.n_modes is not None:
-            self.n_modes = int(self.n_modes)
-            if not (1 <= self.n_modes <= total_modes):
-                raise ValueError(
-                    f"n_modes must lie in [1, {total_modes}], got {self.n_modes}"
-                )
+        self._requested_n_modes = None if self.n_modes is None else int(self.n_modes)
+        self._selection_method = (
+            "energy_threshold" if self._requested_n_modes is None else "fixed_n_modes"
+        )
+        if self._requested_n_modes is not None and not (
+            1 <= self._requested_n_modes <= total_modes
+        ):
+            raise ValueError(
+                f"n_modes must lie in [1, {total_modes}], got {self._requested_n_modes}"
+            )
 
         corr_y = matern32_correlation_matrix(
             self.shape[0], self.domain_size_m[0], self.length_scale_m[0]
@@ -148,7 +154,7 @@ class KLLogGaussianPermeabilityMap:
         if not self._total_variance > 0.0:
             raise RuntimeError("KL covariance has zero total variance")
 
-        if self.n_modes is None:
+        if self._requested_n_modes is None:
             cumulative = np.cumsum(sorted_values, dtype=np.float64)
             target = min(
                 self.energy_threshold * self._total_variance,
@@ -156,7 +162,7 @@ class KLLogGaussianPermeabilityMap:
             )
             selected_count = int(np.searchsorted(cumulative, target, side="left") + 1)
         else:
-            selected_count = self.n_modes
+            selected_count = self._requested_n_modes
 
         selected = order[:selected_count]
         mode_y, mode_x = np.unravel_index(selected, product_values.shape)
@@ -204,7 +210,8 @@ class KLLogGaussianPermeabilityMap:
             "std_log10_k": self.std_log10_k,
             "length_scale_m": [self.length_scale_m[0], self.length_scale_m[1]],
             "dimension": self.dimension,
-            "selection": "fixed_n_modes" if self.n_modes is not None else "energy_threshold",
+            "selection": self._selection_method,
+            "requested_n_modes": self._requested_n_modes,
             "energy_threshold_requested": self.energy_threshold,
             "retained_energy_fraction": self.retained_energy_fraction,
         }
