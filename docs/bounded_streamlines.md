@@ -20,16 +20,20 @@ local drop-in `make_streamlines` replacement and selects it only when explicitly
 Two modes are available:
 
 - `release25`: exact existing adapter behavior and the default for backwards compatibility;
-- `bounded`: release25-compatible integration with terminal domain-boundary events and a
-  per-streamline RHS-evaluation watchdog.
+- `bounded`: release25-compatible integration with terminal domain-boundary events, bounded
+  interpolation for RK stage evaluations, and a per-streamline RHS-evaluation watchdog.
 
-The bounded mode deliberately preserves the other Step-2 choices: velocity interpolation,
-axis convention, heat-pump starting points, center/+10/-10 passes, grid resolution factor,
-`solve_ivp` method, `t_end=27.5`, `t_steps=10000`, and faded streamline rasterization.
+The bounded mode deliberately preserves the other Step-2 choices: velocity interpolation
+inside the domain, axis convention, heat-pump starting points, center/+10/-10 passes, grid
+resolution factor, `solve_ivp` method, `t_end=27.5`, `t_steps=10000`, and faded streamline
+rasterization.
 
 The numerical difference is that a trajectory terminates once it exits
-`[0,H-1] x [0,W-1]`, rather than continuing through extrapolated velocities and discarding
-those points afterwards.
+`[0,H-1] x [0,W-1]`. Adaptive RK stages can temporarily evaluate the vector field beyond the
+accepted trajectory, so bounded mode projects only those out-of-domain stage points to the
+nearest grid boundary before interpolation. This prevents the original extrapolated-velocity
+behavior from destabilizing a boundary-crossing step; the accepted trajectory is then stopped
+by the terminal boundary event.
 
 ## Recommended smoke test
 
@@ -57,8 +61,12 @@ python -m subsurface_uq.experiments.release25_perlin_pce \
 individual streamline. `--streamline-slow-seconds` controls the threshold for printing a
 slow-trajectory diagnostic and defaults to 2 seconds.
 
-The same options are available in `subsurface_uq.experiments.release25_perlin` for the Monte
-Carlo baseline.
+For PCE runs, diagnostics include the training/validation phase, design index, stochastic
+coordinate `xi`, mapped Perlin offset, streamline pass, heat-pump index for slow/failing
+trajectories, velocity ranges, timings, and RHS-evaluation counts.
+
+The same streamline mode options are available in `subsurface_uq.experiments.release25_perlin`
+for the Monte Carlo baseline.
 
 ## Reproducibility and thesis use
 
@@ -68,6 +76,6 @@ metadata. Reference comparisons against the published implementation should use
 ordinary, non-pathological cases yield negligible differences in streamline rasters and final
 temperature fields.
 
-A watchdog failure raises `StreamlineIntegrationError` with the sample number, streamline
-pass, heat-pump index, start point, last integration time, and last state. It does not silently
-replace or truncate a failed result.
+A watchdog failure raises `StreamlineIntegrationError` with the available sample/coordinate
+context, streamline pass, heat-pump index, start point, last integration time, and last state.
+It does not silently replace or truncate a failed result.
