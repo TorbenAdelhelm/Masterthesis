@@ -23,8 +23,10 @@ class BoundedStreamlineFactory:
 
     The implementation preserves release25's velocity interpolation, RK solver,
     integration horizon, output sampling, heat-pump offsets, and fading rule.
-    The only numerical change is that integration terminates once a trajectory
-    leaves the valid grid. A configurable RHS-evaluation watchdog prevents one
+    The bounded mode terminates once a trajectory leaves the valid grid and
+    clips only out-of-domain RK stage evaluation points to the nearest boundary,
+    preventing the extrapolated-velocity behavior that can make adaptive RK45
+    pathological. A configurable RHS-evaluation watchdog prevents one remaining
     pathological trajectory from appearing to hang indefinitely.
 
     PCE/coordinate-aware callers may attach a batch of diagnostic contexts via
@@ -113,7 +115,10 @@ def _velocity_rhs(
     *,
     random_k_data: bool,
 ):
-    # Preserve release25's axis convention exactly.
+    # Preserve release25's axis convention and linear interpolation inside the
+    # domain. For bounded mode only, RK stage points that overshoot the domain
+    # are projected back to the nearest boundary before interpolation. The
+    # terminal events then stop the accepted trajectory at that boundary.
     if random_k_data:
         fx = RegularGridInterpolator(
             (x, y), vx, bounds_error=False, fill_value=None, method="linear"
@@ -129,8 +134,12 @@ def _velocity_rhs(
             (x, y), vy, bounds_error=False, fill_value=None, method="linear"
         )
 
+    lower = np.asarray([x[0], y[0]], dtype=float)
+    upper = np.asarray([x[-1], y[-1]], dtype=float)
+
     def rhs(_t: float, state: Array) -> Array:
-        return np.squeeze([fy(state), fx(state)])
+        point = np.clip(np.asarray(state, dtype=float), lower, upper)
+        return np.squeeze([fy(point), fx(point)])
 
     return rhs
 
