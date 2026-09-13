@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from time import perf_counter
-from typing import Any
+from typing import Any, Mapping, Sequence
 
 import numpy as np
 import torch
@@ -26,12 +26,20 @@ class BoundedStreamlineFactory:
     The only numerical change is that integration terminates once a trajectory
     leaves the valid grid. A configurable RHS-evaluation watchdog prevents one
     pathological trajectory from appearing to hang indefinitely.
+
+    PCE/coordinate-aware callers may attach a batch of diagnostic contexts via
+    :meth:`set_batch_context`. The factory then associates one context with each
+    center/+10/-10 release25 triplet without changing the deterministic model
+    interface.
     """
 
     max_nfev: int = 100_000
     diagnostics: bool = False
     slow_streamline_seconds: float = 2.0
     call_count: int = 0
+    _batch_context: list[dict[str, Any]] = field(default_factory=list, init=False, repr=False)
+    _context_cursor: int = field(default=0, init=False, repr=False)
+    _active_context: dict[str, Any] | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.max_nfev = int(self.max_nfev)
@@ -41,6 +49,11 @@ class BoundedStreamlineFactory:
         if self.slow_streamline_seconds < 0.0:
             raise ValueError("slow_streamline_seconds must be non-negative")
 
+    def set_batch_context(self, entries: Sequence[Mapping[str, Any]]) -> None:
+        self._batch_context = [dict(entry) for entry in entries]
+        self._context_cursor = 0
+        self._active_context = None
+
     @staticmethod
     def _pass_name(offset: float | int | None) -> str:
         if offset is None or float(offset) == 0.0:
@@ -48,6 +61,15 @@ class BoundedStreamlineFactory:
         if float(offset) > 0.0:
             return f"offset+{float(offset):g}"
         return f"offset{float(offset):g}"
+
+    def _context_for_pass(self, pass_name: str) -> dict[str, Any] | None:
+        if pass_name == "center":
+            if self._context_cursor < len(self._batch_context):
+                self._active_context = self._batch_context[self._context_cursor]
+                self._context_cursor += 1
+            else:
+                self._active_context = None
+        return self._active_context
 
     def __call__(
         self,
@@ -64,6 +86,7 @@ class BoundedStreamlineFactory:
         self.call_count += 1
         sample_index = (self.call_count - 1) // 3 + 1
         pass_name = self._pass_name(offset)
+        context = self._context_for_pass(pass_name)
         return bounded_make_streamlines(
             mat_ids=mat_ids,
             vx=vx,
@@ -77,6 +100,7 @@ class BoundedStreamlineFactory:
             slow_streamline_seconds=self.slow_streamline_seconds,
             sample_index=sample_index,
             pass_name=pass_name,
+            context=context,
             **kwargs,
         )
 
@@ -198,6 +222,23 @@ def _draw_faded_streamlines(image_data: Array, streamlines: list[tuple[Array, Ar
     return image_data
 
 
+def _format_context(context: Mapping[str, Any] | None) -> str:
+    if not context:
+        return ""
+    parts: list[str] = []
+    if context.get("phase") is not None:
+        parts.append(f"phase={context['phase']}")
+    if context.get("design_index") is not None:
+        parts.append(f"design_index={context['design_index']}")
+    if context.get("xi") is not None:
+        xi = np.asarray(context["xi"], dtype=float)
+        parts.append("xi=" + np.array2string(xi, precision=6, separator=","))
+    if context.get("perlin_offset") is not None:
+        offset = np.asarray(context["perlin_offset"], dtype=float)
+        parts.append("perlin_offset=" + np.array2string(offset, precision=6, separator=","))
+    return " ".join(parts)
+
+
 def bounded_make_streamlines(
     *,
     mat_ids: Array,
@@ -212,6 +253,7 @@ def bounded_make_streamlines(
     slow_streamline_seconds: float = 2.0,
     sample_index: int | None = None,
     pass_name: str = "center",
+    context: Mapping[str, Any] | None = None,
     **kwargs: Any,
 ) -> torch.Tensor:
     """Release25-compatible streamline rasterization with domain termination."""
@@ -248,6 +290,9 @@ def bounded_make_streamlines(
         f"sample={sample_index if sample_index is not None else '?'} "
         f"pass={pass_name}"
     )
+    context_text = _format_context(context)
+    if context_text:
+        prefix = f"{prefix} {context_text}"
     if diagnostics:
         print(
             f"[bounded-streamlines] {prefix} heat_pumps={positions.shape[0]} "
