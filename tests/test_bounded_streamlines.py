@@ -7,8 +7,23 @@ from subsurface_uq.surrogates.bounded_streamlines import (
     BoundedStreamlineFactory,
     StreamlineIntegrationError,
     _bounded_calc_streamline,
+    _velocity_rhs,
     configure_release25_streamlines,
 )
+
+
+def test_bounded_velocity_rhs_clips_rk_stage_points_to_domain():
+    x = np.array([0.0, 1.0])
+    y = np.array([0.0, 1.0])
+    vx = np.array([[0.0, 1.0], [2.0, 3.0]])
+    vy = np.array([[10.0, 11.0], [12.0, 13.0]])
+    rhs = _velocity_rhs(x, y, vx, vy, random_k_data=True)
+
+    # [5,-2] is projected to the boundary point [1,0]. With release25's
+    # random-K axis convention the returned derivative is [vy, vx].
+    value = rhs(0.0, np.array([5.0, -2.0]))
+
+    np.testing.assert_allclose(value, np.array([12.0, 2.0]))
 
 
 def test_bounded_calc_streamline_stops_at_domain_boundary():
