@@ -27,7 +27,39 @@ class CoordinateQoIEvaluator:
             raise ValueError("batch_size must be positive")
         self.batch_size = int(self.batch_size)
 
-    def evaluate(self, coordinates: Array) -> Array:
+    def _set_streamline_context(
+        self,
+        batch_coordinates: Array,
+        *,
+        phase: str,
+        design_start: int,
+    ) -> None:
+        adapter = getattr(self.surrogate, "adapter", None)
+        factory = getattr(adapter, "_make_streamlines", None)
+        setter = getattr(factory, "set_batch_context", None)
+        if not callable(setter):
+            return
+
+        offsets = None
+        converter = getattr(self.field_map, "coordinates_to_offsets", None)
+        if callable(converter):
+            offsets = np.asarray(converter(batch_coordinates), dtype=np.float64)
+            if offsets.ndim == 1:
+                offsets = offsets[None, :]
+
+        entries: list[dict[str, object]] = []
+        for local_index, coordinate in enumerate(batch_coordinates):
+            entry: dict[str, object] = {
+                "phase": phase,
+                "design_index": int(design_start + local_index + 1),
+                "xi": np.asarray(coordinate, dtype=np.float64).tolist(),
+            }
+            if offsets is not None:
+                entry["perlin_offset"] = offsets[local_index].tolist()
+            entries.append(entry)
+        setter(entries)
+
+    def evaluate(self, coordinates: Array, *, phase: str = "evaluation") -> Array:
         coordinates = np.asarray(coordinates, dtype=np.float64)
         if coordinates.ndim == 1:
             coordinates = coordinates[None, :]
@@ -52,6 +84,11 @@ class CoordinateQoIEvaluator:
                     "stochastic permeability map returned an unexpected shape; "
                     f"expected {expected}, got {permeability.shape}"
                 )
+            self._set_streamline_context(
+                batch_coordinates,
+                phase=phase,
+                design_start=start,
+            )
             temperature = np.asarray(
                 self.surrogate.predict_temperature_batch(permeability)
             )
@@ -151,7 +188,6 @@ class PCEProofOfConceptResult:
     diagnostics: PCEDiagnostics
 
 
-
 def run_uniform_pce_proof_of_concept(
     evaluator: CoordinateQoIEvaluator,
     *,
@@ -185,7 +221,7 @@ def run_uniform_pce_proof_of_concept(
         evaluator.field_map.dimension,
         seed=train_seed,
     )
-    train_qoi = evaluator.evaluate(train_coordinates)
+    train_qoi = evaluator.evaluate(train_coordinates, phase="train")
     regressor.fit(train_coordinates, train_qoi)
 
     validation_coordinates = iid_uniform_design(
@@ -193,7 +229,7 @@ def run_uniform_pce_proof_of_concept(
         evaluator.field_map.dimension,
         seed=validation_seed,
     )
-    validation_qoi = evaluator.evaluate(validation_coordinates)
+    validation_qoi = evaluator.evaluate(validation_coordinates, phase="validation")
     validation_prediction = regressor.predict(validation_coordinates)
     diagnostics = pce_diagnostics(
         validation_qoi,
