@@ -197,6 +197,40 @@ class KLLogGaussianPermeabilityMap:
     def retained_energy_fraction(self) -> float:
         return self._retained_energy_fraction
 
+    def mode_matrix_at_indices(self, indices: Array) -> Array:
+        """Return truncated-KL log10 loadings at integer ``(row, col)`` cells.
+
+        The returned matrix ``A`` has shape ``[n_observations, dimension]`` and
+        satisfies ``Y_obs = mean_log10_k + A @ xi`` for the retained KL model.
+        This small matrix is the interface used by conditional kriging; it avoids
+        materializing a dense spatial covariance or a full ``H*W*m`` basis tensor.
+        """
+
+        raw = np.asarray(indices)
+        if raw.ndim != 2 or raw.shape[1] != 2:
+            raise ValueError("indices must have shape [n,2] with integer (row, col) cells")
+        if raw.shape[0] == 0:
+            raise ValueError("at least one observation index is required")
+        if not np.all(np.isfinite(raw)):
+            raise ValueError("observation indices must be finite")
+        rounded = np.rint(raw)
+        if not np.array_equal(raw, rounded):
+            raise ValueError("observation indices must be integer-valued")
+        cells = rounded.astype(np.int64)
+        rows, cols = cells[:, 0], cells[:, 1]
+        if np.any(rows < 0) or np.any(rows >= self.shape[0]):
+            raise ValueError("observation row index is outside the permeability grid")
+        if np.any(cols < 0) or np.any(cols >= self.shape[1]):
+            raise ValueError("observation column index is outside the permeability grid")
+
+        vectors_y = self._eigvecs_y[:, self._mode_y]
+        vectors_x = self._eigvecs_x[:, self._mode_x]
+        return (
+            vectors_y[rows, :]
+            * vectors_x[cols, :]
+            * np.sqrt(self._eigenvalues)[None, :]
+        )
+
     @property
     def metadata(self) -> dict[str, object]:
         return {
