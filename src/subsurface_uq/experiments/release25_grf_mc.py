@@ -10,13 +10,15 @@ from ..propagation import MonteCarloRunner
 from ..sampling import (
     RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C,
     ConditionalKLLogGaussianPermeabilityMap,
+    DiagnosticPermeabilitySampler,
     GaussianCoordinatePermeabilitySampler,
     KLLogGaussianPermeabilityMap,
+    PermeabilityDiagnostics,
 )
 from ..surrogates import Release25Surrogate
 from ..surrogates.bounded_streamlines import configure_release25_streamlines
 from ..surrogates.release25_runtime import Release25Runtime
-from ..visualization import plot_monte_carlo_archive
+from ..visualization import plot_monte_carlo_archive, plot_permeability_diagnostics
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -144,6 +146,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--plots-dir",
         help="Optional directory for mean/std/range/Delta-T/exceedance UQ maps.",
     )
+    parser.add_argument(
+        "--permeability-plots-dir",
+        help=(
+            "Optional directory for streaming log10(K) input diagnostics: ensemble "
+            "mean/std and a small number of exact propagated sample previews."
+        ),
+    )
+    parser.add_argument(
+        "--permeability-preview-count",
+        type=int,
+        default=3,
+        help="Number of individual permeability fields to preview when input plotting is enabled.",
+    )
     return parser
 
 
@@ -196,6 +211,9 @@ def build_grf_map(
 
 def main() -> None:
     args = build_parser().parse_args()
+    if args.permeability_preview_count < 0:
+        raise ValueError("permeability_preview_count must be non-negative")
+
     runtime = Release25Runtime.from_paths(
         release25_repo=args.release25_repo,
         cnn1_dir=args.cnn1_dir,
@@ -216,19 +234,31 @@ def main() -> None:
 
     shape = tuple(int(value) for value in runtime.scenario.shape)
     field_map = build_grf_map(args, shape=shape)
-    sampler = GaussianCoordinatePermeabilitySampler(
+    coordinate_sampler = GaussianCoordinatePermeabilitySampler(
         field_map=field_map,
         n_samples=args.n_samples,
         batch_size=args.batch_size,
         seed=args.seed,
     )
+
+    effective_ddof = args.ddof if args.ddof is not None else (0 if args.n_samples == 1 else 1)
+    permeability_diagnostics = None
+    sampler = coordinate_sampler
+    if args.permeability_plots_dir:
+        permeability_diagnostics = PermeabilityDiagnostics(
+            preview_count=args.permeability_preview_count,
+            ddof=effective_ddof,
+        )
+        sampler = DiagnosticPermeabilitySampler(
+            sampler=coordinate_sampler,
+            diagnostics=permeability_diagnostics,
+        )
+
     surrogate = Release25Surrogate(
         adapter=runtime.adapter,
         fixed_inputs=runtime.scenario.fixed,
         device=args.device,
     )
-
-    effective_ddof = args.ddof if args.ddof is not None else (0 if args.n_samples == 1 else 1)
     result = MonteCarloRunner(sampler=sampler, surrogate=surrogate).run(
         n_samples=args.n_samples,
         store_all=args.store_all,
@@ -237,10 +267,41 @@ def main() -> None:
         exceedance_thresholds=args.exceedance_thresholds,
     )
 
-    project_root = Path(__file__).resolve().parents[3]
     conditioned = isinstance(field_map, ConditionalKLLogGaussianPermeabilityMap)
+    permeability_plot_paths: dict[str, Path] = {}
+    permeability_metadata: dict[str, object] = {
+        "enabled": False,
+        "space": "log10",
+        "preview_count_requested": int(args.permeability_preview_count),
+        "preview_count_saved": 0,
+        "plots_directory": None,
+        "statistics_sample_count": 0,
+    }
+    if permeability_diagnostics is not None:
+        diagnostic_result = permeability_diagnostics.finalize()
+        observation_indices = (
+            field_map.observation_indices_array if conditioned else None
+        )
+        permeability_plot_paths = plot_permeability_diagnostics(
+            diagnostic_result,
+            args.permeability_plots_dir,
+            cell_size_m=args.cell_size_m,
+            observation_indices=observation_indices,
+        )
+        permeability_metadata = {
+            "enabled": True,
+            "space": "log10",
+            "preview_count_requested": int(args.permeability_preview_count),
+            "preview_count_saved": len(diagnostic_result.preview_log10_k),
+            "plots_directory": str(
+                Path(args.permeability_plots_dir).expanduser().resolve()
+            ),
+            "statistics_sample_count": int(diagnostic_result.count),
+        }
+
+    project_root = Path(__file__).resolve().parents[3]
     metadata = {
-        **sampler.metadata,
+        **coordinate_sampler.metadata,
         "uq_mode": (
             "conditional_kl_log_gaussian_forward_monte_carlo"
             if conditioned
@@ -268,6 +329,7 @@ def main() -> None:
         "store_all": bool(args.store_all),
         "cell_size_m": float(args.cell_size_m),
         "temperature_shape": [int(value) for value in result.mean.shape],
+        "permeability_diagnostics": permeability_metadata,
         "runtime": runtime_versions(),
         "provenance": {
             "masterthesis_git_sha": git_head(project_root),
@@ -308,6 +370,11 @@ def main() -> None:
         f"max_nfev={args.streamline_max_nfev}"
     )
     print(f"Variance ddof: {effective_ddof}")
+
+    if permeability_plot_paths:
+        print("Saved permeability input diagnostics:")
+        for name, path in permeability_plot_paths.items():
+            print(f"  {name}: {path}")
 
     if args.plots_dir:
         paths = plot_monte_carlo_archive(
