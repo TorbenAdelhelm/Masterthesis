@@ -4,6 +4,11 @@ from .coordinates import (
     StochasticPermeabilityMap,
     UniformCoordinatePermeabilitySampler,
 )
+from .diagnostics import (
+    DiagnosticPermeabilitySampler,
+    PermeabilityDiagnostics,
+    PermeabilityDiagnosticsResult,
+)
 from .empirical import EmpiricalPermeabilitySampler, load_empirical_fields
 from .kl import KLLogGaussianPermeabilityMap, matern32_correlation_matrix
 from .kriging import ConditionalKLLogGaussianPermeabilityMap
@@ -25,10 +30,13 @@ from .perlin_coordinates import (
 
 __all__ = [
     "ConditionalKLLogGaussianPermeabilityMap",
+    "DiagnosticPermeabilitySampler",
     "EmpiricalPermeabilitySampler",
     "GaussianCoordinatePermeabilitySampler",
     "KLLogGaussianPermeabilityMap",
     "PerlinCoordinatePermeabilityMap",
+    "PermeabilityDiagnostics",
+    "PermeabilityDiagnosticsResult",
     "PermeabilitySampler",
     "RELEASE25_PERLIN_DEFAULT_SEED",
     "RELEASE25_PERLIN_DOMAIN_SIZE_M",
