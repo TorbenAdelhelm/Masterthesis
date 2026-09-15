@@ -11,6 +11,7 @@ import pytest
     [
         ("subsurface_uq.experiments.release25_perlin", "--n-samples"),
         ("subsurface_uq.experiments.release25_perlin_pce", "--n-train"),
+        ("subsurface_uq.experiments.release25_grf_mc", "--mean-log10-k"),
         (
             "subsurface_uq.experiments.release25_streamline_equivalence",
             "--sample-indices",
