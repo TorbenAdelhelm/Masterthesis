@@ -18,9 +18,10 @@ from ..sampling import (
     DiagnosticPermeabilitySampler,
     GaussianCoordinatePermeabilitySampler,
     KLLogGaussianPermeabilityMap,
+    PerlinCoordinatePermeabilityMap,
     PermeabilityDiagnostics,
-    Release25PerlinPermeabilitySampler,
     ScrambledSobolGaussianPermeabilitySampler,
+    UniformCoordinatePermeabilitySampler,
 )
 from ..surrogates import Release25Surrogate
 from ..surrogates.bounded_streamlines import configure_release25_streamlines
@@ -582,15 +583,18 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
     prior, conditional = _build_grf_maps(config, shape)
     domain_size_m = (shape[0] * config.cell_size_m, shape[1] * config.cell_size_m)
 
-    perlin = Release25PerlinPermeabilitySampler(
-        n_samples=config.max_budget,
-        batch_size=config.batch_size,
-        seed=config.main_seed,
+    perlin_map = PerlinCoordinatePermeabilityMap(
         shape=shape,
         domain_size_m=domain_size_m,
         frequency=RELEASE25_PERLIN_FREQUENCY,
         k_min=RELEASE25_PERLIN_K_MIN,
         k_max=RELEASE25_PERLIN_K_MAX,
+    )
+    perlin = UniformCoordinatePermeabilitySampler(
+        field_map=perlin_map,
+        n_samples=config.max_budget,
+        batch_size=config.batch_size,
+        seed=config.main_seed,
     )
     unconditional_sampler = GaussianCoordinatePermeabilitySampler(
         field_map=prior,
