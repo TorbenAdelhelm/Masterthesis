@@ -195,6 +195,26 @@ def test_qoi_and_reference_convergence_accumulators_reuse_monte_carlo_runner():
     np.testing.assert_allclose(qoi.receptor_values[:, 0], direct[:, 0, 0])
 
 
+def test_qoi_accumulator_allows_receptors_without_mean_anomaly_roi():
+    accumulator = RQ1QoIAccumulator(
+        background_temperature=10.0,
+        receptors=((0, 1),),
+        mean_anomaly_roi=None,
+    )
+    temperatures = np.asarray(
+        [
+            [[10.0, 11.0], [12.0, 13.0]],
+            [[14.0, 15.0], [16.0, 17.0]],
+        ],
+        dtype=np.float32,
+    )
+    accumulator.update(temperatures)
+    samples = accumulator.finalize()
+
+    assert samples.mean_anomaly is None
+    np.testing.assert_allclose(samples.receptor_values[:, 0], [11.0, 15.0])
+
+
 def test_scalar_and_global_metric_definitions():
     values = np.asarray([1.0, 2.0, 3.0, 4.0])
     summary = scalar_summary(values)
