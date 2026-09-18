@@ -75,12 +75,14 @@ Receptor locations are configured explicitly as temperature-output grid cells;
 the implementation does not choose them automatically. For Q_r = T(x_r), it
 reports mean, unbiased standard deviation and empirical q05/q50/q95.
 
-The continuous mean-anomaly QoI is evaluated over the configured fixed ROI
-Omega_T:
+If `qoi.mean_anomaly_roi` is configured, the continuous mean-anomaly QoI is
+evaluated over that fixed ROI Omega_T:
 
 Q_mean = mean_{x in Omega_T} [T(x)-T_bg].
 
-The same statistics are reported for this scalar QoI.
+The same statistics are reported for this scalar QoI. Setting
+`qoi.mean_anomaly_roi: null` disables this optional scalar QoI without
+affecting field or receptor metrics.
 
 Thresholded plume/risk quantities are deliberately not part of RQ1; they belong
 to RQ2.
