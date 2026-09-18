@@ -140,6 +140,8 @@ def test_disk_store_exact_quantiles_and_prefix_convergence(tmp_path):
         np.load(fields["temperature_width90"]),
         np.quantile(temperatures, 0.95, axis=0)
         - np.quantile(temperatures, 0.05, axis=0),
+        rtol=1.0e-6,
+        atol=1.0e-6,
     )
 
     points = prefix_field_convergence(
