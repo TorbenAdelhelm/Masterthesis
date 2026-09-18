@@ -146,6 +146,10 @@ class DiskTemperatureStoreAccumulator:
                 f"temperature store expected {self.expected_samples} samples, got {self._count}"
             )
         self._store.flush()
+        mmap_handle = getattr(self._store, "_mmap", None)
+        if mmap_handle is not None:
+            mmap_handle.close()
+        self._store = None
         return DiskTemperatureStoreResult(
             path=Path(self.path),
             count=self._count,
