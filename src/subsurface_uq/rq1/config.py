@@ -38,7 +38,7 @@ class RQ1Config:
     batch_size: int
     quantiles: tuple[float, float, float]
     receptors: tuple[tuple[int, int], ...]
-    mean_anomaly_roi: tuple[int, int, int, int]
+    mean_anomaly_roi: tuple[int, int, int, int] | None
     quantile_chunk_rows: int
     input_preview_count: int
     mean_log10_k: float
@@ -96,7 +96,9 @@ class RQ1Config:
             },
             "qoi": {
                 "receptors": [list(value) for value in self.receptors],
-                "mean_anomaly_roi": list(self.mean_anomaly_roi),
+                "mean_anomaly_roi": (
+                    None if self.mean_anomaly_roi is None else list(self.mean_anomaly_roi)
+                ),
             },
             "grf": {
                 "mean_log10_k": self.mean_log10_k,
@@ -186,13 +188,31 @@ def load_rq1_config(path: str | Path) -> RQ1Config:
         receptors.append((row, col))
 
     roi_raw = qoi.get("mean_anomaly_roi")
-    if not isinstance(roi_raw, (list, tuple)) or len(roi_raw) != 4:
-        raise ValueError(
-            "qoi.mean_anomaly_roi must be [row_start,row_stop,col_start,col_stop]"
+    roi: tuple[int, int, int, int] | None
+    if roi_raw is None:
+        roi = None
+    else:
+        if not isinstance(roi_raw, (list, tuple)) or len(roi_raw) != 4:
+            raise ValueError(
+                "qoi.mean_anomaly_roi must be null or "
+                "[row_start,row_stop,col_start,col_stop]"
+            )
+        roi_values = tuple(int(v) for v in roi_raw)
+        if (
+            roi_values[0] < 0
+            or roi_values[2] < 0
+            or roi_values[1] <= roi_values[0]
+            or roi_values[3] <= roi_values[2]
+        ):
+            raise ValueError(
+                "qoi.mean_anomaly_roi must define a non-empty half-open window"
+            )
+        roi = (
+            roi_values[0],
+            roi_values[1],
+            roi_values[2],
+            roi_values[3],
         )
-    roi = tuple(int(v) for v in roi_raw)
-    if roi[0] < 0 or roi[2] < 0 or roi[1] <= roi[0] or roi[3] <= roi[2]:
-        raise ValueError("qoi.mean_anomaly_roi must define a non-empty half-open window")
 
     n_modes_raw = grf.get("n_modes")
     energy_raw = grf.get("energy_threshold")
@@ -259,7 +279,7 @@ def load_rq1_config(path: str | Path) -> RQ1Config:
         batch_size=int(sampling.get("batch_size", 1)),
         quantiles=(quantiles[0], quantiles[1], quantiles[2]),
         receptors=tuple(receptors),
-        mean_anomaly_roi=(roi[0], roi[1], roi[2], roi[3]),
+        mean_anomaly_roi=roi,
         quantile_chunk_rows=int(sampling.get("quantile_chunk_rows", 16)),
         input_preview_count=int(sampling.get("input_preview_count", 3)),
         mean_log10_k=float(grf["mean_log10_k"]),
