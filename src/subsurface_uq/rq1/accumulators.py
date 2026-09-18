@@ -14,7 +14,7 @@ Array = np.ndarray
 
 @dataclass(frozen=True)
 class RQ1QoISamples:
-    mean_anomaly: Array
+    mean_anomaly: Array | None
     receptor_values: Array
     receptor_indices: tuple[tuple[int, int], ...]
 
@@ -25,11 +25,12 @@ class RQ1QoIAccumulator:
 
     background_temperature: float
     receptors: Sequence[tuple[int, int]]
-    mean_anomaly_roi: tuple[int, int, int, int]
+    mean_anomaly_roi: tuple[int, int, int, int] | None
     name: str = "rq1_qoi"
     _mean_anomaly: list[float] = field(default_factory=list, init=False, repr=False)
     _receptors: list[Array] = field(default_factory=list, init=False, repr=False)
     _shape: tuple[int, int] | None = field(default=None, init=False, repr=False)
+    _count: int = field(default=0, init=False, repr=False)
 
     def _validate_shape(self, shape: tuple[int, int]) -> None:
         if self._shape is not None:
@@ -37,11 +38,12 @@ class RQ1QoIAccumulator:
                 raise ValueError(f"temperature shape changed from {self._shape} to {shape}")
             return
         h, w = shape
-        r0, r1, c0, c1 = self.mean_anomaly_roi
-        if r0 < 0 or c0 < 0 or r1 > h or c1 > w or r1 <= r0 or c1 <= c0:
-            raise ValueError(
-                f"mean_anomaly_roi {self.mean_anomaly_roi} lies outside temperature shape {shape}"
-            )
+        if self.mean_anomaly_roi is not None:
+            r0, r1, c0, c1 = self.mean_anomaly_roi
+            if r0 < 0 or c0 < 0 or r1 > h or c1 > w or r1 <= r0 or c1 <= c0:
+                raise ValueError(
+                    f"mean_anomaly_roi {self.mean_anomaly_roi} lies outside temperature shape {shape}"
+                )
         for row, col in self.receptors:
             if row < 0 or row >= h or col < 0 or col >= w:
                 raise ValueError(f"receptor {(row, col)} lies outside temperature shape {shape}")
@@ -55,9 +57,10 @@ class RQ1QoIAccumulator:
             raise ValueError("temperature batch contains non-finite values")
         self._validate_shape((int(batch.shape[1]), int(batch.shape[2])))
 
-        r0, r1, c0, c1 = self.mean_anomaly_roi
-        anomaly = batch[:, r0:r1, c0:c1] - float(self.background_temperature)
-        self._mean_anomaly.extend(np.mean(anomaly, axis=(1, 2)).tolist())
+        if self.mean_anomaly_roi is not None:
+            r0, r1, c0, c1 = self.mean_anomaly_roi
+            anomaly = batch[:, r0:r1, c0:c1] - float(self.background_temperature)
+            self._mean_anomaly.extend(np.mean(anomaly, axis=(1, 2)).tolist())
 
         if self.receptors:
             values = np.stack(
@@ -67,15 +70,21 @@ class RQ1QoIAccumulator:
         else:
             values = np.empty((batch.shape[0], 0), dtype=np.float64)
         self._receptors.extend(values)
+        self._count += int(batch.shape[0])
 
     def finalize(self) -> RQ1QoISamples:
-        if not self._mean_anomaly:
+        if self._count == 0:
             raise RuntimeError("RQ1 QoI accumulator received no temperature samples")
         receptor_values = np.asarray(self._receptors, dtype=np.float64)
         if receptor_values.ndim == 1:
-            receptor_values = receptor_values.reshape(len(self._mean_anomaly), 0)
+            receptor_values = receptor_values.reshape(self._count, 0)
+        mean_anomaly = None
+        if self.mean_anomaly_roi is not None:
+            if len(self._mean_anomaly) != self._count:
+                raise RuntimeError("mean-anomaly QoI sample count is inconsistent")
+            mean_anomaly = np.asarray(self._mean_anomaly, dtype=np.float64)
         return RQ1QoISamples(
-            mean_anomaly=np.asarray(self._mean_anomaly, dtype=np.float64),
+            mean_anomaly=mean_anomaly,
             receptor_values=receptor_values,
             receptor_indices=tuple((int(r), int(c)) for r, c in self.receptors),
         )
