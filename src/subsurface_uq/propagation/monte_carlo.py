@@ -37,20 +37,12 @@ class MonteCarloResult:
 class MonteCarloRunner:
     """Propagate permeability realizations through a deterministic surrogate.
 
-    The propagation loop is intentionally model- and QoI-agnostic. For samples
-    ``K^(m)`` from the configured permeability sampler it evaluates
-
-    ``T^(m) = F(K^(m))``
-
-    with the deterministic temperature surrogate ``F`` and forwards every
-    temperature batch to streaming ``TemperatureAccumulator`` objects. The
-    built-in field-statistics accumulator estimates the spatial Monte Carlo mean
-    and variance without retaining all realizations. Additional QoIs can be
-    attached through ``accumulators`` without modifying this loop.
-
-    ``background_temperature`` and ``exceedance_thresholds`` remain as a
-    backwards-compatible convenience interface; internally they construct an
-    ``ExceedanceProbabilityAccumulator``.
+    The propagation loop is intentionally model- and QoI-agnostic. Additional
+    temperature accumulators extend the run without changing the deterministic
+    surrogate path. A caller may replace the default field-statistics
+    accumulator as long as the replacement is named field_statistics and
+    finalizes to FieldStatistics; RQ1 uses that hook for checkpoint convergence
+    diagnostics without duplicating the expensive model evaluation.
     """
 
     sampler: PermeabilitySampler
@@ -65,6 +57,7 @@ class MonteCarloRunner:
         background_temperature: float | None = None,
         exceedance_thresholds: Sequence[float] = (),
         accumulators: Sequence[TemperatureAccumulator] = (),
+        field_statistics_accumulator: TemperatureAccumulator | None = None,
     ) -> MonteCarloResult:
         if n_samples is not None and n_samples <= 0:
             raise ValueError("n_samples must be positive or None")
@@ -75,7 +68,17 @@ class MonteCarloRunner:
                 "background_temperature is required when exceedance thresholds are requested"
             )
 
-        configured: list[TemperatureAccumulator] = [FieldStatisticsAccumulator(ddof=ddof)]
+        field_accumulator = (
+            FieldStatisticsAccumulator(ddof=ddof)
+            if field_statistics_accumulator is None
+            else field_statistics_accumulator
+        )
+        if str(field_accumulator.name) != "field_statistics":
+            raise ValueError(
+                "field_statistics_accumulator must use name='field_statistics'"
+            )
+
+        configured: list[TemperatureAccumulator] = [field_accumulator]
         configured.extend(accumulators)
         if thresholds:
             configured.append(
