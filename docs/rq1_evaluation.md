@@ -12,7 +12,12 @@ input uncertainty only.
 
 The RQ1 command executes the finalized four-part design:
 
-- **A — Perlin + MC:** in-generator-family release25 baseline.
+- **A — Perlin + MC:** in-generator-family release25 baseline using the existing
+  two-coordinate Perlin map with iid uniform offset coordinates. This defines a
+  reproducible continuous reference law from the historical `perlin_v2`
+  generator family; it does not claim to reproduce the dependence structure of
+  the finite historical training fields, which shared one base offset and used
+  successive x-shifts.
 - **B — unconditional log-GRF/KL + MC:** effect of replacing the Perlin input
   law by the explicit Gaussian random-field prior.
 - **C — conditional log-GRF/KL + MC:** primary input-UQ experiment.
