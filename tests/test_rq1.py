@@ -227,6 +227,44 @@ def test_scalar_and_global_metric_definitions():
     assert metrics["U95"] == pytest.approx(np.quantile(std, 0.95))
 
 
+def test_rq1_config_allows_null_mean_anomaly_roi(tmp_path):
+    config_path = tmp_path / "rq1_no_roi.yaml"
+    config_path.write_text(
+        f"""
+experiment:
+  id: no_roi
+  output_root: {tmp_path / 'out_no_roi'}
+release25:
+  repo: release25
+  cnn1_dir: cnn1
+  cnn2_dir: cnn3
+  prepared_pki_dir: prepared
+  fixed_run_id: RUN_1
+sampling:
+  budgets: [2, 4]
+  comparison_budgets: [2]
+  repetitions: 1
+  main_seed: 10
+  repetition_seeds: [20]
+qoi:
+  receptors: [[0, 0]]
+  mean_anomaly_roi: null
+grf:
+  mean_log10_k: -9.5
+  std_log10_k: 0.3
+  length_scale_y_m: 100
+  length_scale_x_m: 150
+  n_modes: 4
+  energy_threshold: null
+  observations:
+    - [0, 0, 2.0e-10]
+""",
+        encoding="utf-8",
+    )
+    config = load_rq1_config(config_path)
+    assert config.mean_anomaly_roi is None
+
+
 def test_rq1_config_and_cli(tmp_path):
     config_path = tmp_path / "rq1.yaml"
     config_path.write_text(
