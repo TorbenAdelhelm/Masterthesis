@@ -156,7 +156,9 @@ def _diagnostics_payload(result, config: RQ1Config) -> dict[str, object]:
 
 
 def _qoi_reference(samples: RQ1QoISamples) -> dict[str, dict[str, float | int]]:
-    reference = {"mean_anomaly": scalar_summary(samples.mean_anomaly)}
+    reference: dict[str, dict[str, float | int]] = {}
+    if samples.mean_anomaly is not None:
+        reference["mean_anomaly"] = scalar_summary(samples.mean_anomaly)
     for index, location in enumerate(samples.receptor_indices):
         reference[f"receptor_{index + 1:03d}"] = {
             **scalar_summary(samples.receptor_values[:, index]),
@@ -175,15 +177,17 @@ def _qoi_rows(
     samples: RQ1QoISamples,
 ) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
-    for index in range(samples.mean_anomaly.size):
+    sample_count = int(samples.receptor_values.shape[0])
+    for index in range(sample_count):
         row: dict[str, object] = {
             "experiment_id": experiment_id,
             "variant": variant,
             "method": method,
             "repetition": repetition,
             "sample_index": index + 1,
-            "mean_anomaly": float(samples.mean_anomaly[index]),
         }
+        if samples.mean_anomaly is not None:
+            row["mean_anomaly"] = float(samples.mean_anomaly[index])
         for receptor_index in range(samples.receptor_values.shape[1]):
             row[f"receptor_{receptor_index + 1:03d}"] = float(
                 samples.receptor_values[index, receptor_index]
@@ -266,7 +270,9 @@ def _main_convergence_rows(
                 }
             )
 
-    scalar_targets: list[tuple[str, Array]] = [("mean_anomaly", qoi_samples.mean_anomaly)]
+    scalar_targets: list[tuple[str, Array]] = []
+    if qoi_samples.mean_anomaly is not None:
+        scalar_targets.append(("mean_anomaly", qoi_samples.mean_anomaly))
     for index in range(qoi_samples.receptor_values.shape[1]):
         scalar_targets.append(
             (
@@ -345,7 +351,9 @@ def _repeated_convergence_rows(
                 }
             )
 
-    scalar_targets: list[tuple[str, Array]] = [("mean_anomaly", qoi_samples.mean_anomaly)]
+    scalar_targets: list[tuple[str, Array]] = []
+    if qoi_samples.mean_anomaly is not None:
+        scalar_targets.append(("mean_anomaly", qoi_samples.mean_anomaly))
     for index in range(qoi_samples.receptor_values.shape[1]):
         scalar_targets.append(
             (
@@ -826,7 +834,9 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
         "fixed_run_id": config.fixed_run_id,
         "background_temperature_c": config.background_temperature,
         "receptors": [list(v) for v in config.receptors],
-        "mean_anomaly_roi": list(config.mean_anomaly_roi),
+        "mean_anomaly_roi": (
+            None if config.mean_anomaly_roi is None else list(config.mean_anomaly_roi)
+        ),
         "budgets": list(config.budgets),
         "runtime": runtime_versions(),
         "provenance": {
