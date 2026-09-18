@@ -1,0 +1,65 @@
+# RQ1 example configuration.
+# The GRF parameters and receptor/ROI locations below are illustrative and must
+# be replaced by the calibrated/selected thesis values before scientific runs.
+
+experiment:
+  id: rq1_pilot
+  output_root: run_output/rq1_pilot
+
+release25:
+  repo: external/release25-repo/Heat-Plume-Prediction
+  cnn1_dir: models/LGCNN_step1_randomK
+  cnn2_dir: models/LGCNN_step3_randomK
+  prepared_pki_dir: data/prepared_pki
+  fixed_run_id: RUN_1
+  device: cpu
+  cell_size_m: 5.0
+  background_temperature: 10.6
+  random_k: true
+
+sampling:
+  budgets: [32, 64, 128, 256, 512, 1024]
+  comparison_budgets: [32, 64, 128, 256, 512]
+  repetitions: 4
+  main_seed: 2907
+  repetition_seeds: [3901, 3902, 3903, 3904]
+  batch_size: 1
+  quantiles: [0.05, 0.50, 0.95]
+  quantile_chunk_rows: 16
+  input_preview_count: 3
+
+qoi:
+  # Temperature-output grid cells; no automatic receptor selection is used.
+  receptors:
+    - [500, 500]
+    - [1000, 1000]
+  # Half-open [row_start, row_stop, col_start, col_stop] temperature-grid ROI.
+  mean_anomaly_roi: [400, 1200, 400, 1200]
+
+grf:
+  # Illustrative only; use calibrated/justified values in the thesis run.
+  mean_log10_k: -9.64
+  std_log10_k: 0.35
+  length_scale_y_m: 250.0
+  length_scale_x_m: 400.0
+  n_modes: 20
+  energy_threshold: null
+  observations:
+    - [40, 70, 2.0e-10]
+    - [150, 110, 5.0e-10]
+  observation_std_log10_k: 0.05
+  # No universal tolerance is imposed by the implementation. Set this only
+  # when an experiment-specific conditioning tolerance has been justified.
+  conditioning_tolerance_log10: null
+
+streamlines:
+  mode: bounded
+  method: RK45
+  max_nfev: 100000
+  diagnostics: false
+  slow_seconds: 2.0
+
+storage:
+  # Exact empirical field quantiles use a temporary disk-backed temperature
+  # ensemble. It is removed after derived fields are written unless retained.
+  retain_scratch: false
