@@ -57,6 +57,15 @@ using an external release25 checkout and external model/data assets. The current
 release25 input-UQ experiments vary permeability only; pressure and heat-pump
 locations are fixed by the selected prepared scenario.
 
+The finalized RQ1 experiment is implemented as
+`python -m subsurface_uq.experiments.release25_rq1 --config <yaml>`. It reuses
+the same frozen release25 runtime and propagation interfaces for four variants:
+an iid Perlin-coordinate MC baseline, unconditional GRF/KL MC, conditional
+GRF/KL MC, and repeated scrambled-Sobol randomized QMC for the conditional
+GRF/KL law. RQ1 writes exact empirical temperature quantile fields, nested
+convergence diagnostics, receptor/optional mean-anomaly QoIs, input
+compatibility diagnostics, and MC-vs-RQMC RMSE/gain tables.
+
 The stochastic-coordinate layer and the generic PCE proof-of-concept machinery
 are implemented and independently testable. A release25-specific Perlin-PCE CLI
 is also implemented, but the scientifically meaningful run still requires the
@@ -281,15 +290,13 @@ The following remain planned thesis layers or scientific experiments:
   Legendre basis);
 - quantify Perlin-to-GRF distribution shift before interpreting LGCNN output;
 - plume length/area QoIs;
-- Monte Carlo convergence diagnostics/error bars for full field statistics;
-- borehole-conditioned GRF/kriging simulation and conditioning diagnostics;
 - systematic comparison of geostatistical uncertainty models;
 - model/surrogate uncertainty;
 - global sensitivity analysis;
 - alternative propagation methods such as first-order/JVP approximations.
 
-The immediate next scientific step is to run the implemented Perlin PCE
-proof-of-concept on the real release25 assets and inspect convergence with PCE
-degree and LGCNN training budget. Only after that baseline should the workflow
-move to the synthetic Matérn/KL random-field experiment, where distribution
-shift of the pretrained LGCNN becomes an explicit additional issue.
+The immediate scientific step is to run the RQ1 pilot/full experiment with the
+selected thesis GRF/KL parameters, conditioning observations, receptors and
+optional ROI, then check whether the largest conditional-MC budget is adequate
+as an empirical reference. PCE remains a later surrogate layer and is excluded
+from the finalized RQ1 evaluation itself.
