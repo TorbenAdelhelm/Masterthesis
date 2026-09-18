@@ -27,6 +27,7 @@ from .perlin_coordinates import (
     RELEASE25_PERLIN_OFFSET_SPAN,
     PerlinCoordinatePermeabilityMap,
 )
+from .qmc import ScrambledSobolGaussianPermeabilitySampler
 
 __all__ = [
     "ConditionalKLLogGaussianPermeabilityMap",
@@ -47,6 +48,7 @@ __all__ = [
     "RELEASE25_PERLIN_SHAPE",
     "RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C",
     "Release25PerlinPermeabilitySampler",
+    "ScrambledSobolGaussianPermeabilitySampler",
     "StochasticPermeabilityMap",
     "UniformCoordinatePermeabilitySampler",
     "historical_perlin_v2_field",
