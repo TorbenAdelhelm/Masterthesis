@@ -72,7 +72,7 @@ def plot_rq1_temperature_fields(
 
 def plot_rq1_qoi_distributions(
     *,
-    mean_anomaly: Array,
+    mean_anomaly: Array | None,
     receptor_values: Array,
     receptor_indices: Sequence[tuple[int, int]],
     directory: str | Path,
@@ -82,9 +82,15 @@ def plot_rq1_qoi_distributions(
     root.mkdir(parents=True, exist_ok=True)
     saved: dict[str, Path] = {}
 
-    series: list[tuple[str, Array, str]] = [
-        ("mean_anomaly", np.asarray(mean_anomaly), "mean temperature anomaly [degC]")
-    ]
+    series: list[tuple[str, Array, str]] = []
+    if mean_anomaly is not None:
+        series.append(
+            (
+                "mean_anomaly",
+                np.asarray(mean_anomaly),
+                "mean temperature anomaly [degC]",
+            )
+        )
     receptor_values = np.asarray(receptor_values)
     for index, location in enumerate(receptor_indices):
         series.append(
