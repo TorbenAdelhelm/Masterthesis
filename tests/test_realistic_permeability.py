@@ -1,3 +1,4 @@
+import json
 import h5py
 import numpy as np
 
@@ -286,7 +287,7 @@ def test_leave_one_out_evaluation_writes_comparison_outputs(tmp_path):
     assert (output_dir / "calibration_leave_one_out.yaml").is_file()
     assert (output_dir / "model_comparison.csv").is_file()
     assert (output_dir / "model_comparison.json").is_file()
-    comparison = __import__("json").loads(
+    comparison = json.loads(
         (output_dir / "model_comparison.json").read_text(encoding="utf-8")
     )
     assert comparison["posterior_evaluation"]["method"] == "exact_full_covariance_simple_kriging"
