@@ -208,7 +208,10 @@ subsurface-uq-realistic-permeability calibrate \
 
 See `docs/realistic_permeability_generator.md` for the held-out synthetic
 borehole experiment and the distinction between separable and radial
-exponential covariance.
+exponential covariance. The recommended pre-RQ2 inspection is the
+`evaluate` subcommand, which performs leave-one-out calibration and writes
+variogram fits, fitted length scales, and held-out conditional reconstructions
+for all three covariance candidates.
 
 ## Monte Carlo statistics and extensible QoIs
 
