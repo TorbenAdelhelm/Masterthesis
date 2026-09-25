@@ -1,3 +1,4 @@
+import h5py
 import numpy as np
 
 from subsurface_uq.experiments.realistic_permeability import build_parser
@@ -5,8 +6,39 @@ from subsurface_uq.sampling import (
     RadialExponentialPermeabilitySampler,
     calibrate_covariance_candidates,
     correlation_for_offsets,
+    load_release25_raw_permeability_dataset,
     sample_borehole_observations,
 )
+
+
+def test_release25_raw_h5_loader_matches_dataset_layout(tmp_path):
+    root = tmp_path / "real_raw"
+    root.mkdir()
+    (root / "settings.yaml").write_text(
+        "grid:\n  size [m]: [20, 15]\n",
+        encoding="utf-8",
+    )
+    expected = []
+    for run_number in (2, 1):
+        run = root / f"RUN_{run_number}"
+        run.mkdir()
+        values = (
+            np.arange(12, dtype=np.float64).reshape(4, 3, 1)
+            + 1.0
+            + run_number * 100.0
+        ) * 1.0e-12
+        expected.append((run_number, values.squeeze()))
+        with h5py.File(run / "pflotran.h5", "w") as handle:
+            group = handle.create_group("   0 Time  0.00000E+00 y")
+            group.create_dataset("Permeability X [m^2]", data=values.reshape(-1))
+
+    fields, runs = load_release25_raw_permeability_dataset(root, cell_size_m=5.0)
+
+    assert runs == ("RUN_1", "RUN_2")
+    assert fields.shape == (2, 4, 3)
+    by_run = {number: field for number, field in expected}
+    np.testing.assert_allclose(fields[0], by_run[1], rtol=1e-7)
+    np.testing.assert_allclose(fields[1], by_run[2], rtol=1e-7)
 
 
 def test_radial_exponential_correlation_differs_from_separable_diagonal():
