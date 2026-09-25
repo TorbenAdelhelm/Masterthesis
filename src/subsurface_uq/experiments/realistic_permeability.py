@@ -14,12 +14,39 @@ from ..sampling import (
     RadialExponentialPermeabilitySampler,
     calibrate_covariance_candidates,
     load_empirical_fields,
+    load_release25_raw_permeability_dataset,
     sample_borehole_observations,
 )
 
 
+def _load_source(
+    path: str,
+    *,
+    key: str | None,
+    cell_size_m: float,
+) -> tuple[np.ndarray, dict[str, object]]:
+    source = Path(path).expanduser().resolve()
+    if source.is_dir():
+        fields, runs = load_release25_raw_permeability_dataset(
+            source, cell_size_m=cell_size_m
+        )
+        return fields, {
+            "kind": "release25_raw_pflotran_h5",
+            "path": str(source),
+            "runs": list(runs),
+        }
+    fields = load_empirical_fields(source, key=key)
+    return fields, {
+        "kind": "empirical_array",
+        "path": str(source),
+        "key": key,
+    }
+
+
 def _calibrate(args: argparse.Namespace) -> int:
-    fields = load_empirical_fields(args.fields, key=args.key)
+    fields, source_meta = _load_source(
+        args.fields, key=args.key, cell_size_m=args.cell_size_m
+    )
     results = calibrate_covariance_candidates(
         fields,
         cell_size_m=args.cell_size_m,
@@ -30,8 +57,7 @@ def _calibrate(args: argparse.Namespace) -> int:
     payload = {
         "schema_version": 1,
         "source": {
-            "fields": str(Path(args.fields).expanduser().resolve()),
-            "key": args.key,
+            **source_meta,
             "field_shape": list(fields.shape[1:]),
             "field_count": int(fields.shape[0]),
         },
@@ -84,7 +110,11 @@ def _generate(args: argparse.Namespace) -> int:
         calibration_file = yaml.safe_load(handle)
     calibration = _select_calibration(calibration_file, args.model)
 
-    fields = load_empirical_fields(args.fields, key=args.key)
+    fields, source_meta = _load_source(
+        args.fields,
+        key=args.key,
+        cell_size_m=float(calibration["cell_size_m"]),
+    )
     truth_index = int(args.truth_index)
     if truth_index < 0 or truth_index >= fields.shape[0]:
         raise ValueError("truth-index is outside the empirical field ensemble")
@@ -152,7 +182,7 @@ def _generate(args: argparse.Namespace) -> int:
         "schema_version": 1,
         "covariance_calibration": calibration,
         "sampler": getattr(sampler, "metadata", {}),
-        "truth_source": str(Path(args.fields).expanduser().resolve()),
+        "truth_source": source_meta,
         "truth_index": truth_index,
         "boreholes": boreholes.to_dict(),
         "validation": metrics,
@@ -178,7 +208,14 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     calibrate = sub.add_parser("calibrate", help="fit covariance candidates to real fields")
-    calibrate.add_argument("--fields", required=True)
+    calibrate.add_argument(
+        "--fields",
+        required=True,
+        help=(
+            "Empirical .npy/.npz/.pt/.pth ensemble or an unpacked release25 raw "
+            "dataset root containing settings.yaml and RUN_*/pflotran.h5."
+        ),
+    )
     calibrate.add_argument("--key")
     calibrate.add_argument("--cell-size-m", type=float, required=True)
     calibrate.add_argument("--models", nargs="+", default=[
