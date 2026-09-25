@@ -86,6 +86,80 @@ subsurface-uq-realistic-permeability calibrate \
   --output run_output/realistic_k/calibration.yaml
 ```
 
+## Leave-one-out DaRUS calibration inspection
+
+The `evaluate` subcommand is the recommended model-selection experiment before
+RQ2. It keeps one real permeability field hidden, calibrates all covariance
+candidates on the remaining real fields, uses the same synthetic boreholes for
+all models, and compares the resulting conditional reconstructions.
+
+For the large 2560x2560 DaRUS fields, two independent strides are available:
+
+- `--spatial-stride` accelerates empirical-variogram estimation while retaining
+  lag distances in metres;
+- `--evaluation-stride` down-samples only the held-out reconstruction grid,
+  again increasing the effective cell size so physical distances remain
+  consistent.
+
+A practical first run is:
+
+```bash
+subsurface-uq-realistic-permeability evaluate \
+  --fields data/dataset_100hp_giant_real_fixP0_0025 \
+  --cell-size-m 5 \
+  --truth-index 0 \
+  --models matern32 exponential radial_exponential \
+  --max-lag-cells 96 \
+  --spatial-stride 4 \
+  --evaluation-stride 4 \
+  --n-boreholes 30 \
+  --borehole-seed 2907 \
+  --margin-cells 10 \
+  --min-spacing-cells 20 \
+  --n-samples 32 \
+  --batch-size 1 \
+  --seed 3901 \
+  --n-modes 128 \
+  --observation-std-log10-k 0 \
+  --output-dir run_output/realistic_k/loo_truth0
+```
+
+The output directory contains:
+
+```text
+calibration_leave_one_out.yaml
+empirical_variograms.npz
+model_comparison.csv
+model_comparison.json
+figures/
+  variogram_fits.png
+  length_scales.png
+  heldout_matern32.png
+  heldout_exponential.png
+  heldout_radial_exponential.png
+  heldout_metric_comparison.png
+arrays/
+  <model>/
+    posterior_mean_log10_k.npy
+    posterior_std_log10_k.npy
+    sample_001_log10_k.npy
+```
+
+`model_comparison.csv` reports fitted `ell_x`, `ell_y`,
+`ell_x/ell_y`, total/directional variogram RMSE, held-out conditional-mean
+RMSE/MAE, Gaussian 90% posterior coverage, and conditioning residuals.
+
+The 90% coverage in this inspection experiment uses
+`mean +/- 1.64485 * std` in `log10(K)`. This avoids storing the full
+`[N,H,W]` ensemble during model comparison and is appropriate for the
+conditional Gaussian models being compared. The separate `generate` command
+still computes empirical ensemble quantiles when full realizations are stored.
+
+The hidden truth is excluded from covariance calibration, so this is a genuine
+leave-one-out reconstruction diagnostic rather than an in-sample fit. No
+automatic geological winner is declared: variogram fit and held-out
+reconstruction are reported side by side.
+
 ## Synthetic borehole experiment
 
 `sample_borehole_observations` samples fixed measurements from one hidden
