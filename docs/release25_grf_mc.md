@@ -23,6 +23,7 @@ python -m subsurface_uq.experiments.release25_grf_mc \
   --fixed-run-id RUN_1 \
   --mean-log10-k -9.64 \
   --std-log10-k 0.35 \
+  --covariance-model matern32 \
   --length-scale-y-m 250 \
   --length-scale-x-m 400 \
   --n-modes 20 \
@@ -36,6 +37,12 @@ python -m subsurface_uq.experiments.release25_grf_mc \
 ```
 
 The installed alias is `subsurface-uq-release25-grf`.
+
+The factorized KL path accepts `--covariance-model matern32` (default) or
+`--covariance-model exponential`. The latter is the rougher separable
+Matérn-1/2/exponential alternative while preserving the explicit KL coordinates.
+The radial anisotropic exponential model is intentionally provided by the
+separate realistic-permeability workflow.
 
 Instead of `--n-modes`, the CLI can use `--energy-threshold`, for example
 `--energy-threshold 0.95`. The two truncation options are mutually exclusive so
@@ -135,8 +142,10 @@ permeability clipping is applied.
 
 ## Scope
 
-The current command deliberately does not implement Hermite PCE, variogram
-fitting, automatic GRF calibration, physical-coordinate-to-grid borehole
-mapping, or a new experiment framework. Those steps should follow only after a
-small frozen-LGCNN GRF compatibility run and its permeability-input diagnostics
-have been inspected.
+The current command deliberately remains the explicit-coordinate KL experiment
+and does not implement Hermite PCE. Real-field variogram calibration, synthetic
+borehole sampling and a radial anisotropic exponential conditioned-field path
+are implemented separately in
+`docs/realistic_permeability_generator.md`; calibrated parameters can be fed
+back into this KL command when the selected covariance is Matérn-3/2 or
+separable exponential.
