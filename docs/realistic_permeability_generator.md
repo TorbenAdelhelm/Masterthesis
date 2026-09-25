@@ -43,6 +43,22 @@ Both have identical one-dimensional axis correlations. The additional main-
 diagonal empirical variogram is therefore included in calibration to distinguish
 their two-dimensional structure.
 
+## DaRUS-5065 raw-data support
+
+The real-permeability DaRUS dataset is distributed as PFLOTRAN HDF5 data. The
+loader mirrors the release25 preprocessing convention:
+
+- read grid dimensions from `settings.yaml -> grid -> size [m]`;
+- find `RUN_*/pflotran.h5` in numerical run order;
+- read initial-time group `   0 Time  0.00000E+00 y`;
+- extract `Permeability X [m^2]`;
+- reshape with the release25 grid dimensions and remove the singleton vertical
+  dimension.
+
+Therefore the calibration CLI may point `--fields` directly at an unpacked
+DaRUS-5065 raw dataset root; conversion to an intermediate NumPy file is not
+required.
+
 ## Calibration from real fields
 
 `calibrate_covariance_candidates` estimates the global `log10(K)` mean and
@@ -63,7 +79,7 @@ Example:
 
 ```bash
 subsurface-uq-realistic-permeability calibrate \
-  --fields data/real_k.npy \
+  --fields data/dataset_100hp_giant_real_fixP0_0025 \
   --cell-size-m 5 \
   --max-lag-cells 96 \
   --spatial-stride 4 \
@@ -82,7 +98,7 @@ ensemble:
 
 ```bash
 subsurface-uq-realistic-permeability generate \
-  --fields data/real_k.npy \
+  --fields data/dataset_100hp_giant_real_fixP0_0025 \
   --calibration run_output/realistic_k/calibration.yaml \
   --truth-index 0 \
   --n-boreholes 30 \
