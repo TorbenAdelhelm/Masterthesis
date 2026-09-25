@@ -226,6 +226,11 @@ Install the optional geostatistical dependency with:
 python -m pip install -e ".[geostat]"
 ```
 
+This extra does not install the legacy `noise` C extension. The latter is only
+needed for the historical Perlin experiments and is isolated in the separate
+`perlin` extra, which avoids unnecessary Windows compiler/SDK failures during
+DaRUS calibration.
+
 ## Integration with RQ1 and later RQs
 
 `RQ1Config.grf.covariance_model` now accepts `matern32` and `exponential` for
