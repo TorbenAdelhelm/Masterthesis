@@ -15,10 +15,10 @@ dependencies = [
     "scipy>=1.10",
     "tqdm>=4.65",
     "matplotlib>=3.7",
-    "noise>=1.2.2",
 ]
 
 [project.optional-dependencies]
+perlin = ["noise>=1.2.2"]
 geostat = ["gstools>=1.7", "h5py>=3.9"]
 test = ["pytest>=7.4", "gstools>=1.7", "h5py>=3.9"]
 
