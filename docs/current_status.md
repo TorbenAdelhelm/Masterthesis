@@ -188,8 +188,12 @@ coverage, and maximum conditioning residual.
 A leave-one-out `realistic_permeability evaluate` experiment is also available:
 one real field is excluded from calibration, all three covariance candidates are
 fit on the remaining fields, and the same synthetic boreholes are used for each
-conditional reconstruction. The experiment writes empirical/fitted variogram
-plots, fitted directional length scales and anisotropy ratios, held-out
+conditional reconstruction. Covariance-family selection now uses exact
+full-covariance Gaussian simple kriging for all candidates, evaluated through
+the small observation covariance and chunked grid-to-observation
+cross-covariances. It therefore does not depend on KL truncation or Monte Carlo
+sampling. The experiment writes empirical/fitted variogram plots, fitted
+directional length scales and anisotropy ratios, held-out
 truth/conditional-mean/std/error figures, and CSV/JSON model-comparison tables.
 Large DaRUS grids can use separate calibration and reconstruction strides while
 preserving physical distances in metres.
