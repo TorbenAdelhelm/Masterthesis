@@ -12,6 +12,12 @@ from .coordinates import (
     StochasticPermeabilityMap,
     UniformCoordinatePermeabilitySampler,
 )
+from .darus_real import (
+    RELEASE25_INITIAL_TIME_GROUP,
+    RELEASE25_PERMEABILITY_DATASET,
+    load_pflotran_permeability_h5,
+    load_release25_raw_permeability_dataset,
+)
 from .diagnostics import (
     DiagnosticPermeabilitySampler,
     PermeabilityDiagnostics,
@@ -54,6 +60,8 @@ __all__ = [
     "PermeabilityDiagnostics",
     "PermeabilityDiagnosticsResult",
     "PermeabilitySampler",
+    "RELEASE25_INITIAL_TIME_GROUP",
+    "RELEASE25_PERMEABILITY_DATASET",
     "RELEASE25_PERLIN_DEFAULT_SEED",
     "RELEASE25_PERLIN_DOMAIN_SIZE_M",
     "RELEASE25_PERLIN_FREQUENCY",
@@ -74,6 +82,8 @@ __all__ = [
     "exponential_correlation_matrix",
     "historical_perlin_v2_field",
     "load_empirical_fields",
+    "load_pflotran_permeability_h5",
+    "load_release25_raw_permeability_dataset",
     "matern32_correlation_matrix",
     "sample_borehole_observations",
 ]
