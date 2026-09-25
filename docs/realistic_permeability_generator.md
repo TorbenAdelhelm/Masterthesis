@@ -93,6 +93,15 @@ RQ2. It keeps one real permeability field hidden, calibrates all covariance
 candidates on the remaining real fields, uses the same synthetic boreholes for
 all models, and compares the resulting conditional reconstructions.
 
+For covariance-family selection, all three candidates are now evaluated with
+the same exact full-covariance Gaussian simple-kriging equations. No KL
+truncation and no conditional Monte Carlo sampling are used in this comparison.
+Only the small observation covariance `K_DD` and chunked grid-to-observation
+cross-covariances `K_xD` are formed; the dense full-grid covariance is never
+materialized. This removes the previous methodological confound in which the
+radial model was full-rank while the separable models were represented by a
+finite KL truncation.
+
 For the large 2560x2560 DaRUS fields, two independent strides are available:
 
 - `--spatial-stride` accelerates empirical-variogram estimation while retaining
@@ -116,11 +125,8 @@ subsurface-uq-realistic-permeability evaluate \
   --borehole-seed 2907 \
   --margin-cells 10 \
   --min-spacing-cells 20 \
-  --n-samples 32 \
-  --batch-size 1 \
-  --seed 3901 \
-  --n-modes 128 \
   --observation-std-log10-k 0 \
+  --kriging-chunk-rows 64 \
   --output-dir run_output/realistic_k/loo_truth0
 ```
 
@@ -142,18 +148,20 @@ arrays/
   <model>/
     posterior_mean_log10_k.npy
     posterior_std_log10_k.npy
-    sample_001_log10_k.npy
+    posterior_variance_log10_k.npy
 ```
 
 `model_comparison.csv` reports fitted `ell_x`, `ell_y`,
 `ell_x/ell_y`, total/directional variogram RMSE, held-out conditional-mean
 RMSE/MAE, Gaussian 90% posterior coverage, and conditioning residuals.
 
-The 90% coverage in this inspection experiment uses
-`mean +/- 1.64485 * std` in `log10(K)`. This avoids storing the full
-`[N,H,W]` ensemble during model comparison and is appropriate for the
-conditional Gaussian models being compared. The separate `generate` command
-still computes empirical ensemble quantiles when full realizations are stored.
+The 90% coverage in this inspection experiment uses the analytical Gaussian
+posterior interval
+`mean +/- 1.64485 * std` in `log10(K)`. The mean and variance are
+deterministic for a fixed covariance model and borehole layout, so the model
+comparison is independent of random seeds, sample count and KL truncation. The
+separate `generate` command still produces stochastic conditional ensembles
+after a covariance model has been selected.
 
 The hidden truth is excluded from covariance calibration, so this is a genuine
 leave-one-out reconstruction diagnostic rather than an in-sample fit. No
