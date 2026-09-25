@@ -1,0 +1,159 @@
+# Realistic permeability generator
+
+## Purpose
+
+The realistic-permeability workflow turns empirical permeability fields into a
+calibrated stochastic input model that can be conditioned on sparse synthetic
+boreholes. It is designed for the DaRUS real-permeability data but accepts any
+positive `[N,H,W]` ensemble supported by `load_empirical_fields`.
+
+The modeled Gaussian field is
+
+```text
+Y(x) = log10 K(x)
+```
+
+and permeability is recovered with `K=10**Y`.
+
+## Candidate covariance models
+
+The calibration compares three stationary, grid-aligned candidates:
+
+- `matern32`: separable Matérn-3/2, retained for the existing factorized KL path;
+- `exponential`: separable exponential / Matérn-1/2, giving rougher fields while
+  preserving the factorized KL structure;
+- `radial_exponential`: radial anisotropic exponential covariance
+
+  `rho(dx,dy)=exp(-sqrt((dx/lx)^2+(dy/ly)^2))`.
+
+The radial model is generated with GSTools and may additionally be rotated by a
+configured angle. Automatic angle fitting is intentionally not implemented yet;
+the calibration currently assumes the principal anisotropy axes are aligned with
+the permeability grid. A non-zero angle can still be supplied programmatically
+to `RadialExponentialPermeabilitySampler` when justified externally.
+
+The separable exponential model is different from the radial anisotropic model:
+
+```text
+rho_sep(dx,dy) = exp(-|dx|/lx - |dy|/ly)
+rho_rad(dx,dy) = exp(-sqrt((dx/lx)^2 + (dy/ly)^2))
+```
+
+Both have identical one-dimensional axis correlations. The additional main-
+diagonal empirical variogram is therefore included in calibration to distinguish
+their two-dimensional structure.
+
+## Calibration from real fields
+
+`calibrate_covariance_candidates` estimates the global `log10(K)` mean and
+standard deviation and computes y-, x- and main-diagonal empirical
+semivariograms on the regular grid. Candidate length scales are fitted jointly
+by nonlinear least squares. Results are sorted by the combined variogram RMSE.
+
+This ranking is a model-screening diagnostic, not a proof that the first model
+is the unique geological truth. Held-out reconstruction, visual morphology and
+application-level compatibility with the real-permeability LGCNN remain part of
+the scientific validation.
+
+For large 2560x2560 fields, `spatial_stride` can reduce calibration cost while
+preserving physical lag distances. The original fields are still used for the
+marginal mean and variance.
+
+Example:
+
+```bash
+subsurface-uq-realistic-permeability calibrate \
+  --fields data/real_k.npy \
+  --cell-size-m 5 \
+  --max-lag-cells 96 \
+  --spatial-stride 4 \
+  --output run_output/realistic_k/calibration.yaml
+```
+
+## Synthetic borehole experiment
+
+`sample_borehole_observations` samples fixed measurements from one hidden
+reference field. Optional margins and minimum grid-cell spacing support
+controlled borehole layouts.
+
+The generator CLI then treats the chosen empirical field as hidden truth, keeps
+only the synthetic borehole values for conditioning, and produces a conditional
+ensemble:
+
+```bash
+subsurface-uq-realistic-permeability generate \
+  --fields data/real_k.npy \
+  --calibration run_output/realistic_k/calibration.yaml \
+  --truth-index 0 \
+  --n-boreholes 30 \
+  --min-spacing-cells 20 \
+  --n-samples 64 \
+  --output run_output/realistic_k/conditional_fields.npz
+```
+
+The output archive stores the generated permeability fields and borehole
+observations. A JSON sidecar stores the calibration, sampler metadata and
+held-out validation metrics:
+
+- RMSE and MAE of the conditional ensemble mean in `log10(K)`;
+- empirical 90% pointwise interval coverage of the hidden truth;
+- maximum conditioning residual at borehole cells.
+
+## Separable KL generation
+
+For `matern32` and `exponential`, the existing `KLLogGaussianPermeabilityMap`
+is reused. The covariance remains
+
+```text
+sigma_Y^2 * (C_y kron C_x)
+```
+
+which avoids constructing the full 2-D dense covariance. The existing
+`ConditionalKLLogGaussianPermeabilityMap` then conditions the retained KL model
+on boreholes and exposes independent posterior Gaussian coordinates. This path
+remains suitable for MC, randomized QMC and future Hermite PCE.
+
+Exact conditioning is exact only relative to the retained KL subspace. If sparse
+KL truncation cannot represent the exact borehole values, increase `n_modes` or
+use a justified observation uncertainty.
+
+## Radial anisotropic exponential generation
+
+`RadialExponentialPermeabilitySampler` uses `gstools.Exponential` and
+`gstools.CondSRF` with known-mean simple kriging. This provides scalable
+conditioned MC fields with the radial anisotropic exponential covariance and
+avoids constructing a dense full-grid covariance matrix.
+
+The baseline borehole measurements are treated as exact. The radial sampler is
+currently an MC sampler only: GSTools' random-field generator does not expose
+the explicit finite independent Gaussian coordinate vector required by the
+project's RQMC/Hermite-PCE path. Therefore radial exponential fields are not
+silently substituted into the KL-based RQMC workflow.
+
+Install the optional geostatistical dependency with:
+
+```bash
+python -m pip install -e ".[geostat]"
+```
+
+## Integration with RQ1 and later RQs
+
+`RQ1Config.grf.covariance_model` now accepts `matern32` and `exponential` for
+the factorized KL path. The radial exponential generator remains a separate
+realism/MC path until an explicit finite-coordinate representation is validated.
+
+The intended scientific sequence is:
+
+```text
+real DaRUS K fields
+  -> log10(K) spatial-statistics calibration
+  -> compare Matérn-3/2 / separable exponential / radial exponential
+  -> synthetic boreholes from a held-out real field
+  -> conditional realizations
+  -> held-out realism validation
+  -> real-permeability LGCNN
+  -> RQ1/RQ2/... QoIs
+```
+
+Kernel choice should therefore be locked only after the real fields have been
+processed and the held-out reconstruction diagnostics have been inspected.
