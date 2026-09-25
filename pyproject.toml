@@ -19,7 +19,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7.4"]
+geostat = ["gstools>=1.7"]
+test = ["pytest>=7.4", "gstools>=1.7"]
 
 [project.scripts]
 subsurface-uq-release25 = "subsurface_uq.experiments.release25_empirical:main"
@@ -27,6 +28,7 @@ subsurface-uq-release25-perlin = "subsurface_uq.experiments.release25_perlin:mai
 subsurface-uq-release25-perlin-pce = "subsurface_uq.experiments.release25_perlin_pce:main"
 subsurface-uq-release25-grf = "subsurface_uq.experiments.release25_grf_mc:main"
 subsurface-uq-release25-rq1 = "subsurface_uq.experiments.release25_rq1:main"
+subsurface-uq-realistic-permeability = "subsurface_uq.experiments.realistic_permeability:main"
 subsurface-uq-release25-streamline-equivalence = "subsurface_uq.experiments.release25_streamline_equivalence:main"
 subsurface-uq-plot-mc = "subsurface_uq.visualization.cli:main"
 subsurface-uq-plot-pce = "subsurface_uq.visualization.pce_cli:main"
