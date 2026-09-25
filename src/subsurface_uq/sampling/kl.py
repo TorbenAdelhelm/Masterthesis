@@ -38,6 +38,48 @@ def matern32_correlation_matrix(
     root3_r = np.sqrt(3.0) * scaled_distance
     return (1.0 + root3_r) * np.exp(-root3_r)
 
+def exponential_correlation_matrix(
+    size: int,
+    domain_length_m: float,
+    length_scale_m: float,
+) -> Array:
+    """Return the 1-D exponential correlation matrix on cell centers.
+
+    The correlation is rho(r)=exp(-r) with r=|x-x'|/length_scale_m.
+    In a Gaussian-process interpretation this is the Matern nu=1/2 kernel
+    and therefore produces rougher sample paths than Matern-3/2.
+    """
+
+    size = int(size)
+    domain_length_m = float(domain_length_m)
+    length_scale_m = float(length_scale_m)
+    if size <= 0:
+        raise ValueError("size must be positive")
+    if not np.isfinite(domain_length_m) or domain_length_m <= 0.0:
+        raise ValueError("domain_length_m must be finite and positive")
+    if not np.isfinite(length_scale_m) or length_scale_m <= 0.0:
+        raise ValueError("length_scale_m must be finite and positive")
+
+    spacing = domain_length_m / size
+    locations = (np.arange(size, dtype=np.float64) + 0.5) * spacing
+    scaled_distance = np.abs(locations[:, None] - locations[None, :]) / length_scale_m
+    return np.exp(-scaled_distance)
+
+
+def _correlation_matrix(
+    covariance_model: str,
+    size: int,
+    domain_length_m: float,
+    length_scale_m: float,
+) -> Array:
+    if covariance_model == "matern32":
+        return matern32_correlation_matrix(size, domain_length_m, length_scale_m)
+    if covariance_model == "exponential":
+        return exponential_correlation_matrix(size, domain_length_m, length_scale_m)
+    raise ValueError(
+        "covariance_model must be 'matern32' or 'exponential' for the factorized KL map"
+    )
+
 
 def _sorted_psd_eigendecomposition(matrix: Array) -> tuple[Array, Array]:
     """Symmetric eigendecomposition sorted from largest to smallest value."""
@@ -59,7 +101,7 @@ class KLLogGaussianPermeabilityMap:
 
     ``sigma^2 * C_y ⊗ C_x``
 
-    where each one-dimensional factor is a Matérn-3/2 correlation matrix. This
+    where each one-dimensional factor is either Matérn-3/2 or exponential. This
     avoids constructing the full ``(H*W) x (H*W)`` covariance matrix. If
     ``C_y u_i = lambda_i^y u_i`` and ``C_x v_j = lambda_j^x v_j``, the two-
     dimensional eigenpairs are outer products with eigenvalues
@@ -76,6 +118,7 @@ class KLLogGaussianPermeabilityMap:
     mean_log10_k: float
     std_log10_k: float
     length_scale_m: tuple[float, float]
+    covariance_model: str = "matern32"
     n_modes: int | None = None
     energy_threshold: float = 0.95
 
@@ -108,6 +151,11 @@ class KLLogGaussianPermeabilityMap:
             raise ValueError("std_log10_k must be finite and positive")
         if not np.isfinite(self.energy_threshold) or not (0.0 < self.energy_threshold <= 1.0):
             raise ValueError("energy_threshold must lie in (0, 1]")
+        self.covariance_model = str(self.covariance_model).strip().lower()
+        if self.covariance_model not in {"matern32", "exponential"}:
+            raise ValueError(
+                "factorized KL covariance_model must be 'matern32' or 'exponential'"
+            )
 
         self.shape = (int(self.shape[0]), int(self.shape[1]))
         self.domain_size_m = (
@@ -134,11 +182,17 @@ class KLLogGaussianPermeabilityMap:
                 f"n_modes must lie in [1, {total_modes}], got {self._requested_n_modes}"
             )
 
-        corr_y = matern32_correlation_matrix(
-            self.shape[0], self.domain_size_m[0], self.length_scale_m[0]
+        corr_y = _correlation_matrix(
+            self.covariance_model,
+            self.shape[0],
+            self.domain_size_m[0],
+            self.length_scale_m[0],
         )
-        corr_x = matern32_correlation_matrix(
-            self.shape[1], self.domain_size_m[1], self.length_scale_m[1]
+        corr_x = _correlation_matrix(
+            self.covariance_model,
+            self.shape[1],
+            self.domain_size_m[1],
+            self.length_scale_m[1],
         )
         self._eigvals_y, self._eigvecs_y = _sorted_psd_eigendecomposition(corr_y)
         self._eigvals_x, self._eigvecs_x = _sorted_psd_eigendecomposition(corr_x)
@@ -236,7 +290,7 @@ class KLLogGaussianPermeabilityMap:
         return {
             "map": "KLLogGaussianPermeabilityMap",
             "log_space": "log10",
-            "covariance": "separable_matern32",
+            "covariance": f"separable_{self.covariance_model}",
             "shape": [self.shape[0], self.shape[1]],
             "domain_size_m": [self.domain_size_m[0], self.domain_size_m[1]],
             "axis_convention": "shape=(H,W), domain=(L_y,L_x), length_scale=(ell_y,ell_x)",
