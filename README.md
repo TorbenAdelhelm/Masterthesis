@@ -230,9 +230,10 @@ subsurface-uq-realistic-permeability calibrate \
 See `docs/realistic_permeability_generator.md` for the held-out synthetic
 borehole experiment and the distinction between separable and radial
 exponential covariance. The recommended pre-RQ2 inspection is the
-`evaluate` subcommand, which performs leave-one-out calibration and writes
-variogram fits, fitted length scales, and held-out conditional reconstructions
-for all three covariance candidates.
+`evaluate` subcommand, which performs leave-one-out calibration and compares
+all three covariance candidates with the same exact full-covariance simple
+kriging posterior (no KL truncation and no Monte Carlo sampling), then writes
+variogram fits, fitted length scales, and held-out conditional reconstructions.
 
 ## Monte Carlo statistics and extensible QoIs
 
