@@ -49,6 +49,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--mean-log10-k", type=float, required=True)
     parser.add_argument("--std-log10-k", type=float, required=True)
+    parser.add_argument(
+        "--covariance-model",
+        choices=("matern32", "exponential"),
+        default="matern32",
+        help=(
+            "Separable covariance used by the explicit KL map. "
+            "Use the realistic-permeability workflow for radial_exponential."
+        ),
+    )
     parser.add_argument("--length-scale-y-m", type=float, required=True)
     parser.add_argument("--length-scale-x-m", type=float, required=True)
     truncation = parser.add_mutually_exclusive_group(required=True)
@@ -184,6 +193,7 @@ def build_grf_map(
             float(args.length_scale_y_m),
             float(args.length_scale_x_m),
         ),
+        covariance_model=args.covariance_model,
         n_modes=args.n_modes,
         energy_threshold=(
             float(args.energy_threshold) if args.energy_threshold is not None else 0.95
@@ -353,6 +363,7 @@ def main() -> None:
     print(
         "GRF prior: "
         f"mean_log10_k={args.mean_log10_k:g}, std_log10_k={args.std_log10_k:g}, "
+        f"covariance={args.covariance_model}, "
         f"length_scale_m=({args.length_scale_y_m:g}, {args.length_scale_x_m:g}), "
         f"prior_dimension={field_map.prior.dimension if conditioned else field_map.dimension}"
     )
