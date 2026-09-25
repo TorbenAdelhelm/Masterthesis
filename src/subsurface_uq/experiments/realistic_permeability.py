@@ -12,9 +12,9 @@ from ..sampling import (
     ConditionalKLLogGaussianPermeabilityMap,
     GaussianCoordinatePermeabilitySampler,
     KLLogGaussianPermeabilityMap,
-    PermeabilityDiagnostics,
     RadialExponentialPermeabilitySampler,
     calibrate_covariance_candidates,
+    exact_simple_kriging_posterior,
     estimate_directional_variograms,
     load_empirical_fields,
     load_release25_raw_permeability_dataset,
@@ -246,27 +246,10 @@ def _generate(args: argparse.Namespace) -> int:
     return 0
 
 
-def _stream_reconstruction(
-    *,
-    sampler,
-    boreholes,
-    n_samples: int,
-):
-    diagnostics = PermeabilityDiagnostics(
-        preview_count=1,
-        ddof=0 if n_samples == 1 else 1,
-        observation_indices=boreholes.indices,
-        observation_log10_k=boreholes.log10_permeability,
-    )
-    for batch in sampler:
-        diagnostics.update(batch)
-    return diagnostics.finalize()
-
-
-def _stream_validation(truth: np.ndarray, diagnostics) -> dict[str, float]:
+def _posterior_validation(truth: np.ndarray, posterior) -> dict[str, float]:
     truth_log = np.log10(np.asarray(truth, dtype=np.float64))
-    mean = np.asarray(diagnostics.mean_log10_k, dtype=np.float64)
-    std = np.asarray(diagnostics.std_log10_k, dtype=np.float64)
+    mean = np.asarray(posterior.mean_log10_k, dtype=np.float64)
+    std = np.asarray(posterior.std_log10_k, dtype=np.float64)
     error = mean - truth_log
     z90 = 1.6448536269514722
     lower = mean - z90 * std
@@ -277,10 +260,10 @@ def _stream_validation(truth: np.ndarray, diagnostics) -> dict[str, float]:
         "log10_mean_mae": float(np.mean(np.abs(error))),
         "gaussian_90pct_coverage": coverage,
         "conditioning_max_abs_log10": float(
-            diagnostics.conditioning_max_abs_log10_residual or 0.0
+            posterior.conditioning_max_abs_log10_residual
         ),
         "conditioning_rms_log10": float(
-            diagnostics.conditioning_rms_log10_residual or 0.0
+            posterior.conditioning_rms_log10_residual
         ),
     }
 
@@ -376,34 +359,31 @@ def _evaluate(args: argparse.Namespace) -> int:
 
     comparison_rows: list[dict[str, object]] = []
     for result in results:
-        calibration = result.to_dict()
-        sampler = _build_sampler(
-            calibration=calibration,
-            truth=truth,
-            boreholes=boreholes,
-            cell_size_m=effective_cell_size,
-            n_samples=args.n_samples,
-            batch_size=args.batch_size,
-            seed=args.seed,
-            n_modes=args.n_modes,
-            energy_threshold=args.energy_threshold,
-            observation_std_log10_k=args.observation_std_log10_k,
-        )
-        diagnostics = _stream_reconstruction(
-            sampler=sampler, boreholes=boreholes, n_samples=args.n_samples
-        )
-        metrics = _stream_validation(truth, diagnostics)
         model = result.covariance_model
+        posterior = exact_simple_kriging_posterior(
+            shape=tuple(int(value) for value in truth.shape),
+            cell_size_m=effective_cell_size,
+            covariance_model=model,
+            mean_log10_k=result.mean_log10_k,
+            std_log10_k=result.std_log10_k,
+            length_scale_y_m=result.length_scale_y_m,
+            length_scale_x_m=result.length_scale_x_m,
+            observation_indices=boreholes.indices,
+            observation_log10_k=boreholes.log10_permeability,
+            observation_std_log10_k=args.observation_std_log10_k,
+            angle_rad=result.angle_rad,
+            chunk_rows=args.kriging_chunk_rows,
+        )
+        metrics = _posterior_validation(truth, posterior)
         model_dir = arrays / model
         model_dir.mkdir(parents=True, exist_ok=True)
-        np.save(model_dir / "posterior_mean_log10_k.npy", diagnostics.mean_log10_k)
-        np.save(model_dir / "posterior_std_log10_k.npy", diagnostics.std_log10_k)
-        if diagnostics.preview_log10_k:
-            np.save(model_dir / "sample_001_log10_k.npy", diagnostics.preview_log10_k[0])
+        np.save(model_dir / "posterior_mean_log10_k.npy", posterior.mean_log10_k)
+        np.save(model_dir / "posterior_std_log10_k.npy", posterior.std_log10_k)
+        np.save(model_dir / "posterior_variance_log10_k.npy", posterior.variance_log10_k)
         plot_heldout_reconstruction(
             truth_log10_k=np.log10(truth.astype(np.float64)),
-            posterior_mean_log10_k=diagnostics.mean_log10_k,
-            posterior_std_log10_k=diagnostics.std_log10_k,
+            posterior_mean_log10_k=posterior.mean_log10_k,
+            posterior_std_log10_k=posterior.std_log10_k,
             observation_indices=boreholes.indices,
             cell_size_m=effective_cell_size,
             model_name=model,
@@ -431,13 +411,20 @@ def _evaluate(args: argparse.Namespace) -> int:
         "effective_cell_size_m": effective_cell_size,
         "n_boreholes": boreholes.count,
         "borehole_seed": int(args.borehole_seed),
-        "sampling_seed": int(args.seed),
-        "n_samples_per_model": int(args.n_samples),
+        "posterior_evaluation": {
+            "method": "exact_full_covariance_simple_kriging",
+            "kl_truncation": None,
+            "monte_carlo_sampling": None,
+            "chunk_rows": int(args.kriging_chunk_rows),
+            "observation_std_log10_k": float(args.observation_std_log10_k),
+        },
         "boreholes": boreholes.to_dict(),
         "models": comparison_rows,
         "interpretation": (
-            "Variogram fit and held-out reconstruction are complementary diagnostics; "
-            "no automatic geological winner is declared by the workflow."
+            "Covariance-family selection uses exact full-covariance simple kriging for "
+            "all candidates, so the comparison is independent of KL truncation and "
+            "Monte Carlo sampling noise. Variogram fit and held-out reconstruction are "
+            "complementary diagnostics; no automatic geological winner is declared."
         ),
     }
     with (root / "model_comparison.json").open("w", encoding="utf-8") as handle:
@@ -544,12 +531,28 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--borehole-seed", type=int, default=2907)
     evaluate.add_argument("--margin-cells", type=int, default=10)
     evaluate.add_argument("--min-spacing-cells", type=float, default=20.0)
-    evaluate.add_argument("--n-samples", type=int, default=32)
-    evaluate.add_argument("--batch-size", type=int, default=1)
-    evaluate.add_argument("--seed", type=int, default=3901)
-    evaluate.add_argument("--n-modes", type=int, default=128)
-    evaluate.add_argument("--energy-threshold", type=float, default=0.95)
-    evaluate.add_argument("--observation-std-log10-k", type=float, default=0.0)
+    evaluate.add_argument(
+        "--observation-std-log10-k",
+        type=float,
+        default=0.0,
+        help="Observation-noise standard deviation in log10(K); 0 gives exact boreholes.",
+    )
+    evaluate.add_argument(
+        "--kriging-chunk-rows",
+        type=int,
+        default=64,
+        help=(
+            "Rows evaluated per full-covariance kriging block. This controls memory "
+            "only and does not approximate the covariance model."
+        ),
+    )
+    # Backwards-compatible no-op options retained so previously copied commands
+    # still run. Covariance-family evaluation no longer uses KL truncation or MC.
+    evaluate.add_argument("--n-samples", type=int, default=None, help=argparse.SUPPRESS)
+    evaluate.add_argument("--batch-size", type=int, default=None, help=argparse.SUPPRESS)
+    evaluate.add_argument("--seed", type=int, default=None, help=argparse.SUPPRESS)
+    evaluate.add_argument("--n-modes", type=int, default=None, help=argparse.SUPPRESS)
+    evaluate.add_argument("--energy-threshold", type=float, default=None, help=argparse.SUPPRESS)
     evaluate.add_argument("--output-dir", required=True)
     evaluate.set_defaults(func=_evaluate)
     return parser
