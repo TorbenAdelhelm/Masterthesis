@@ -6,6 +6,7 @@ from subsurface_uq.sampling import (
     RadialExponentialPermeabilitySampler,
     calibrate_covariance_candidates,
     correlation_for_offsets,
+    exact_simple_kriging_posterior,
     load_release25_raw_permeability_dataset,
     sample_borehole_observations,
 )
@@ -53,6 +54,84 @@ def test_radial_exponential_correlation_differs_from_separable_diagonal():
 
     assert radial.shape == (1,)
     assert radial[0] > separable[0]
+
+
+def test_exact_simple_kriging_matches_dense_manual_posterior():
+    shape = (4, 5)
+    cell_size = 10.0
+    mean = -9.4
+    std = 0.3
+    ly = 25.0
+    lx = 40.0
+    indices = np.asarray([[0, 1], [3, 4]], dtype=np.int64)
+    values = np.asarray([-9.8, -9.1], dtype=np.float64)
+
+    posterior = exact_simple_kriging_posterior(
+        shape=shape,
+        cell_size_m=cell_size,
+        covariance_model="radial_exponential",
+        mean_log10_k=mean,
+        std_log10_k=std,
+        length_scale_y_m=ly,
+        length_scale_x_m=lx,
+        observation_indices=indices,
+        observation_log10_k=values,
+        observation_std_log10_k=0.0,
+        chunk_rows=2,
+    )
+
+    yy, xx = np.meshgrid(
+        (np.arange(shape[0]) + 0.5) * cell_size,
+        (np.arange(shape[1]) + 0.5) * cell_size,
+        indexing="ij",
+    )
+    positions = np.column_stack((yy.ravel(), xx.ravel()))
+    obs_positions = np.column_stack(
+        (
+            (indices[:, 0] + 0.5) * cell_size,
+            (indices[:, 1] + 0.5) * cell_size,
+        )
+    )
+    dy_dd = obs_positions[:, 0, None] - obs_positions[None, :, 0]
+    dx_dd = obs_positions[:, 1, None] - obs_positions[None, :, 1]
+    kdd = std**2 * correlation_for_offsets(
+        "radial_exponential",
+        delta_y_m=dy_dd,
+        delta_x_m=dx_dd,
+        length_scale_y_m=ly,
+        length_scale_x_m=lx,
+    )
+    dy_xd = positions[:, 0, None] - obs_positions[None, :, 0]
+    dx_xd = positions[:, 1, None] - obs_positions[None, :, 1]
+    kxd = std**2 * correlation_for_offsets(
+        "radial_exponential",
+        delta_y_m=dy_xd,
+        delta_x_m=dx_xd,
+        length_scale_y_m=ly,
+        length_scale_x_m=lx,
+    )
+    inverse = np.linalg.inv(kdd)
+    expected_mean = mean + kxd @ inverse @ (values - mean)
+    expected_variance = std**2 - np.sum((kxd @ inverse) * kxd, axis=1)
+
+    np.testing.assert_allclose(
+        posterior.mean_log10_k.ravel(), expected_mean, rtol=1e-6, atol=1e-7
+    )
+    np.testing.assert_allclose(
+        posterior.variance_log10_k.ravel(), expected_variance, rtol=1e-6, atol=1e-7
+    )
+    np.testing.assert_allclose(
+        posterior.mean_log10_k[indices[:, 0], indices[:, 1]],
+        values,
+        rtol=0.0,
+        atol=1e-6,
+    )
+    np.testing.assert_allclose(
+        posterior.std_log10_k[indices[:, 0], indices[:, 1]],
+        0.0,
+        rtol=0.0,
+        atol=1e-5,
+    )
 
 
 def test_synthetic_boreholes_are_reproducible_and_respect_spacing():
@@ -207,6 +286,12 @@ def test_leave_one_out_evaluation_writes_comparison_outputs(tmp_path):
     assert (output_dir / "calibration_leave_one_out.yaml").is_file()
     assert (output_dir / "model_comparison.csv").is_file()
     assert (output_dir / "model_comparison.json").is_file()
+    comparison = __import__("json").loads(
+        (output_dir / "model_comparison.json").read_text(encoding="utf-8")
+    )
+    assert comparison["posterior_evaluation"]["method"] == "exact_full_covariance_simple_kriging"
+    assert comparison["posterior_evaluation"]["kl_truncation"] is None
+    assert comparison["posterior_evaluation"]["monte_carlo_sampling"] is None
     assert (output_dir / "figures" / "variogram_fits.png").is_file()
     assert (output_dir / "figures" / "length_scales.png").is_file()
     assert (output_dir / "figures" / "heldout_metric_comparison.png").is_file()
