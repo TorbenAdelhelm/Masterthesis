@@ -24,6 +24,7 @@ from .diagnostics import (
     PermeabilityDiagnosticsResult,
 )
 from .empirical import EmpiricalPermeabilitySampler, load_empirical_fields
+from .exact_kriging import ExactSimpleKrigingResult, exact_simple_kriging_posterior
 from .kl import (
     KLLogGaussianPermeabilityMap,
     exponential_correlation_matrix,
@@ -54,6 +55,7 @@ __all__ = [
     "CovarianceCalibrationResult",
     "DiagnosticPermeabilitySampler",
     "EmpiricalPermeabilitySampler",
+    "ExactSimpleKrigingResult",
     "GaussianCoordinatePermeabilitySampler",
     "KLLogGaussianPermeabilityMap",
     "PerlinCoordinatePermeabilityMap",
@@ -79,6 +81,7 @@ __all__ = [
     "calibrate_covariance_candidates",
     "correlation_for_offsets",
     "estimate_directional_variograms",
+    "exact_simple_kriging_posterior",
     "exponential_correlation_matrix",
     "historical_perlin_v2_field",
     "load_empirical_fields",
