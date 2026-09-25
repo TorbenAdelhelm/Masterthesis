@@ -377,6 +377,9 @@ def _evaluate(args: argparse.Namespace) -> int:
         metrics = _posterior_validation(truth, posterior)
         model_dir = arrays / model
         model_dir.mkdir(parents=True, exist_ok=True)
+        stale_sample = model_dir / "sample_001_log10_k.npy"
+        if stale_sample.exists():
+            stale_sample.unlink()
         np.save(model_dir / "posterior_mean_log10_k.npy", posterior.mean_log10_k)
         np.save(model_dir / "posterior_std_log10_k.npy", posterior.std_log10_k)
         np.save(model_dir / "posterior_variance_log10_k.npy", posterior.variance_log10_k)
@@ -391,6 +394,7 @@ def _evaluate(args: argparse.Namespace) -> int:
         )
         row = {
             "covariance_model": model,
+            "posterior_method": "exact_full_covariance_simple_kriging",
             "length_scale_x_m": result.length_scale_x_m,
             "length_scale_y_m": result.length_scale_y_m,
             "ell_x_over_ell_y": result.length_scale_x_m / result.length_scale_y_m,
