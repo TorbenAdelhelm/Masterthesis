@@ -19,8 +19,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-geostat = ["gstools>=1.7"]
-test = ["pytest>=7.4", "gstools>=1.7"]
+geostat = ["gstools>=1.7", "h5py>=3.9"]
+test = ["pytest>=7.4", "gstools>=1.7", "h5py>=3.9"]
 
 [project.scripts]
 subsurface-uq-release25 = "subsurface_uq.experiments.release25_empirical:main"
