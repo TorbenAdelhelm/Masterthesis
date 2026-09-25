@@ -151,6 +151,40 @@ defaults. In particular, the Matérn length scales and log-permeability moments
 still need to be estimated or selected before scientific LGCNN-UQ experiments
 are run.
 
+### Real-field-calibrated permeability generation
+
+The repository now contains a calibration/generation layer for realistic
+permeability experiments. Empirical positive permeability fields are transformed
+to `log10(K)`; scalable regular-grid y/x/diagonal semivariograms are estimated;
+and three candidates are fit and compared by variogram RMSE:
+
+- separable Matérn-3/2;
+- separable exponential;
+- radial anisotropic exponential.
+
+Synthetic borehole observations can be drawn reproducibly from a held-out real
+field with optional margin and minimum-spacing constraints. Separable candidates
+reuse `KLLogGaussianPermeabilityMap` plus the existing conditional-KL map. The
+radial anisotropic exponential candidate is implemented with GSTools
+`Exponential` + simple kriging + `CondSRF`, allowing scalable exact-condition
+Monte Carlo fields without a dense full-grid covariance matrix.
+
+The radial GSTools path is intentionally MC-only at present because it does not
+expose the explicit finite independent Gaussian coordinates required by the
+project's RQMC/Hermite-PCE design. Automatic anisotropy-angle fitting is also
+not implemented; calibration currently assumes grid-aligned principal axes,
+although the radial sampler accepts a configured rotation angle.
+
+The CLI is:
+
+```text
+subsurface-uq-realistic-permeability calibrate ...
+subsurface-uq-realistic-permeability generate ...
+```
+
+Held-out generation reports log-space mean RMSE/MAE, empirical 90% interval
+coverage, and maximum conditioning residual.
+
 ## Implemented Perlin PCE proof-of-concept machinery
 
 `PolynomialChaosRegressor` currently implements scalar non-intrusive PCE for
@@ -284,8 +318,8 @@ The following remain planned thesis layers or scientific experiments:
 - execute the release25 Perlin-PCE experiment with real model/data assets and
   perform degree/training-budget convergence studies;
 - add additional smooth scalar QoIs such as monitoring-point temperatures;
-- calibrate/select KL/GRF hyperparameters for a scientific synthetic-GRF
-  experiment;
+- calibrate/select the final GRF covariance model and hyperparameters on the
+  real DaRUS permeability fields, including held-out reconstruction;
 - connect the KL/GRF coordinate law to the PCE workflow (Hermite rather than
   Legendre basis);
 - quantify Perlin-to-GRF distribution shift before interpreting LGCNN output;
