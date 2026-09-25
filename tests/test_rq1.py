@@ -292,6 +292,7 @@ qoi:
 grf:
   mean_log10_k: -9.5
   std_log10_k: 0.3
+  covariance_model: exponential
   length_scale_y_m: 100
   length_scale_x_m: 150
   n_modes: 4
