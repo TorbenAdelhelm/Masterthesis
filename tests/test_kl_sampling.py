@@ -7,6 +7,7 @@ from subsurface_uq.sampling.coordinates import (
 )
 from subsurface_uq.sampling.kl import (
     KLLogGaussianPermeabilityMap,
+    exponential_correlation_matrix,
     matern32_correlation_matrix,
 )
 
@@ -17,6 +18,43 @@ def test_matern32_correlation_matrix_is_symmetric_with_unit_diagonal():
     np.testing.assert_allclose(matrix, matrix.T, rtol=0.0, atol=1e-14)
     np.testing.assert_allclose(np.diag(matrix), np.ones(7), rtol=0.0, atol=1e-14)
     assert np.all(matrix > 0.0)
+
+
+def test_exponential_correlation_matrix_is_symmetric_with_unit_diagonal():
+    matrix = exponential_correlation_matrix(7, 700.0, 125.0)
+
+    np.testing.assert_allclose(matrix, matrix.T, rtol=0.0, atol=1e-14)
+    np.testing.assert_allclose(np.diag(matrix), np.ones(7), rtol=0.0, atol=1e-14)
+    assert np.all(matrix > 0.0)
+
+
+def test_factorized_exponential_kl_reconstructs_discrete_covariance():
+    shape = (3, 4)
+    domain = (300.0, 400.0)
+    length_scale = (90.0, 140.0)
+    sigma = 0.37
+    field_map = KLLogGaussianPermeabilityMap(
+        shape=shape,
+        domain_size_m=domain,
+        mean_log10_k=0.0,
+        std_log10_k=sigma,
+        length_scale_m=length_scale,
+        covariance_model="exponential",
+        n_modes=shape[0] * shape[1],
+    )
+
+    coordinates = np.eye(field_map.dimension)
+    basis_columns = field_map.map_log10_coordinates(coordinates).reshape(
+        field_map.dimension, -1
+    ).T
+    reconstructed = basis_columns @ basis_columns.T
+
+    corr_y = exponential_correlation_matrix(shape[0], domain[0], length_scale[0])
+    corr_x = exponential_correlation_matrix(shape[1], domain[1], length_scale[1])
+    expected = sigma**2 * np.kron(corr_y, corr_x)
+
+    np.testing.assert_allclose(reconstructed, expected, rtol=1e-11, atol=1e-12)
+    assert field_map.metadata["covariance"] == "separable_exponential"
 
 
 def test_factorized_full_kl_reconstructs_discrete_covariance():
