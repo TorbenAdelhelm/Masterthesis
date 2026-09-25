@@ -284,6 +284,23 @@ def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
 
 
 def _evaluate(args: argparse.Namespace) -> int:
+    deprecated = {
+        "--n-samples": args.n_samples,
+        "--batch-size": args.batch_size,
+        "--seed": args.seed,
+        "--n-modes": args.n_modes,
+        "--energy-threshold": args.energy_threshold,
+    }
+    supplied_deprecated = {
+        key: value for key, value in deprecated.items() if value is not None
+    }
+    if supplied_deprecated:
+        print(
+            "Note: covariance-model evaluation now uses exact full-covariance "
+            "simple kriging; the following legacy options are accepted but ignored: "
+            + ", ".join(f"{key}={value}" for key, value in supplied_deprecated.items())
+        )
+
     fields, source_meta = _load_source(
         args.fields, key=args.key, cell_size_m=args.cell_size_m
     )
