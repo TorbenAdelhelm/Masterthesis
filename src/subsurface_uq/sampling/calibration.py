@@ -22,6 +22,7 @@ class CovarianceCalibrationResult:
     covariance_model: str
     mean_log10_k: float
     std_log10_k: float
+    between_field_mean_std_log10_k: float
     length_scale_y_m: float
     length_scale_x_m: float
     angle_rad: float
@@ -38,6 +39,7 @@ class CovarianceCalibrationResult:
             "covariance_model": self.covariance_model,
             "mean_log10_k": self.mean_log10_k,
             "std_log10_k": self.std_log10_k,
+            "between_field_mean_std_log10_k": self.between_field_mean_std_log10_k,
             "length_scale_y_m": self.length_scale_y_m,
             "length_scale_x_m": self.length_scale_x_m,
             "angle_rad": self.angle_rad,
@@ -249,10 +251,18 @@ def calibrate_covariance_candidates(
 
     values = _as_positive_fields(fields)
     log_fields = np.log10(values)
-    mean = float(np.mean(log_fields, dtype=np.float64))
-    std = float(np.std(log_fields, ddof=1, dtype=np.float64))
+    field_means = np.mean(log_fields, axis=(1, 2), dtype=np.float64)
+    mean = float(np.mean(field_means))
+    centered = np.asarray(log_fields, dtype=np.float64) - field_means[:, None, None]
+    dof = centered.size - centered.shape[0]
+    if dof <= 0:
+        raise ValueError("not enough cells to estimate within-field log10 variance")
+    std = float(np.sqrt(np.sum(centered * centered) / dof))
+    between_std = (
+        float(np.std(field_means, ddof=1)) if field_means.size >= 2 else 0.0
+    )
     if not np.isfinite(std) or std <= 0.0:
-        raise ValueError("log10 permeability must have positive empirical variance")
+        raise ValueError("log10 permeability must have positive within-field variance")
     sill = std * std
 
     requested = tuple(str(model).strip().lower() for model in models)
@@ -291,6 +301,7 @@ def calibrate_covariance_candidates(
                 covariance_model=model,
                 mean_log10_k=mean,
                 std_log10_k=std,
+                between_field_mean_std_log10_k=between_std,
                 length_scale_y_m=ly,
                 length_scale_x_m=lx,
                 angle_rad=0.0,
