@@ -39,16 +39,37 @@ generation of realistic conditioned permeability fields is documented in
 
 ## Installation
 
+Core package:
+
 ```bash
-python -m pip install -e ".[test]"
-python -m pytest
+python -m pip install -e .
 ```
 
-`noise>=1.2.2` is currently required because the historical synthetic generator
-uses `noise.pnoise2`. On Windows this package may require a working MSVC/Windows
-SDK build environment. The radial anisotropic exponential permeability generator
-uses optional GSTools support and can be installed with
-`python -m pip install -e ".[geostat]"`.
+For the realistic DaRUS/geostatistical permeability workflow:
+
+```bash
+python -m pip install -e ".[geostat]"
+```
+
+The historical Perlin baseline is optional and uses the legacy C-extension
+package `noise`:
+
+```bash
+python -m pip install -e ".[perlin]"
+```
+
+Keeping `noise` out of the core/geostat dependencies is intentional. On
+Windows, especially with newer Python versions, `noise` may otherwise require
+a locally configured MSVC + Windows SDK toolchain (for headers such as
+`io.h`). The DaRUS calibration, KL/GRF, GSTools and radial-exponential
+workflows do not require `noise`.
+
+For the complete Linux CI test environment:
+
+```bash
+python -m pip install -e ".[test,perlin]"
+python -m pytest
+```
 
 ## Deterministic release25 integration
 
