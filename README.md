@@ -31,9 +31,11 @@ the historical Perlin transformation, release25 normalization and output
 alignment.
 
 Runtime/data details are in
-[`docs/release25_darus.md`](docs/release25_darus.md), and the synthetic Perlin
+[`docs/release25_darus.md`](docs/release25_darus.md), the synthetic Perlin
 baseline is documented in
-[`docs/release25_perlin_uq.md`](docs/release25_perlin_uq.md).
+[`docs/release25_perlin_uq.md`](docs/release25_perlin_uq.md), and calibration/
+generation of realistic conditioned permeability fields is documented in
+[`docs/realistic_permeability_generator.md`](docs/realistic_permeability_generator.md).
 
 ## Installation
 
@@ -44,7 +46,9 @@ python -m pytest
 
 `noise>=1.2.2` is currently required because the historical synthetic generator
 uses `noise.pnoise2`. On Windows this package may require a working MSVC/Windows
-SDK build environment.
+SDK build environment. The radial anisotropic exponential permeability generator
+uses optional GSTools support and can be installed with
+`python -m pip install -e ".[geostat]"`.
 
 ## Deterministic release25 integration
 
@@ -185,6 +189,27 @@ See [`docs/perlin_pce_proof_of_concept.md`](docs/perlin_pce_proof_of_concept.md)
 for the mathematical definition and the important Perlin-offset smoothness
 caveat.
 
+## Realistic conditioned permeability fields
+
+Real permeability ensembles can be used to calibrate log10-permeability
+covariance parameters before drawing synthetic boreholes and conditional fields.
+The workflow compares separable Matérn-3/2, separable exponential, and radial
+anisotropic exponential covariance models. The first two reuse the explicit KL
+coordinate path; the radial model uses GSTools conditioned random fields for
+scalable Monte Carlo generation.
+
+```bash
+subsurface-uq-realistic-permeability calibrate \
+  --fields data/real_k.npy \
+  --cell-size-m 5 \
+  --spatial-stride 4 \
+  --output run_output/realistic_k/calibration.yaml
+```
+
+See `docs/realistic_permeability_generator.md` for the held-out synthetic
+borehole experiment and the distinction between separable and radial
+exponential covariance.
+
 ## Monte Carlo statistics and extensible QoIs
 
 For propagated temperature fields `T^(m)(x)`, the core computes
@@ -282,11 +307,10 @@ original release25 runtime; that remains a distinct validation step.
 
 ## Next phases
 
-The cleaned baseline is intended to support the next scientific layers without
-changing the propagation core: first QoIs and Monte Carlo convergence
-diagnostics, then a borehole-conditioned geostatistical permeability sampler.
-The latter will replace the synthetic/empirical `PermeabilitySampler` with draws
-from a conditional spatial uncertainty model while retaining the release25
-surrogate, Monte Carlo runner, accumulators and visualization interfaces.
-Model uncertainty and alternative propagation methods remain later/optional
-extensions.
+The cleaned baseline supports the next scientific layers without changing the
+propagation core. A borehole-conditioned geostatistical permeability workflow is
+now available, including real-field covariance calibration and Matérn-3/2,
+separable exponential and radial anisotropic exponential candidates. The next
+scientific step is to calibrate and validate these candidates on the real DaRUS
+permeability fields before fixing the input law for later QoIs. Model uncertainty
+and alternative propagation methods remain later/optional extensions.
