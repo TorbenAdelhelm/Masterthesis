@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 
@@ -11,11 +12,19 @@ from ..sampling import (
     ConditionalKLLogGaussianPermeabilityMap,
     GaussianCoordinatePermeabilitySampler,
     KLLogGaussianPermeabilityMap,
+    PermeabilityDiagnostics,
     RadialExponentialPermeabilitySampler,
     calibrate_covariance_candidates,
+    estimate_directional_variograms,
     load_empirical_fields,
     load_release25_raw_permeability_dataset,
     sample_borehole_observations,
+)
+from ..visualization.realistic_permeability import (
+    plot_heldout_metric_comparison,
+    plot_heldout_reconstruction,
+    plot_length_scale_comparison,
+    plot_variogram_fits,
 )
 
 
@@ -55,7 +64,7 @@ def _calibrate(args: argparse.Namespace) -> int:
         spatial_stride=args.spatial_stride,
     )
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source": {
             **source_meta,
             "field_shape": list(fields.shape[1:]),
@@ -72,6 +81,17 @@ def _calibrate(args: argparse.Namespace) -> int:
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("w", encoding="utf-8") as handle:
         yaml.safe_dump(payload, handle, sort_keys=False)
+    if args.plots_dir:
+        variograms = estimate_directional_variograms(
+            fields,
+            cell_size_m=args.cell_size_m,
+            max_lag_cells=args.max_lag_cells,
+            spatial_stride=args.spatial_stride,
+        )
+        root = Path(args.plots_dir).expanduser().resolve()
+        root.mkdir(parents=True, exist_ok=True)
+        plot_variogram_fits(variograms, results, root / "variogram_fits.png")
+        plot_length_scale_comparison(results, root / "length_scales.png")
     return 0
 
 
@@ -105,6 +125,68 @@ def _validation(truth: np.ndarray, ensemble: np.ndarray, indices: np.ndarray) ->
     }
 
 
+def _build_sampler(
+    *,
+    calibration: dict[str, object],
+    truth: np.ndarray,
+    boreholes,
+    cell_size_m: float,
+    n_samples: int,
+    batch_size: int,
+    seed: int,
+    n_modes: int,
+    energy_threshold: float,
+    observation_std_log10_k: float,
+):
+    model = str(calibration["covariance_model"])
+    common = dict(
+        shape=tuple(int(v) for v in truth.shape),
+        mean_log10_k=float(calibration["mean_log10_k"]),
+        std_log10_k=float(calibration["std_log10_k"]),
+    )
+    if model == "radial_exponential":
+        if float(observation_std_log10_k) != 0.0:
+            raise ValueError(
+                "radial exponential GSTools generation currently supports exact boreholes only"
+            )
+        return RadialExponentialPermeabilitySampler(
+            **common,
+            cell_size_m=float(cell_size_m),
+            length_scale_y_m=float(calibration["length_scale_y_m"]),
+            length_scale_x_m=float(calibration["length_scale_x_m"]),
+            angle_rad=float(calibration.get("angle_rad", 0.0)),
+            n_samples=n_samples,
+            batch_size=batch_size,
+            seed=seed,
+            observation_indices=boreholes.indices,
+            observation_k=boreholes.permeability,
+        )
+
+    prior = KLLogGaussianPermeabilityMap(
+        **common,
+        domain_size_m=(truth.shape[0] * cell_size_m, truth.shape[1] * cell_size_m),
+        length_scale_m=(
+            float(calibration["length_scale_y_m"]),
+            float(calibration["length_scale_x_m"]),
+        ),
+        covariance_model=model,
+        n_modes=n_modes,
+        energy_threshold=energy_threshold,
+    )
+    conditional = ConditionalKLLogGaussianPermeabilityMap.from_permeability_observations(
+        prior=prior,
+        observation_indices=boreholes.indices,
+        observation_k=boreholes.permeability,
+        observation_std_log10_k=observation_std_log10_k,
+    )
+    return GaussianCoordinatePermeabilitySampler(
+        field_map=conditional,
+        n_samples=n_samples,
+        batch_size=batch_size,
+        seed=seed,
+    )
+
+
 def _generate(args: argparse.Namespace) -> int:
     with Path(args.calibration).expanduser().resolve().open("r", encoding="utf-8") as handle:
         calibration_file = yaml.safe_load(handle)
@@ -126,60 +208,23 @@ def _generate(args: argparse.Namespace) -> int:
         margin_cells=args.margin_cells,
         min_spacing_cells=args.min_spacing_cells,
     )
-
-    model = str(calibration["covariance_model"])
-    common = dict(
-        shape=tuple(int(v) for v in truth.shape),
-        mean_log10_k=float(calibration["mean_log10_k"]),
-        std_log10_k=float(calibration["std_log10_k"]),
+    sampler = _build_sampler(
+        calibration=calibration,
+        truth=truth,
+        boreholes=boreholes,
+        cell_size_m=float(calibration["cell_size_m"]),
+        n_samples=args.n_samples,
+        batch_size=args.batch_size,
+        seed=args.seed,
+        n_modes=args.n_modes,
+        energy_threshold=args.energy_threshold,
+        observation_std_log10_k=args.observation_std_log10_k,
     )
-    if model == "radial_exponential":
-        if float(args.observation_std_log10_k) != 0.0:
-            raise ValueError(
-                "radial exponential GSTools generation currently supports exact boreholes only"
-            )
-        sampler = RadialExponentialPermeabilitySampler(
-            **common,
-            cell_size_m=float(calibration["cell_size_m"]),
-            length_scale_y_m=float(calibration["length_scale_y_m"]),
-            length_scale_x_m=float(calibration["length_scale_x_m"]),
-            angle_rad=float(calibration.get("angle_rad", 0.0)),
-            n_samples=args.n_samples,
-            batch_size=args.batch_size,
-            seed=args.seed,
-            observation_indices=boreholes.indices,
-            observation_k=boreholes.permeability,
-        )
-    else:
-        cell_size = float(calibration["cell_size_m"])
-        prior = KLLogGaussianPermeabilityMap(
-            **common,
-            domain_size_m=(truth.shape[0] * cell_size, truth.shape[1] * cell_size),
-            length_scale_m=(
-                float(calibration["length_scale_y_m"]),
-                float(calibration["length_scale_x_m"]),
-            ),
-            covariance_model=model,
-            n_modes=args.n_modes,
-            energy_threshold=args.energy_threshold,
-        )
-        conditional = ConditionalKLLogGaussianPermeabilityMap.from_permeability_observations(
-            prior=prior,
-            observation_indices=boreholes.indices,
-            observation_k=boreholes.permeability,
-            observation_std_log10_k=args.observation_std_log10_k,
-        )
-        sampler = GaussianCoordinatePermeabilitySampler(
-            field_map=conditional,
-            n_samples=args.n_samples,
-            batch_size=args.batch_size,
-            seed=args.seed,
-        )
 
     ensemble = np.concatenate(list(sampler), axis=0)
     metrics = _validation(truth, ensemble, boreholes.indices)
     metadata = {
-        "schema_version": 1,
+        "schema_version": 2,
         "covariance_calibration": calibration,
         "sampler": getattr(sampler, "metadata", {}),
         "truth_source": source_meta,
@@ -201,6 +246,222 @@ def _generate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _stream_reconstruction(
+    *,
+    sampler,
+    boreholes,
+    n_samples: int,
+):
+    diagnostics = PermeabilityDiagnostics(
+        preview_count=1,
+        ddof=0 if n_samples == 1 else 1,
+        observation_indices=boreholes.indices,
+        observation_log10_k=boreholes.log10_permeability,
+    )
+    for batch in sampler:
+        diagnostics.update(batch)
+    return diagnostics.finalize()
+
+
+def _stream_validation(truth: np.ndarray, diagnostics) -> dict[str, float]:
+    truth_log = np.log10(np.asarray(truth, dtype=np.float64))
+    mean = np.asarray(diagnostics.mean_log10_k, dtype=np.float64)
+    std = np.asarray(diagnostics.std_log10_k, dtype=np.float64)
+    error = mean - truth_log
+    z90 = 1.6448536269514722
+    lower = mean - z90 * std
+    upper = mean + z90 * std
+    coverage = float(np.mean((truth_log >= lower) & (truth_log <= upper)))
+    return {
+        "log10_mean_rmse": float(np.sqrt(np.mean(error * error))),
+        "log10_mean_mae": float(np.mean(np.abs(error))),
+        "gaussian_90pct_coverage": coverage,
+        "conditioning_max_abs_log10": float(
+            diagnostics.conditioning_max_abs_log10_residual or 0.0
+        ),
+        "conditioning_rms_log10": float(
+            diagnostics.conditioning_rms_log10_residual or 0.0
+        ),
+    }
+
+
+def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not rows:
+        raise ValueError("cannot write an empty comparison table")
+    fieldnames: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in fieldnames:
+                fieldnames.append(key)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _evaluate(args: argparse.Namespace) -> int:
+    fields, source_meta = _load_source(
+        args.fields, key=args.key, cell_size_m=args.cell_size_m
+    )
+    if fields.shape[0] < 2:
+        raise ValueError("held-out evaluation requires at least two empirical fields")
+    truth_index = int(args.truth_index)
+    if truth_index < 0 or truth_index >= fields.shape[0]:
+        raise ValueError("truth-index is outside the empirical field ensemble")
+
+    training_fields = np.delete(fields, truth_index, axis=0)
+    results = calibrate_covariance_candidates(
+        training_fields,
+        cell_size_m=args.cell_size_m,
+        models=args.models,
+        max_lag_cells=args.max_lag_cells,
+        spatial_stride=args.spatial_stride,
+    )
+    variograms = estimate_directional_variograms(
+        training_fields,
+        cell_size_m=args.cell_size_m,
+        max_lag_cells=args.max_lag_cells,
+        spatial_stride=args.spatial_stride,
+    )
+
+    root = Path(args.output_dir).expanduser().resolve()
+    figures = root / "figures"
+    arrays = root / "arrays"
+    root.mkdir(parents=True, exist_ok=True)
+    figures.mkdir(parents=True, exist_ok=True)
+    arrays.mkdir(parents=True, exist_ok=True)
+
+    calibration_payload = {
+        "schema_version": 2,
+        "source": {
+            **source_meta,
+            "field_shape": list(fields.shape[1:]),
+            "field_count": int(fields.shape[0]),
+        },
+        "heldout_truth_index": truth_index,
+        "training_field_indices": [
+            index for index in range(fields.shape[0]) if index != truth_index
+        ],
+        "selected_by_variogram_rmse": results[0].to_dict(),
+        "candidates": [item.to_dict() for item in results],
+    }
+    with (root / "calibration_leave_one_out.yaml").open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(calibration_payload, handle, sort_keys=False)
+
+    np.savez_compressed(
+        root / "empirical_variograms.npz",
+        y_distance_m=variograms["y"][0],
+        y_semivariance=variograms["y"][1],
+        x_distance_m=variograms["x"][0],
+        x_semivariance=variograms["x"][1],
+        diag_distance_m=variograms["diag"][0],
+        diag_semivariance=variograms["diag"][1],
+    )
+    plot_variogram_fits(variograms, results, figures / "variogram_fits.png")
+    plot_length_scale_comparison(results, figures / "length_scales.png")
+
+    evaluation_stride = int(args.evaluation_stride)
+    if evaluation_stride <= 0:
+        raise ValueError("evaluation_stride must be positive")
+    truth = np.asarray(fields[truth_index, ::evaluation_stride, ::evaluation_stride])
+    effective_cell_size = float(args.cell_size_m) * evaluation_stride
+    boreholes = sample_borehole_observations(
+        truth,
+        n_boreholes=args.n_boreholes,
+        seed=args.borehole_seed,
+        margin_cells=args.margin_cells,
+        min_spacing_cells=args.min_spacing_cells,
+    )
+
+    comparison_rows: list[dict[str, object]] = []
+    for result in results:
+        calibration = result.to_dict()
+        sampler = _build_sampler(
+            calibration=calibration,
+            truth=truth,
+            boreholes=boreholes,
+            cell_size_m=effective_cell_size,
+            n_samples=args.n_samples,
+            batch_size=args.batch_size,
+            seed=args.seed,
+            n_modes=args.n_modes,
+            energy_threshold=args.energy_threshold,
+            observation_std_log10_k=args.observation_std_log10_k,
+        )
+        diagnostics = _stream_reconstruction(
+            sampler=sampler, boreholes=boreholes, n_samples=args.n_samples
+        )
+        metrics = _stream_validation(truth, diagnostics)
+        model = result.covariance_model
+        model_dir = arrays / model
+        model_dir.mkdir(parents=True, exist_ok=True)
+        np.save(model_dir / "posterior_mean_log10_k.npy", diagnostics.mean_log10_k)
+        np.save(model_dir / "posterior_std_log10_k.npy", diagnostics.std_log10_k)
+        if diagnostics.preview_log10_k:
+            np.save(model_dir / "sample_001_log10_k.npy", diagnostics.preview_log10_k[0])
+        plot_heldout_reconstruction(
+            truth_log10_k=np.log10(truth.astype(np.float64)),
+            posterior_mean_log10_k=diagnostics.mean_log10_k,
+            posterior_std_log10_k=diagnostics.std_log10_k,
+            observation_indices=boreholes.indices,
+            cell_size_m=effective_cell_size,
+            model_name=model,
+            destination=figures / f"heldout_{model}.png",
+        )
+        row = {
+            "covariance_model": model,
+            "length_scale_x_m": result.length_scale_x_m,
+            "length_scale_y_m": result.length_scale_y_m,
+            "ell_x_over_ell_y": result.length_scale_x_m / result.length_scale_y_m,
+            "variogram_rmse": result.variogram_rmse,
+            "variogram_rmse_x": result.variogram_rmse_x,
+            "variogram_rmse_y": result.variogram_rmse_y,
+            "variogram_rmse_diag": result.variogram_rmse_diag,
+            **metrics,
+        }
+        comparison_rows.append(row)
+
+    _write_csv(root / "model_comparison.csv", comparison_rows)
+    summary = {
+        "schema_version": 2,
+        "source": source_meta,
+        "heldout_truth_index": truth_index,
+        "evaluation_stride": evaluation_stride,
+        "effective_cell_size_m": effective_cell_size,
+        "n_boreholes": boreholes.count,
+        "borehole_seed": int(args.borehole_seed),
+        "sampling_seed": int(args.seed),
+        "n_samples_per_model": int(args.n_samples),
+        "boreholes": boreholes.to_dict(),
+        "models": comparison_rows,
+        "interpretation": (
+            "Variogram fit and held-out reconstruction are complementary diagnostics; "
+            "no automatic geological winner is declared by the workflow."
+        ),
+    }
+    with (root / "model_comparison.json").open("w", encoding="utf-8") as handle:
+        json.dump(summary, handle, indent=2, sort_keys=True)
+    plot_heldout_metric_comparison(
+        comparison_rows, figures / "heldout_metric_comparison.png"
+    )
+
+    print("Held-out covariance-model comparison")
+    print(
+        "model | ell_x [m] | ell_y [m] | ell_x/ell_y | variogram RMSE | "
+        "heldout RMSE | 90% coverage"
+    )
+    for row in comparison_rows:
+        print(
+            f"{row['covariance_model']} | {row['length_scale_x_m']:.3g} | "
+            f"{row['length_scale_y_m']:.3g} | {row['ell_x_over_ell_y']:.3g} | "
+            f"{row['variogram_rmse']:.4g} | {row['log10_mean_rmse']:.4g} | "
+            f"{row['gaussian_90pct_coverage']:.3f}"
+        )
+    print(f"Saved calibration inspection to {root}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Calibrate and generate realistic log-Gaussian permeability fields."
@@ -218,11 +479,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     calibrate.add_argument("--key")
     calibrate.add_argument("--cell-size-m", type=float, required=True)
-    calibrate.add_argument("--models", nargs="+", default=[
-        "matern32", "exponential", "radial_exponential"
-    ])
+    calibrate.add_argument(
+        "--models",
+        nargs="+",
+        default=["matern32", "exponential", "radial_exponential"],
+    )
     calibrate.add_argument("--max-lag-cells", type=int, default=64)
     calibrate.add_argument("--spatial-stride", type=int, default=1)
+    calibrate.add_argument("--plots-dir")
     calibrate.add_argument("--output", required=True)
     calibrate.set_defaults(func=_calibrate)
 
@@ -248,6 +512,46 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--observation-std-log10-k", type=float, default=0.0)
     generate.add_argument("--output", required=True)
     generate.set_defaults(func=_generate)
+
+    evaluate = sub.add_parser(
+        "evaluate",
+        help=(
+            "leave one real field out, calibrate on the remaining fields, and compare "
+            "all covariance candidates by variograms and conditional reconstruction"
+        ),
+    )
+    evaluate.add_argument("--fields", required=True)
+    evaluate.add_argument("--key")
+    evaluate.add_argument("--cell-size-m", type=float, required=True)
+    evaluate.add_argument(
+        "--models",
+        nargs="+",
+        default=["matern32", "exponential", "radial_exponential"],
+    )
+    evaluate.add_argument("--truth-index", type=int, default=0)
+    evaluate.add_argument("--max-lag-cells", type=int, default=96)
+    evaluate.add_argument("--spatial-stride", type=int, default=4)
+    evaluate.add_argument(
+        "--evaluation-stride",
+        type=int,
+        default=4,
+        help=(
+            "Downsample only the held-out conditional reconstruction grid by this "
+            "integer stride; physical distances and fitted length scales stay in metres."
+        ),
+    )
+    evaluate.add_argument("--n-boreholes", type=int, default=30)
+    evaluate.add_argument("--borehole-seed", type=int, default=2907)
+    evaluate.add_argument("--margin-cells", type=int, default=10)
+    evaluate.add_argument("--min-spacing-cells", type=float, default=20.0)
+    evaluate.add_argument("--n-samples", type=int, default=32)
+    evaluate.add_argument("--batch-size", type=int, default=1)
+    evaluate.add_argument("--seed", type=int, default=3901)
+    evaluate.add_argument("--n-modes", type=int, default=128)
+    evaluate.add_argument("--energy-threshold", type=float, default=0.95)
+    evaluate.add_argument("--observation-std-log10-k", type=float, default=0.0)
+    evaluate.add_argument("--output-dir", required=True)
+    evaluate.set_defaults(func=_evaluate)
     return parser
 
 
