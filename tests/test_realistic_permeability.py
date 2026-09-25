@@ -159,3 +159,59 @@ def test_realistic_permeability_cli_has_calibrate_and_generate_subcommands():
 
     assert calibrate.command == "calibrate"
     assert generate.command == "generate"
+
+
+def test_leave_one_out_evaluation_writes_comparison_outputs(tmp_path):
+    y, x = np.mgrid[0:12, 0:14]
+    fields = np.stack(
+        [
+            10.0 ** (-9.5 + 0.10 * np.sin((x + shift) / 3.0) + 0.07 * np.cos(y / 2.5))
+            for shift in (0.0, 0.8, 1.6)
+        ]
+    ).astype(np.float32)
+    source = tmp_path / "fields.npy"
+    np.save(source, fields)
+    output_dir = tmp_path / "evaluation"
+
+    args = build_parser().parse_args(
+        [
+            "evaluate",
+            "--fields",
+            str(source),
+            "--cell-size-m",
+            "5",
+            "--truth-index",
+            "0",
+            "--max-lag-cells",
+            "4",
+            "--spatial-stride",
+            "1",
+            "--evaluation-stride",
+            "1",
+            "--n-boreholes",
+            "2",
+            "--margin-cells",
+            "1",
+            "--min-spacing-cells",
+            "2",
+            "--n-samples",
+            "3",
+            "--n-modes",
+            "20",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+    assert args.func(args) == 0
+
+    assert (output_dir / "calibration_leave_one_out.yaml").is_file()
+    assert (output_dir / "model_comparison.csv").is_file()
+    assert (output_dir / "model_comparison.json").is_file()
+    assert (output_dir / "figures" / "variogram_fits.png").is_file()
+    assert (output_dir / "figures" / "length_scales.png").is_file()
+    assert (output_dir / "figures" / "heldout_metric_comparison.png").is_file()
+    for model in ("matern32", "exponential", "radial_exponential"):
+        assert (output_dir / "figures" / f"heldout_{model}.png").is_file()
+        assert (
+            output_dir / "arrays" / model / "posterior_mean_log10_k.npy"
+        ).is_file()
