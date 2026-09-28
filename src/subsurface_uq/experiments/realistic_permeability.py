@@ -32,6 +32,7 @@ from ..visualization.realistic_permeability import (
     plot_heldout_reconstruction,
     plot_length_scale_comparison,
     plot_measurement_cv_comparison,
+    plot_nugget_fraction_comparison,
     plot_variogram_fits,
 )
 
@@ -523,12 +524,17 @@ def _measurement_evaluate(args: argparse.Namespace) -> int:
         max_lag_m=args.max_lag_m,
         angle_tolerance_deg=args.angle_tolerance_deg,
         min_pairs_per_bin=args.min_pairs_per_bin,
+        fit_nugget=not args.disable_nugget,
+        pair_count_weighted_fit=not args.disable_pair_count_weighting,
     )
     plot_variogram_fits(
         variograms, calibration, figures / "measurement_variogram_fits.png"
     )
     plot_length_scale_comparison(
         calibration, figures / "measurement_length_scales.png"
+    )
+    plot_nugget_fraction_comparison(
+        calibration, figures / "measurement_nugget_fraction.png"
     )
     np.savez_compressed(
         root / "measurement_variograms.npz",
@@ -555,6 +561,8 @@ def _measurement_evaluate(args: argparse.Namespace) -> int:
         angle_tolerance_deg=args.angle_tolerance_deg,
         min_pairs_per_bin=args.min_pairs_per_bin,
         observation_std_log10_k=args.observation_std_log10_k,
+        fit_nugget=not args.disable_nugget,
+        pair_count_weighted_fit=not args.disable_pair_count_weighting,
     )
     _write_rows_csv(root / "measurement_cv_summary.csv", list(cv.summary_rows))
     _write_rows_csv(root / "measurement_cv_folds.csv", list(cv.fold_rows))
@@ -572,6 +580,10 @@ def _measurement_evaluate(args: argparse.Namespace) -> int:
             {
                 "covariance_model": model,
                 "full_variogram_rmse": result.variogram_rmse,
+                "full_weighted_variogram_rmse": result.variogram_weighted_rmse,
+                "structured_std_log10_k": result.structured_std_log10_k,
+                "nugget_std_log10_k": result.nugget_std_log10_k,
+                "nugget_fraction": result.nugget_fraction,
                 "length_scale_x_m": result.length_scale_x_m,
                 "length_scale_y_m": result.length_scale_y_m,
                 "ell_x_over_ell_y": result.length_scale_x_m / result.length_scale_y_m,
@@ -580,6 +592,102 @@ def _measurement_evaluate(args: argparse.Namespace) -> int:
         )
     _write_rows_csv(root / "measurement_model_comparison.csv", comparison_rows)
     selected = min(comparison_rows, key=lambda row: float(row["rmse_log10_k"]))
+
+    robustness_payload: dict[str, object] | None = None
+    threshold = float(args.robustness_upper_k_m_s)
+    if threshold > 0.0:
+        keep = measurements.hydraulic_conductivity_m_s <= threshold
+        excluded = int(np.count_nonzero(~keep))
+        if excluded > 0 and int(np.count_nonzero(keep)) >= 10:
+            robust_measurements = measurements.subset(keep)
+            robust_calibration, _, _ = calibrate_point_covariance_candidates(
+                robust_measurements.coordinates_xy_m,
+                robust_measurements.hydraulic_conductivity_m_s,
+                models=args.models,
+                lag_bin_m=args.lag_bin_m,
+                max_lag_m=args.max_lag_m,
+                angle_tolerance_deg=args.angle_tolerance_deg,
+                min_pairs_per_bin=args.min_pairs_per_bin,
+                fit_nugget=not args.disable_nugget,
+                pair_count_weighted_fit=not args.disable_pair_count_weighting,
+            )
+            robust_cv = spatial_block_cross_validate_measurements(
+                robust_measurements.coordinates_xy_m,
+                robust_measurements.hydraulic_conductivity_m_s,
+                models=args.models,
+                n_folds=args.cv_folds,
+                block_size_m=args.cv_block_size_m,
+                fold_seed=args.cv_seed,
+                lag_bin_m=args.lag_bin_m,
+                max_lag_m=args.max_lag_m,
+                angle_tolerance_deg=args.angle_tolerance_deg,
+                min_pairs_per_bin=args.min_pairs_per_bin,
+                observation_std_log10_k=args.observation_std_log10_k,
+                fit_nugget=not args.disable_nugget,
+                pair_count_weighted_fit=not args.disable_pair_count_weighting,
+            )
+            robust_cal_by_model = {
+                item.covariance_model: item for item in robust_calibration
+            }
+            robust_cv_by_model = {
+                str(row["covariance_model"]): row for row in robust_cv.summary_rows
+            }
+            robustness_rows: list[dict[str, object]] = []
+            baseline_by_model = {
+                str(row["covariance_model"]): row for row in comparison_rows
+            }
+            for model in args.models:
+                base = baseline_by_model[model]
+                fitted = robust_cal_by_model[model]
+                cv_row = robust_cv_by_model[model]
+                robustness_rows.append(
+                    {
+                        "scenario": "all_measurements",
+                        "covariance_model": model,
+                        "n_measurements": len(measurements),
+                        "rmse_log10_k": base["rmse_log10_k"],
+                        "mae_log10_k": base["mae_log10_k"],
+                        "coverage_90": base["coverage_90"],
+                        "gaussian_nlpd": base["gaussian_nlpd"],
+                        "length_scale_x_m": base["length_scale_x_m"],
+                        "length_scale_y_m": base["length_scale_y_m"],
+                        "nugget_fraction": base["nugget_fraction"],
+                    }
+                )
+                robustness_rows.append(
+                    {
+                        "scenario": "exclude_above_threshold",
+                        "covariance_model": model,
+                        "n_measurements": len(robust_measurements),
+                        "rmse_log10_k": cv_row["rmse_log10_k"],
+                        "mae_log10_k": cv_row["mae_log10_k"],
+                        "coverage_90": cv_row["coverage_90"],
+                        "gaussian_nlpd": cv_row["gaussian_nlpd"],
+                        "length_scale_x_m": fitted.length_scale_x_m,
+                        "length_scale_y_m": fitted.length_scale_y_m,
+                        "nugget_fraction": fitted.nugget_fraction,
+                        "rmse_change_percent": 100.0
+                        * (float(cv_row["rmse_log10_k"]) - float(base["rmse_log10_k"]))
+                        / float(base["rmse_log10_k"]),
+                        "length_scale_x_change_percent": 100.0
+                        * (fitted.length_scale_x_m - float(base["length_scale_x_m"]))
+                        / float(base["length_scale_x_m"]),
+                        "length_scale_y_change_percent": 100.0
+                        * (fitted.length_scale_y_m - float(base["length_scale_y_m"]))
+                        / float(base["length_scale_y_m"]),
+                        "nugget_fraction_change": fitted.nugget_fraction
+                        - float(base["nugget_fraction"]),
+                    }
+                )
+            _write_rows_csv(
+                root / "measurement_upper_tail_robustness.csv", robustness_rows
+            )
+            robustness_payload = {
+                "threshold_m_s": threshold,
+                "excluded_measurements": excluded,
+                "retained_measurements": len(robust_measurements),
+                "rows": robustness_rows,
+            }
 
     payload = {
         "schema_version": 1,
@@ -603,6 +711,8 @@ def _measurement_evaluate(args: argparse.Namespace) -> int:
             "max_lag_m": float(args.max_lag_m),
             "angle_tolerance_deg": float(args.angle_tolerance_deg),
             "min_pairs_per_bin": int(args.min_pairs_per_bin),
+            "fit_nugget": not args.disable_nugget,
+            "pair_count_weighted_fit": not args.disable_pair_count_weighting,
         },
         "spatial_cv": {
             "n_folds": int(args.cv_folds),
@@ -612,6 +722,7 @@ def _measurement_evaluate(args: argparse.Namespace) -> int:
         },
         "candidates_full_data": [item.to_dict() for item in calibration],
         "selected_by_spatial_cv_rmse": selected,
+        "upper_tail_robustness": robustness_payload,
         "selection_note": (
             "The selected entry is the lowest spatial-block-CV RMSE diagnostic, "
             "not a claim that the covariance family is uniquely geologically correct."
@@ -633,12 +744,14 @@ def _measurement_evaluate(args: argparse.Namespace) -> int:
 
     print(f"Accepted real measurements: {len(measurements)}")
     print(
-        "model | full variogram RMSE | spatial-CV RMSE | MAE | 90% coverage | NLPD"
+        "model | weighted variogram RMSE | nugget fraction | spatial-CV RMSE | "
+        "MAE | 90% coverage | NLPD"
     )
     for row in comparison_rows:
         print(
-            f"{row['covariance_model']} | {row['full_variogram_rmse']:.4g} | "
-            f"{row['rmse_log10_k']:.4g} | {row['mae_log10_k']:.4g} | "
+            f"{row['covariance_model']} | {row['full_weighted_variogram_rmse']:.4g} | "
+            f"{row['nugget_fraction']:.3f} | {row['rmse_log10_k']:.4g} | "
+            f"{row['mae_log10_k']:.4g} | "
             f"{row['coverage_90']:.3f} | {row['gaussian_nlpd']:.4g}"
         )
     print(f"Saved real-measurement calibration to {root}")
@@ -684,19 +797,41 @@ def _measurement_condition(args: argparse.Namespace) -> int:
         length_scale_y_m=float(selected["length_scale_y_m"]),
         length_scale_x_m=float(selected["length_scale_x_m"]),
         observation_std_log10_k=args.observation_std_log10_k,
+        structured_std_log10_k=float(
+            selected.get("structured_std_log10_k") or selected["std_log10_k"]
+        ),
+        nugget_std_log10_k=float(selected.get("nugget_std_log10_k", 0.0)),
+        include_query_nugget=False,
         angle_rad=float(selected.get("angle_rad", 0.0)),
         active_mask=reference_grid.active_mask,
         chunk_size=args.kriging_chunk_size,
     )
     mean_log = np.asarray(posterior.mean_log10_k, dtype=np.float64)
-    variance_log = np.asarray(posterior.variance_log10_k, dtype=np.float64)
+    structured_variance_log = np.asarray(
+        posterior.variance_log10_k, dtype=np.float64
+    )
+    nugget_variance_log = float(selected.get("nugget_std_log10_k", 0.0)) ** 2
+    predictive_variance_log = structured_variance_log + nugget_variance_log
     active = reference_grid.active_mask
     median_kh = np.full(mean_log.shape, np.nan, dtype=np.float64)
-    mean_kh = np.full(mean_log.shape, np.nan, dtype=np.float64)
+    mean_structured_kh = np.full(mean_log.shape, np.nan, dtype=np.float64)
+    mean_predictive_kh = np.full(mean_log.shape, np.nan, dtype=np.float64)
     median_kh[active] = np.power(10.0, mean_log[active])
-    mean_kh[active] = (
+    mean_structured_kh[active] = (
         np.power(10.0, mean_log[active])
-        * np.exp(0.5 * (np.log(10.0) ** 2) * variance_log[active])
+        * np.exp(
+            0.5
+            * (np.log(10.0) ** 2)
+            * structured_variance_log[active]
+        )
+    )
+    mean_predictive_kh[active] = (
+        np.power(10.0, mean_log[active])
+        * np.exp(
+            0.5
+            * (np.log(10.0) ** 2)
+            * predictive_variance_log[active]
+        )
     )
     factor = float(
         hydraulic_conductivity_to_intrinsic_permeability(
@@ -707,19 +842,36 @@ def _measurement_condition(args: argparse.Namespace) -> int:
         )[0]
     )
     median_intrinsic = median_kh * factor
-    mean_intrinsic = mean_kh * factor
+    mean_structured_intrinsic = mean_structured_kh * factor
+    mean_predictive_intrinsic = mean_predictive_kh * factor
 
     output = Path(args.output).expanduser().resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
         output,
         posterior_mean_log10_hydraulic_conductivity=posterior.mean_log10_k,
-        posterior_std_log10_hydraulic_conductivity=posterior.std_log10_k,
-        posterior_variance_log10_hydraulic_conductivity=posterior.variance_log10_k,
+        posterior_structured_std_log10_hydraulic_conductivity=posterior.std_log10_k,
+        posterior_structured_variance_log10_hydraulic_conductivity=posterior.variance_log10_k,
+        posterior_predictive_std_log10_hydraulic_conductivity=np.sqrt(
+            predictive_variance_log
+        ).astype(np.float32),
+        posterior_predictive_variance_log10_hydraulic_conductivity=predictive_variance_log.astype(
+            np.float32
+        ),
         posterior_median_hydraulic_conductivity_m_s=median_kh.astype(np.float32),
-        posterior_mean_hydraulic_conductivity_m_s=mean_kh.astype(np.float32),
+        posterior_mean_structured_hydraulic_conductivity_m_s=mean_structured_kh.astype(
+            np.float32
+        ),
+        posterior_mean_predictive_hydraulic_conductivity_m_s=mean_predictive_kh.astype(
+            np.float32
+        ),
         posterior_median_intrinsic_permeability_m2=median_intrinsic.astype(np.float32),
-        posterior_mean_intrinsic_permeability_m2=mean_intrinsic.astype(np.float32),
+        posterior_mean_structured_intrinsic_permeability_m2=mean_structured_intrinsic.astype(
+            np.float32
+        ),
+        posterior_mean_predictive_intrinsic_permeability_m2=mean_predictive_intrinsic.astype(
+            np.float32
+        ),
         active_mask=active,
     )
     metadata = {
@@ -728,6 +880,11 @@ def _measurement_condition(args: argparse.Namespace) -> int:
         "calibration": selected,
         "measurement_qc": qc,
         "conditioning_measurements": len(measurements),
+        "nugget_interpretation": (
+            "The fitted nugget is treated as unresolved microscale/measurement-scale "
+            "variance. The gridded posterior mean/structured variance exclude an "
+            "independent nugget realization; predictive variance additionally includes it."
+        ),
         "conditioning_max_abs_log10_residual": posterior.conditioning_max_abs_log10_residual,
         "conditioning_rms_log10_residual": posterior.conditioning_rms_log10_residual,
         "fluid_conversion": {
@@ -878,6 +1035,25 @@ def build_parser() -> argparse.ArgumentParser:
     measurement_evaluate.add_argument("--cv-block-size-m", type=float, default=2000.0)
     measurement_evaluate.add_argument("--cv-seed", type=int, default=2907)
     measurement_evaluate.add_argument("--observation-std-log10-k", type=float, default=0.0)
+    measurement_evaluate.add_argument(
+        "--disable-nugget",
+        action="store_true",
+        help="Sensitivity option: force the variogram nugget to zero.",
+    )
+    measurement_evaluate.add_argument(
+        "--disable-pair-count-weighting",
+        action="store_true",
+        help="Sensitivity option: fit variogram bins with equal rather than pair-count weights.",
+    )
+    measurement_evaluate.add_argument(
+        "--robustness-upper-k-m-s",
+        type=float,
+        default=5.0e-2,
+        help=(
+            "Repeat calibration/CV after excluding measurements above this K_h threshold; "
+            "set <=0 to disable. The baseline fit always retains all measurements."
+        ),
+    )
     measurement_evaluate.add_argument("--output-dir", required=True)
     measurement_evaluate.set_defaults(func=_measurement_evaluate)
 
