@@ -8,6 +8,7 @@ from .realistic_permeability import (
     plot_heldout_reconstruction,
     plot_length_scale_comparison,
     plot_measurement_cv_comparison,
+    plot_new_domain_summary,
     plot_nugget_fraction_comparison,
     plot_variogram_fits,
 )
@@ -20,6 +21,7 @@ from .uq import (
 )
 
 __all__ = [
+    "plot_new_domain_summary",
     "plot_georeference_alignment",
     "MonteCarloPlotData",
     "load_monte_carlo_plot_data",
