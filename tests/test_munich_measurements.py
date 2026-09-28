@@ -259,3 +259,22 @@ def test_spatial_block_cv_predicts_every_measurement_once():
     assert np.isfinite(result.summary_rows[0]["mean_fold_nugget_fraction"])
     assert 0.0 <= result.summary_rows[0]["mean_fold_nugget_fraction"] <= 0.95
     assert 0.0 <= result.summary_rows[0]["coverage_90"] <= 1.0
+
+    keep = np.ones(coordinates.shape[0], dtype=bool)
+    keep[0] = False
+    repeated = spatial_block_cross_validate_measurements(
+        coordinates[keep],
+        conductivity[keep],
+        models=("radial_exponential",),
+        n_folds=4,
+        block_size_m=1000.0,
+        fold_seed=999,
+        lag_bin_m=500.0,
+        max_lag_m=2500.0,
+        angle_tolerance_deg=22.5,
+        min_pairs_per_bin=2,
+        fold_assignment=result.fold_assignment[keep],
+    )
+    np.testing.assert_array_equal(
+        repeated.fold_assignment, result.fold_assignment[keep]
+    )
