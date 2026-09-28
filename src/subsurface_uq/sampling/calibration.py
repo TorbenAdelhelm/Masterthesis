@@ -30,9 +30,13 @@ class CovarianceCalibrationResult:
     variogram_rmse_y: float
     variogram_rmse_x: float
     variogram_rmse_diag: float
-    cell_size_m: float
-    spatial_stride: int
-    max_lag_cells: int
+    cell_size_m: float | None
+    spatial_stride: int | None
+    max_lag_cells: int | None
+    calibration_source: str = "regular_grid"
+    lag_bin_m: float | None = None
+    max_lag_m: float | None = None
+    angle_tolerance_deg: float | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -50,6 +54,10 @@ class CovarianceCalibrationResult:
             "cell_size_m": self.cell_size_m,
             "spatial_stride": self.spatial_stride,
             "max_lag_cells": self.max_lag_cells,
+            "calibration_source": self.calibration_source,
+            "lag_bin_m": self.lag_bin_m,
+            "max_lag_m": self.max_lag_m,
+            "angle_tolerance_deg": self.angle_tolerance_deg,
             "log_space": "log10",
         }
 
@@ -117,6 +125,173 @@ def estimate_directional_variograms(
         "x": (lags * spacing, gamma_x),
         "diag": (lags * spacing * np.sqrt(2.0), gamma_diag),
     }
+
+
+def estimate_point_directional_variograms(
+    coordinates_xy_m: Array,
+    log10_values: Array,
+    *,
+    lag_bin_m: float = 250.0,
+    max_lag_m: float = 3000.0,
+    angle_tolerance_deg: float = 22.5,
+    min_pairs_per_bin: int = 8,
+) -> tuple[dict[str, tuple[Array, Array]], dict[str, Array]]:
+    """Estimate directional semivariograms from irregular point measurements.
+
+    Directions are defined by the absolute pair-vector angle: x around 0/180 deg,
+    y around 90 deg, and diagonal around 45/135 deg. Both diagonal orientations
+    are combined to improve support for sparse irregular observations.
+    """
+
+    coordinates = np.asarray(coordinates_xy_m, dtype=np.float64)
+    values = np.asarray(log10_values, dtype=np.float64).reshape(-1)
+    if coordinates.ndim != 2 or coordinates.shape[1] != 2:
+        raise ValueError("coordinates_xy_m must have shape [n,2] as x,y")
+    if coordinates.shape[0] != values.size or values.size < 3:
+        raise ValueError("at least three point values with matching coordinates are required")
+    if not np.all(np.isfinite(coordinates)) or not np.all(np.isfinite(values)):
+        raise ValueError("point coordinates and log10 values must be finite")
+    lag_bin_m = float(lag_bin_m)
+    max_lag_m = float(max_lag_m)
+    angle_tolerance_deg = float(angle_tolerance_deg)
+    min_pairs_per_bin = int(min_pairs_per_bin)
+    if lag_bin_m <= 0.0 or max_lag_m <= lag_bin_m:
+        raise ValueError("lag_bin_m must be positive and smaller than max_lag_m")
+    if not (0.0 < angle_tolerance_deg < 45.0):
+        raise ValueError("angle_tolerance_deg must lie in (0,45)")
+    if min_pairs_per_bin <= 0:
+        raise ValueError("min_pairs_per_bin must be positive")
+
+    i, j = np.triu_indices(values.size, k=1)
+    dx = coordinates[j, 0] - coordinates[i, 0]
+    dy = coordinates[j, 1] - coordinates[i, 1]
+    distance = np.hypot(dx, dy)
+    semivariance = 0.5 * (values[j] - values[i]) ** 2
+    valid_distance = (distance > 0.0) & (distance <= max_lag_m)
+
+    angle = np.mod(np.arctan2(np.abs(dy), np.abs(dx)), np.pi / 2.0)
+    tolerance = np.deg2rad(angle_tolerance_deg)
+    direction_masks = {
+        "x": angle <= tolerance,
+        "y": np.abs(angle - np.pi / 2.0) <= tolerance,
+        "diag": np.abs(angle - np.pi / 4.0) <= tolerance,
+    }
+    edges = np.arange(0.0, max_lag_m + lag_bin_m, lag_bin_m, dtype=np.float64)
+    if edges[-1] < max_lag_m:
+        edges = np.append(edges, max_lag_m)
+
+    variograms: dict[str, tuple[Array, Array]] = {}
+    counts_out: dict[str, Array] = {}
+    for direction, direction_mask in direction_masks.items():
+        mask = valid_distance & direction_mask
+        distances = distance[mask]
+        gammas = semivariance[mask]
+        bin_index = np.digitize(distances, edges, right=False) - 1
+        lag_centers: list[float] = []
+        estimates: list[float] = []
+        counts: list[int] = []
+        for index in range(len(edges) - 1):
+            selected = bin_index == index
+            count = int(np.count_nonzero(selected))
+            if count < min_pairs_per_bin:
+                continue
+            lag_centers.append(float(np.mean(distances[selected])))
+            estimates.append(float(np.mean(gammas[selected])))
+            counts.append(count)
+        if len(lag_centers) < 3:
+            raise ValueError(
+                f"insufficient supported {direction} variogram bins; "
+                "increase angle tolerance/max lag or lower min_pairs_per_bin"
+            )
+        variograms[direction] = (
+            np.asarray(lag_centers, dtype=np.float64),
+            np.asarray(estimates, dtype=np.float64),
+        )
+        counts_out[direction] = np.asarray(counts, dtype=np.int64)
+    return variograms, counts_out
+
+
+def calibrate_point_covariance_candidates(
+    coordinates_xy_m: Array,
+    hydraulic_conductivity_m_s: Array,
+    *,
+    models: Sequence[str] = SUPPORTED_CALIBRATION_MODELS,
+    lag_bin_m: float = 250.0,
+    max_lag_m: float = 3000.0,
+    angle_tolerance_deg: float = 22.5,
+    min_pairs_per_bin: int = 8,
+) -> tuple[tuple[CovarianceCalibrationResult, ...], dict[str, tuple[Array, Array]], dict[str, Array]]:
+    """Fit covariance candidates directly to irregular real measurements."""
+
+    coordinates = np.asarray(coordinates_xy_m, dtype=np.float64)
+    conductivity = np.asarray(hydraulic_conductivity_m_s, dtype=np.float64).reshape(-1)
+    if coordinates.ndim != 2 or coordinates.shape != (conductivity.size, 2):
+        raise ValueError("coordinates and conductivity values must have shapes [n,2] and [n]")
+    if conductivity.size < 3 or not np.all(np.isfinite(conductivity)) or np.any(conductivity <= 0.0):
+        raise ValueError("at least three finite positive conductivity measurements are required")
+    log_values = np.log10(conductivity)
+    mean = float(np.mean(log_values))
+    std = float(np.std(log_values, ddof=1))
+    if not np.isfinite(std) or std <= 0.0:
+        raise ValueError("log10 measurement variance must be positive")
+    sill = std**2
+
+    requested = tuple(str(model).strip().lower() for model in models)
+    if not requested:
+        raise ValueError("at least one covariance model must be requested")
+    unknown = sorted(set(requested).difference(SUPPORTED_CALIBRATION_MODELS))
+    if unknown:
+        raise ValueError(f"unsupported covariance models: {unknown}")
+
+    variograms, counts = estimate_point_directional_variograms(
+        coordinates,
+        log_values,
+        lag_bin_m=lag_bin_m,
+        max_lag_m=max_lag_m,
+        angle_tolerance_deg=angle_tolerance_deg,
+        min_pairs_per_bin=min_pairs_per_bin,
+    )
+    x_span = max(float(np.ptp(coordinates[:, 0])), float(lag_bin_m))
+    y_span = max(float(np.ptp(coordinates[:, 1])), float(lag_bin_m))
+    initial_x = max(float(lag_bin_m), 0.1 * x_span)
+    initial_y = max(float(lag_bin_m), 0.1 * y_span)
+    lower = max(float(lag_bin_m) * 0.25, np.finfo(float).eps)
+    upper = max(x_span, y_span, float(max_lag_m)) * 4.0
+
+    results: list[CovarianceCalibrationResult] = []
+    for model in requested:
+        ly, lx, errors = _fit_candidate(
+            covariance_model=model,
+            variograms=variograms,
+            sill=sill,
+            initial_y_m=initial_y,
+            initial_x_m=initial_x,
+            lower_m=lower,
+            upper_m=upper,
+        )
+        results.append(
+            CovarianceCalibrationResult(
+                covariance_model=model,
+                mean_log10_k=mean,
+                std_log10_k=std,
+                between_field_mean_std_log10_k=0.0,
+                length_scale_y_m=ly,
+                length_scale_x_m=lx,
+                angle_rad=0.0,
+                variogram_rmse=errors["all"],
+                variogram_rmse_y=errors["y"],
+                variogram_rmse_x=errors["x"],
+                variogram_rmse_diag=errors["diag"],
+                cell_size_m=None,
+                spatial_stride=None,
+                max_lag_cells=None,
+                calibration_source="irregular_real_measurements",
+                lag_bin_m=float(lag_bin_m),
+                max_lag_m=float(max_lag_m),
+                angle_tolerance_deg=float(angle_tolerance_deg),
+            )
+        )
+    return tuple(sorted(results, key=lambda item: item.variogram_rmse)), variograms, counts
 
 
 def _matern32_rho(scaled_distance: Array) -> Array:
