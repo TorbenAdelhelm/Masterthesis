@@ -146,10 +146,12 @@ variance/energy fraction. `GaussianCoordinatePermeabilitySampler` samples
 independent standard-normal coordinates and adapts the map to the existing
 `PermeabilitySampler` interface.
 
-The current KL parameters are configuration inputs, not calibrated scientific
-defaults. In particular, the Matérn length scales and log-permeability moments
-still need to be estimated or selected before scientific LGCNN-UQ experiments
-are run.
+For the production RQ1 path, KL parameters no longer need to be copied into
+the RQ1 configuration manually. The realistic-permeability workflow calibrates
+the prior from the actual LGCNN training permeability fields, retains empirical
+between-field mean variation as an optional field-wide Gaussian coordinate, and
+writes a reusable `stochastic_input_model.yaml` artifact. Manual KL parameters
+remain available only as a synthetic/debug fallback.
 
 ### Exact Munich-to-LGCNN geospatial mapping
 
@@ -175,18 +177,29 @@ and a small cross-run log-unit-shift spread. Otherwise the workflow explicitly
 records that no exact geographic mapping is supported by the available
 reference table.
 
-### Measurement-conditioned new LGCNN domain
+### Training-informed, measurement-conditioned new LGCNN domain
 
-Because the georeference sweep can reject an unsupported correspondence between
-historical DaRUS cutouts and the available 3-D Munich table, the branch now
-supports a separate `new-domain-generate` workflow. It defines a new projected
-12.8 km x 12.8 km, 2560 x 2560, 5 m domain, conditions the calibrated structured
-separable KL field directly on real continuous-coordinate measurements inside
-that domain, treats the fitted nugget as observation-scale variance, converts
-hydraulic conductivity to intrinsic permeability, and writes LGCNN-shape
-realizations plus KL/posterior/training-range diagnostics. Automatic domain
-selection maximizes conditioning-measurement count; explicit projected origins
-remain available for a prescribed site.
+The production `new-domain-generate` workflow now separates the two evidence
+sources required by the frozen surrogate. The **actual permeability fields used
+to train the pretrained LGCNN** define the separable Gaussian KL prior: log-space
+mean, within-field structured variance, correlation lengths and covariance
+family. Their between-field mean variation is represented by a field-wide
+Gaussian coordinate. The real Munich measurements supply continuous
+conditioning values and the fitted nugget used as observation-scale noise.
+
+Generated realizations are compared with the actual training fields using
+marginal quantiles, log-space gradient RMS and lag-one correlations in addition
+to the empirical physical permeability range. These are descriptive
+training-support diagnostics only; samples are not rejected, so the posterior
+coordinates remain iid standard normal for MC/RQMC/Hermite-PCE use. The workflow
+also reports prior-predictive compatibility of the real observations with the
+training-informed prior.
+
+The workflow writes `stochastic_input_model.yaml`, which can be loaded directly
+by RQ1. This removes duplicated stochastic parameters between input-model
+calibration and propagation and records a single reusable probability law.
+Automatic projected-domain selection and the domain-relative interpretation of
+the fixed release25 pressure/heat-pump templates remain unchanged.
 
 ### Real Munich measurement calibration
 

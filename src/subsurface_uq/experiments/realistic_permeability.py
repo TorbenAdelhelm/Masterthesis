@@ -1303,17 +1303,13 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
                 "covariance_model", ""
             )
         )
-        if selected_name in supported:
-            model = selected_name
-        else:
-            model = next(
-                (
-                    str(item["covariance_model"])
-                    for item in training_candidates
-                    if str(item["covariance_model"]) in supported
-                ),
-                None,
+        if selected_name not in supported:
+            raise ValueError(
+                "the best training-field covariance calibration is not available in "
+                "the explicit Gaussian-coordinate KL path; choose --model matern32 "
+                "or --model exponential explicitly and document that approximation"
             )
+        model = selected_name
     if model not in supported:
         raise ValueError(
             "training-informed Gaussian-coordinate generation requires a separable "
@@ -1729,6 +1725,11 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "prior": "actual_lgcnn_training_permeability_fields",
             "conditioning": "real_munich_measurements",
             "sample_filtering": None,
+            "covariance_model_selection": (
+                "explicit_cli_choice"
+                if args.model is not None
+                else "training_calibration_selected"
+            ),
         },
     }
     with (root / "stochastic_input_model.yaml").open("w", encoding="utf-8") as handle:

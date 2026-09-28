@@ -278,29 +278,60 @@ individually valid for every run and cross-run consistent in orientation and
 unit shift. See `docs/realistic_permeability_generator.md` for the decision
 rule.
 
-## Measurement-conditioned new LGCNN domain
+## Training-informed, measurement-conditioned LGCNN domain
 
-After a negative historical georeference sweep, generate a new projected
-12.8 km x 12.8 km Munich field directly from the real-measurement calibration:
+The primary thesis input law now separates **surrogate support** from
+**measurement conditioning**. The actual permeability fields used to train the
+pretrained random-K LGCNN define the Gaussian KL prior. The real Munich
+measurements condition that prior; their fitted nugget is used as
+observation-scale uncertainty but their covariance fit does not silently replace
+the training-input prior.
+
+First calibrate the actual LGCNN training permeability ensemble:
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability calibrate \
+  --fields data/lgcnn_training_permeability \
+  --cell-size-m 5 \
+  --spatial-stride 4 \
+  --output run_output/realistic_k/training_calibration.yaml
+```
+
+Then combine this training calibration with the independently produced Munich
+measurement calibration:
 
 ```bash
 python -m subsurface_uq.experiments.realistic_permeability new-domain-generate \
   --measurements "C:/path/to/kf_werte_190201.xlsx" \
   --reference-grid "C:/path/to/3D_K_Field_Munich_K_P10_P50_P90.csv" \
-  --calibration run_output/realistic_k/measurements_nugget/measurement_calibration.yaml \
+  --training-fields data/lgcnn_training_permeability \
+  --training-calibration run_output/realistic_k/training_calibration.yaml \
+  --measurement-calibration run_output/realistic_k/measurements/measurement_calibration.yaml \
   --model exponential \
   --energy-threshold 0.95 \
   --n-samples 8 \
   --output-dir run_output/realistic_k/new_domain
 ```
 
+The generator retains iid standard-normal posterior coordinates. Generated
+fields are compared descriptively with the actual training inputs using marginal
+and short-range spatial descriptors, but are **not rejected** by those
+diagnostics; this preserves the Gaussian coordinate law required by MC/RQMC and
+later Hermite PCE. A field-wide Gaussian mean coordinate represents the
+between-training-field mean variation estimated by the existing field
+calibration.
+
+The output `stochastic_input_model.yaml` is the reusable stochastic-law
+artifact. Point RQ1 at it with `grf.input_model` and remove the manual GRF
+parameter/observation keys from the RQ1 config. This makes RQ1 reconstruct the
+same training-informed, real-measurement-conditioned map instead of duplicating
+its parameters.
+
 Without an explicit projected origin, the 5 m grid is chosen to maximize the
-number of accepted real measurements inside the 12.8 km square. The fitted
-nugget remains observation-scale uncertainty and is not injected as independent
-5 m pixel noise. Continuous-coordinate conditioning uses a Nyström-extended
-factorized KL basis and retains explicit iid Gaussian posterior coordinates for
-MC/RQMC/PCE. See `docs/realistic_permeability_generator.md` for diagnostics
-and storage details.
+number of accepted real measurements inside the 12.8 km square. Existing
+release25 pressure/heat-pump fields remain domain-relative templates, not
+claimed co-located site measurements. See
+`docs/realistic_permeability_generator.md` for the diagnostics and assumptions.
 
 ## Real Munich measurement calibration
 

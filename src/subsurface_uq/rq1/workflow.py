@@ -168,7 +168,17 @@ def _diagnostics_payload(result, config: RQ1Config) -> dict[str, object]:
         "spatial_max_std_log10_k": float(np.max(result.std_log10_k)),
         "global_k_min_m2": result.minimum_k,
         "global_k_max_m2": result.maximum_k,
-        "release25_training_range_m2": [
+        "training_range_m2": (
+            None
+            if result.training_k_min is None or result.training_k_max is None
+            else [result.training_k_min, result.training_k_max]
+        ),
+        "training_range_source": (
+            "input_model_training_fields"
+            if config.input_model is not None
+            else "historical_release25_perlin_bounds"
+        ),
+        "historical_release25_perlin_range_m2": [
             RELEASE25_PERLIN_K_MIN,
             RELEASE25_PERLIN_K_MAX,
         ],

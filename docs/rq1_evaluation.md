@@ -87,24 +87,31 @@ affecting field or receptor metrics.
 Thresholded plume/risk quantities are deliberately not part of RQ1; they belong
 to RQ2.
 
-## Input diagnostics
+## Input law and diagnostics
 
-Every main variant observes the exact permeability batches that are passed into
-the frozen LGCNN. Diagnostics are evaluated in Y = log10(K).
+The preferred thesis run uses the `stochastic_input_model.yaml` artifact
+written by the realistic-permeability workflow. That artifact reconstructs the
+same training-informed KL prior and the same continuous real-measurement
+conditioning map used during input-model validation. RQ1 therefore does not
+retype or refit stochastic parameters.
 
-The output records/plots spatial mean and standard deviation, global physical
-minimum/maximum, and the fraction outside the release25 training range
+Every main variant observes the exact permeability batches passed into the
+frozen LGCNN. Diagnostics are evaluated in `Y = log10(K)`. When an input-model
+artifact is used, its empirical training-field minimum/maximum becomes the
+range reference; the historical release25 Perlin bounds are only the fallback
+for the manual legacy configuration.
 
-1.0193679918450561e-11 <= K <= 5.09683995922528e-09 m^2.
+For the continuous real-measurement input model, conditioning quality and prior
+compatibility are recorded in the input-model artifact itself, including
+prior-predictive standardized residuals and the covariance-aware Mahalanobis
+diagnostic. RQ1 does not apply a post-hoc sample acceptance rule. This is
+intentional: all MC/RQMC samples must remain evaluations of the declared iid
+Gaussian posterior-coordinate law.
 
-For conditional fields it also records
-
-e_b^(n) = Y^(n)(x_b) - Y_obs(x_b)
-
-with per-sample and aggregate residual diagnostics. No universal conditioning
-or compatibility threshold is hard-coded. If a justified
-conditioning_tolerance_log10 value is supplied, the run fails when it is
-violated.
+The older manual grid-cell GRF configuration remains available for synthetic
+experiments. In that mode RQ1 can still compute per-sample conditioning
+residuals and enforce an explicitly configured
+`conditioning_tolerance_log10`.
 
 ## Repeated MC versus randomized QMC
 
@@ -126,10 +133,17 @@ evaluations.
 
 ## Command
 
-Start from the example and replace the illustrative GRF and QoI locations by the
-final thesis values:
+For the production thesis run, first generate and validate the permeability
+input law. Then configure RQ1 with the resulting artifact:
 
-    cp configs/rq1.example.yaml configs/rq1.yaml
+```yaml
+grf:
+  input_model: run_output/realistic_k/new_domain/stochastic_input_model.yaml
+```
+
+Do not also specify manual GRF moments, covariance parameters, KL truncation or
+grid-cell observations in that configuration; the loader rejects duplicated
+sources of truth.
 
 Run with
 
@@ -139,8 +153,12 @@ or, after package installation,
 
     subsurface-uq-release25-rq1 --config configs/rq1.yaml
 
-The command loads the release25 models once and reuses the existing sampler,
-conditional-KL, bounded-streamline, surrogate and Monte Carlo abstractions.
+The command reconstructs the declared training-informed prior and
+real-measurement-conditioned Gaussian map, checks its shape and physical domain
+against the release25 runtime, records the input-model SHA-256 in RQ1 metadata,
+and reuses the same map for conditional MC and scrambled-Sobol RQMC. The manual
+GRF block in `configs/rq1.example.yaml` remains an explicit fallback for
+synthetic/debug experiments.
 
 ## Result layout
 
