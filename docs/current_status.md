@@ -161,12 +161,16 @@ the original continuous coordinates while recording nearest 100 m grid cells
 for diagnostics.
 
 Covariance calibration can be performed directly on irregular
-`log10(K_h)` point pairs using directional x/y/diagonal semivariograms.
-Model comparison uses spatial block cross-validation with fold-wise
-recalibration and exact full-covariance simple-kriging predictions at held-out
-real measurement locations. Reported diagnostics include RMSE/MAE, 90% posterior
-coverage, standardized residuals, Gaussian NLPD, fold-wise length scales and
-variogram RMSE.
+`log10(K_h)` point pairs using directional x/y/diagonal semivariograms. The
+measurement workflow now jointly fits structured variance, nugget variance and
+directional length scales with pair-count-weighted variogram residuals. Model
+comparison uses spatial block cross-validation with fold-wise recalibration and
+exact full-covariance simple-kriging predictions at held-out real measurement
+locations. Reported diagnostics include RMSE/MAE, 90% posterior coverage,
+standardized residuals, Gaussian NLPD, fold-wise length scales, nugget fractions
+and weighted/unweighted variogram RMSE. A default robustness check repeats the
+fit after excluding only values above 5e-2 m/s while retaining all measurements
+in the baseline calibration.
 
 After model selection, `measurement-condition` evaluates the analytical
 posterior on the active 100 m reference grid from all accepted continuous
