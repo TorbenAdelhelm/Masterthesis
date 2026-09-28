@@ -175,6 +175,19 @@ and a small cross-run log-unit-shift spread. Otherwise the workflow explicitly
 records that no exact geographic mapping is supported by the available
 reference table.
 
+### Measurement-conditioned new LGCNN domain
+
+Because the georeference sweep can reject an unsupported correspondence between
+historical DaRUS cutouts and the available 3-D Munich table, the branch now
+supports a separate `new-domain-generate` workflow. It defines a new projected
+12.8 km x 12.8 km, 2560 x 2560, 5 m domain, conditions the calibrated structured
+separable KL field directly on real continuous-coordinate measurements inside
+that domain, treats the fitted nugget as observation-scale variance, converts
+hydraulic conductivity to intrinsic permeability, and writes LGCNN-shape
+realizations plus KL/posterior/training-range diagnostics. Automatic domain
+selection maximizes conditioning-measurement count; explicit projected origins
+remain available for a prescribed site.
+
 ### Real Munich measurement calibration
 
 The realistic-permeability branch now contains a second, preferred calibration
