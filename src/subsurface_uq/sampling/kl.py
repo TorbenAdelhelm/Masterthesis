@@ -398,12 +398,25 @@ class KLLogGaussianPermeabilityMap:
 
         coordinates, single = self._prepare_coordinates(coordinates)
         weighted = coordinates * np.sqrt(self._eigenvalues)[None, :]
-        vectors_y = self._eigvecs_y[:, self._mode_y]
-        vectors_x = self._eigvecs_x[:, self._mode_x]
+
+        # The naive sum over every selected 2-D mode costs O(B*H*W*m).
+        # Regroup the selected tensor-product modes into the unique retained
+        # one-dimensional y/x eigenspaces and evaluate U_y @ C @ U_x^T instead.
+        # This is essential for 2560x2560 fields where a 95% energy threshold
+        # can retain O(10^3) two-dimensional modes.
+        unique_y, compact_y = np.unique(self._mode_y, return_inverse=True)
+        unique_x, compact_x = np.unique(self._mode_x, return_inverse=True)
+        vectors_y = self._eigvecs_y[:, unique_y]
+        vectors_x = self._eigvecs_x[:, unique_x]
+        coefficients = np.zeros(
+            (coordinates.shape[0], unique_y.size, unique_x.size),
+            dtype=np.float64,
+        )
+        coefficients[:, compact_y, compact_x] = weighted
         fields = self.mean_log10_k + np.einsum(
-            "bm,ym,xm->byx",
-            weighted,
+            "ya,bac,xc->byx",
             vectors_y,
+            coefficients,
             vectors_x,
             optimize=True,
         )
