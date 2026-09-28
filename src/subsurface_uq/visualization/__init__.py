@@ -6,6 +6,7 @@ from .realistic_permeability import (
     plot_heldout_metric_comparison,
     plot_heldout_reconstruction,
     plot_length_scale_comparison,
+    plot_measurement_cv_comparison,
     plot_variogram_fits,
 )
 from .release25 import save_release25_output_plots, save_release25_overlay_plots
@@ -24,6 +25,7 @@ __all__ = [
     "plot_heldout_metric_comparison",
     "plot_heldout_reconstruction",
     "plot_length_scale_comparison",
+    "plot_measurement_cv_comparison",
     "plot_permeability_diagnostics",
     "plot_variogram_fits",
     "save_monte_carlo_uq_plots",
