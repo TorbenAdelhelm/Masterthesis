@@ -59,7 +59,11 @@ from .kl import (
     exponential_correlation_matrix,
     matern32_correlation_matrix,
 )
-from .kriging import ConditionalKLLogGaussianPermeabilityMap
+from .kriging import (
+    ConditionalKLLogGaussianPermeabilityMap,
+    ContinuousPointConditionalKLLogGaussianPermeabilityMap,
+)
+from .new_domain import NewLGCNNDomain, select_new_lgcnn_domain
 from .perlin import (
     RELEASE25_PERLIN_DEFAULT_SEED,
     RELEASE25_PERLIN_DOMAIN_SIZE_M,
@@ -79,6 +83,9 @@ from .qmc import ScrambledSobolGaussianPermeabilitySampler
 from .radial_exponential import RadialExponentialPermeabilitySampler
 
 __all__ = [
+    "select_new_lgcnn_domain",
+    "NewLGCNNDomain",
+    "ContinuousPointConditionalKLLogGaussianPermeabilityMap",
     "load_reference_permeability_sweep_surfaces",
     "summarize_georeference_sweep",
     "GEOREFERENCE_SWEEP_REPRESENTATIONS",
