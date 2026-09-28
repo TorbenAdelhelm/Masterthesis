@@ -49,6 +49,7 @@ from .geospatial import (
     infer_lgcnn_domain_georeference,
     load_reference_permeability_surface,
     orient_raw_field,
+    geographic_to_raw_field,
 )
 from .kl import (
     KLLogGaussianPermeabilityMap,
@@ -75,6 +76,7 @@ from .qmc import ScrambledSobolGaussianPermeabilitySampler
 from .radial_exponential import RadialExponentialPermeabilitySampler
 
 __all__ = [
+    "geographic_to_raw_field",
     "load_release25_raw_permeability_run",
     "orient_raw_field",
     "load_reference_permeability_surface",
