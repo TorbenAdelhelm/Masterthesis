@@ -169,6 +169,23 @@ def orient_raw_field(field: Array, transform: str) -> Array:
     raise ValueError(f"unknown raw-to-geographic transform {transform!r}")
 
 
+def geographic_to_raw_field(field_yx: Array, transform: str) -> Array:
+    """Invert orient_raw_field for a geographic [y,x] field."""
+
+    inverse = {
+        "identity": "identity",
+        "flip_y": "flip_y",
+        "flip_x": "flip_x",
+        "flip_xy": "flip_xy",
+        "transpose": "transpose",
+        "transpose_flip_y": "transpose_flip_x",
+        "transpose_flip_x": "transpose_flip_y",
+        "transpose_flip_xy": "transpose_flip_xy",
+    }
+    if transform not in inverse:
+        raise ValueError(f"unknown raw-to-geographic transform {transform!r}")
+    return orient_raw_field(field_yx, inverse[transform])
+
 def _column_index(column: str, n_columns: int) -> int:
     column = str(column).upper()
     if n_columns >= 6:
