@@ -205,6 +205,9 @@ def exact_simple_kriging_predict_points(
     length_scale_y_m: float,
     length_scale_x_m: float,
     observation_std_log10_k: float | Array = 0.0,
+    structured_std_log10_k: float | None = None,
+    nugget_std_log10_k: float = 0.0,
+    include_query_nugget: bool = False,
     angle_rad: float = 0.0,
     rank_tolerance: float = 1e-10,
     chunk_size: int = 100000,
@@ -233,12 +236,28 @@ def exact_simple_kriging_predict_points(
         raise ValueError(f"unsupported covariance model: {model}")
     mean = float(mean_log10_k)
     std = float(std_log10_k)
+    structured_std = (
+        std if structured_std_log10_k is None else float(structured_std_log10_k)
+    )
+    nugget_std = float(nugget_std_log10_k)
     ly = float(length_scale_y_m)
     lx = float(length_scale_x_m)
     if not np.isfinite(mean):
         raise ValueError("mean_log10_k must be finite")
-    if not np.isfinite(std) or std <= 0.0 or ly <= 0.0 or lx <= 0.0:
-        raise ValueError("standard deviation and length scales must be positive")
+    if (
+        not np.isfinite(std)
+        or std <= 0.0
+        or not np.isfinite(structured_std)
+        or structured_std <= 0.0
+        or not np.isfinite(nugget_std)
+        or nugget_std < 0.0
+        or ly <= 0.0
+        or lx <= 0.0
+    ):
+        raise ValueError(
+            "total/structured standard deviations and length scales must be positive; "
+            "nugget_std_log10_k must be non-negative"
+        )
     chunk_size = int(chunk_size)
     if chunk_size <= 0:
         raise ValueError("chunk_size must be positive")
@@ -257,14 +276,15 @@ def exact_simple_kriging_predict_points(
     obs_y = observation_coordinates[:, 1]
     dy_dd = obs_y[:, None] - obs_y[None, :]
     dx_dd = obs_x[:, None] - obs_x[None, :]
-    sill = std**2
-    covariance_dd = sill * correlation_for_offsets(
+    structured_variance = structured_std**2
+    nugget_variance = nugget_std**2
+    covariance_dd = structured_variance * correlation_for_offsets(
         model,
         delta_y_m=dy_dd,
         delta_x_m=dx_dd,
         length_scale_y_m=ly,
         length_scale_x_m=lx,
-    ) + np.diag(noise**2)
+    ) + np.diag(nugget_variance + noise**2)
     inverse_dd = _symmetric_psd_inverse(
         covariance_dd, rank_tolerance=float(rank_tolerance)
     )
@@ -282,11 +302,14 @@ def exact_simple_kriging_predict_points(
             length_scale_y_m=ly,
             length_scale_x_m=lx,
         )
-        covariance_qd = sill * rho_qd
+        covariance_qd = structured_variance * rho_qd
         posterior_mean[start:stop] = mean + covariance_qd @ alpha
         solved = covariance_qd @ inverse_dd
+        query_variance = structured_variance + (
+            nugget_variance if include_query_nugget else 0.0
+        )
         posterior_variance[start:stop] = np.maximum(
-            sill - np.sum(solved * covariance_qd, axis=1), 0.0
+            query_variance - np.sum(solved * covariance_qd, axis=1), 0.0
         )
 
     return ExactPointKrigingResult(
@@ -312,6 +335,9 @@ def exact_simple_kriging_grid_from_points(
     length_scale_y_m: float,
     length_scale_x_m: float,
     observation_std_log10_k: float | Array = 0.0,
+    structured_std_log10_k: float | None = None,
+    nugget_std_log10_k: float = 0.0,
+    include_query_nugget: bool = False,
     angle_rad: float = 0.0,
     active_mask: Array | None = None,
     chunk_size: int = 100000,
@@ -336,6 +362,9 @@ def exact_simple_kriging_grid_from_points(
         length_scale_y_m=length_scale_y_m,
         length_scale_x_m=length_scale_x_m,
         observation_std_log10_k=observation_std_log10_k,
+        structured_std_log10_k=structured_std_log10_k,
+        nugget_std_log10_k=nugget_std_log10_k,
+        include_query_nugget=include_query_nugget,
         angle_rad=angle_rad,
         chunk_size=chunk_size,
     )
@@ -362,6 +391,9 @@ def exact_simple_kriging_grid_from_points(
         length_scale_y_m=length_scale_y_m,
         length_scale_x_m=length_scale_x_m,
         observation_std_log10_k=observation_std_log10_k,
+        structured_std_log10_k=structured_std_log10_k,
+        nugget_std_log10_k=nugget_std_log10_k,
+        include_query_nugget=False,
         angle_rad=angle_rad,
         chunk_size=chunk_size,
     )
