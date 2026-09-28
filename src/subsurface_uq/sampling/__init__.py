@@ -49,6 +49,7 @@ from .geospatial import (
     ReferencePermeabilitySurface,
     infer_lgcnn_domain_georeference,
     load_reference_permeability_surface,
+    load_reference_permeability_sweep_surfaces,
     orient_raw_field,
     geographic_to_raw_field,
     summarize_georeference_sweep,
@@ -78,6 +79,7 @@ from .qmc import ScrambledSobolGaussianPermeabilitySampler
 from .radial_exponential import RadialExponentialPermeabilitySampler
 
 __all__ = [
+    "load_reference_permeability_sweep_surfaces",
     "summarize_georeference_sweep",
     "GEOREFERENCE_SWEEP_REPRESENTATIONS",
     "geographic_to_raw_field",
