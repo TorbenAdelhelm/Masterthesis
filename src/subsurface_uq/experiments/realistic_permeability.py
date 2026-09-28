@@ -31,6 +31,7 @@ from ..sampling import (
 )
 from ..validation.measurements import spatial_block_cross_validate_measurements
 from ..visualization.realistic_permeability import (
+    plot_georeference_alignment,
     plot_heldout_metric_comparison,
     plot_heldout_reconstruction,
     plot_length_scale_comparison,
@@ -1003,6 +1004,16 @@ def _georeference_domain(args: argparse.Namespace) -> int:
     with output.open("w", encoding="utf-8") as handle:
         yaml.safe_dump(payload, handle, sort_keys=False)
 
+    if args.plots_dir:
+        plots_dir = Path(args.plots_dir).expanduser().resolve()
+        plots_dir.mkdir(parents=True, exist_ok=True)
+        plot_georeference_alignment(
+            reference=reference,
+            raw_field=raw_field,
+            mapping=mapping,
+            destination=plots_dir / f"georeference_{args.run}.png",
+        )
+
     print("LGCNN real-domain georeference")
     print(f"  run: {mapping.run_name}")
     print(f"  transform: {mapping.transform}")
@@ -1273,6 +1284,7 @@ def build_parser() -> argparse.ArgumentParser:
     georeference.add_argument("--dynamic-viscosity-pa-s", type=float, default=1.002e-3)
     georeference.add_argument("--density-kg-m3", type=float, default=998.2)
     georeference.add_argument("--gravity-m-s2", type=float, default=9.80665)
+    georeference.add_argument("--plots-dir")
     georeference.add_argument("--output", required=True)
     georeference.set_defaults(func=_georeference_domain)
     return parser
