@@ -285,6 +285,76 @@ class KLLogGaussianPermeabilityMap:
             * np.sqrt(self._eigenvalues)[None, :]
         )
 
+    def mode_matrix_at_coordinates(self, coordinates_yx_m: Array) -> Array:
+        """Return truncated-KL loadings at continuous local (y,x) coordinates.
+
+        Coordinates are measured in metres from the lower/southern and
+        left/western domain edges. The KL eigensystem itself is defined at
+        cell centres. A Nystrom extension of each retained one-dimensional
+        eigenvector evaluates the discrete KL basis between cell centres.
+
+        The returned matrix B has shape [n_points, dimension] and satisfies
+        Y(points) = mean_log10_k + B @ xi for the same truncated prior used
+        on the regular grid.
+        """
+
+        coordinates = np.asarray(coordinates_yx_m, dtype=np.float64)
+        if coordinates.ndim != 2 or coordinates.shape[1] != 2:
+            raise ValueError("coordinates_yx_m must have shape [n,2] as local y,x")
+        if coordinates.shape[0] == 0:
+            raise ValueError("at least one continuous coordinate is required")
+        if not np.all(np.isfinite(coordinates)):
+            raise ValueError("continuous coordinates must be finite")
+        y = coordinates[:, 0]
+        x = coordinates[:, 1]
+        ly_domain, lx_domain = self.domain_size_m
+        tolerance = 1e-9 * max(ly_domain, lx_domain, 1.0)
+        if np.any(y < -tolerance) or np.any(y > ly_domain + tolerance):
+            raise ValueError("continuous y coordinate lies outside the KL domain")
+        if np.any(x < -tolerance) or np.any(x > lx_domain + tolerance):
+            raise ValueError("continuous x coordinate lies outside the KL domain")
+
+        h, w = self.shape
+        dy = ly_domain / h
+        dx = lx_domain / w
+        grid_y = (np.arange(h, dtype=np.float64) + 0.5) * dy
+        grid_x = (np.arange(w, dtype=np.float64) + 0.5) * dx
+        ell_y, ell_x = self.length_scale_m
+
+        def correlation(distance: Array, length_scale: float) -> Array:
+            scaled = np.asarray(distance, dtype=np.float64) / float(length_scale)
+            if self.covariance_model == "exponential":
+                return np.exp(-scaled)
+            root3 = np.sqrt(3.0) * scaled
+            return (1.0 + root3) * np.exp(-root3)
+
+        corr_y = correlation(np.abs(y[:, None] - grid_y[None, :]), ell_y)
+        corr_x = correlation(np.abs(x[:, None] - grid_x[None, :]), ell_x)
+
+        eig_y = self._eigvals_y[self._mode_y]
+        eig_x = self._eigvals_x[self._mode_x]
+        if np.any(eig_y <= 0.0) or np.any(eig_x <= 0.0):
+            raise RuntimeError("selected one-dimensional KL eigenvalues must be positive")
+
+        extended_y = (
+            corr_y @ self._eigvecs_y[:, self._mode_y]
+        ) / eig_y[None, :]
+        extended_x = (
+            corr_x @ self._eigvecs_x[:, self._mode_x]
+        ) / eig_x[None, :]
+        return extended_y * extended_x * np.sqrt(self._eigenvalues)[None, :]
+
+    def map_log10_coordinates_at_points(
+        self,
+        stochastic_coordinates: Array,
+        coordinates_yx_m: Array,
+    ) -> Array:
+        """Evaluate truncated-KL log10 fields at continuous local points."""
+
+        xi, single = self._prepare_coordinates(stochastic_coordinates)
+        basis = self.mode_matrix_at_coordinates(coordinates_yx_m)
+        values = self.mean_log10_k + xi @ basis.T
+        return values[0] if single else values
     @property
     def metadata(self) -> dict[str, object]:
         return {
