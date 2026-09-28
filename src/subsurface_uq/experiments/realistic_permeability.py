@@ -18,6 +18,9 @@ from ..sampling import (
     estimate_directional_variograms,
     load_empirical_fields,
     load_release25_raw_permeability_dataset,
+    load_release25_raw_permeability_run,
+    load_reference_permeability_surface,
+    infer_lgcnn_domain_georeference,
     load_reference_horizontal_grid,
     load_munich_hydraulic_conductivity_measurements,
     aggregate_measurements_by_reference_cell,
@@ -908,6 +911,132 @@ def _measurement_condition(args: argparse.Namespace) -> int:
     return 0
 
 
+def _georeference_domain(args: argparse.Namespace) -> int:
+    raw_field = load_release25_raw_permeability_run(
+        args.raw_dataset,
+        args.run,
+        cell_size_m=args.raw_cell_size_m,
+    )
+    reference = load_reference_permeability_surface(
+        args.reference_grid,
+        column=args.reference_column,
+        z_mode=args.reference_z_mode,
+        z_value_m=args.reference_z_m,
+    )
+    mapping = infer_lgcnn_domain_georeference(
+        raw_field,
+        reference,
+        run_name=args.run,
+        raw_cell_size_m=args.raw_cell_size_m,
+        coarse_anchor_stride=args.coarse_anchor_stride,
+        coarse_keep_per_transform=args.coarse_keep_per_transform,
+        refine_radius_m=args.refine_radius_m,
+        refine_step_m=args.refine_step_m,
+        refine_sample_stride_cells=args.refine_sample_stride_cells,
+        min_reference_coverage=args.min_reference_coverage,
+        min_correlation=args.min_correlation,
+        max_centered_rmse_log10=args.max_centered_rmse_log10,
+        dynamic_viscosity_pa_s=args.dynamic_viscosity_pa_s,
+        density_kg_m3=args.density_kg_m3,
+        gravity_m_s2=args.gravity_m_s2,
+    )
+    payload = {
+        **mapping.to_dict(),
+        "source": {
+            "raw_dataset": str(Path(args.raw_dataset).expanduser().resolve()),
+            "reference_grid": str(Path(args.reference_grid).expanduser().resolve()),
+        },
+        "inference": {
+            "coarse_anchor_stride": int(args.coarse_anchor_stride),
+            "coarse_keep_per_transform": int(args.coarse_keep_per_transform),
+            "refine_radius_m": float(args.refine_radius_m),
+            "refine_step_m": (
+                None if args.refine_step_m is None else float(args.refine_step_m)
+            ),
+            "refine_sample_stride_cells": int(args.refine_sample_stride_cells),
+            "min_reference_coverage": float(args.min_reference_coverage),
+            "min_correlation": float(args.min_correlation),
+            "max_centered_rmse_log10": float(args.max_centered_rmse_log10),
+        },
+        "release25_domain": {
+            "cell_size_m": float(args.raw_cell_size_m),
+            "expected_standard_shape": [2560, 2560],
+            "expected_standard_size_m": [12800.0, 12800.0],
+            "note": (
+                "DARUS-5065 standard real-permeability data points are 12.8 km x "
+                "12.8 km with 2560 x 2560 cells at 5 m resolution."
+            ),
+        },
+    }
+
+    if args.measurements:
+        grid = load_reference_horizontal_grid(
+            args.reference_grid, expected_cell_size_m=args.expected_reference_cell_size_m
+        )
+        measurements, qc = load_munich_hydraulic_conductivity_measurements(
+            args.measurements,
+            sheet_name=args.sheet_name,
+            stratigraphy=args.stratigraphy,
+            groundwater_state=args.groundwater_state,
+            reference_grid=grid,
+        )
+        inside = mapping.contains_xy(measurements.x_m, measurements.y_m)
+        rows, cols = mapping.xy_to_fractional_indices(
+            measurements.x_m[inside], measurements.y_m[inside]
+        )
+        payload["measurement_overlap"] = {
+            "accepted_measurements_total": len(measurements),
+            "measurements_inside_domain": int(np.count_nonzero(inside)),
+            "measurement_fraction_inside_domain": float(np.mean(inside)),
+            "conditioning_coordinates_are_continuous": True,
+            "fractional_row_range": (
+                [float(np.min(rows)), float(np.max(rows))] if rows.size else None
+            ),
+            "fractional_col_range": (
+                [float(np.min(cols)), float(np.max(cols))] if cols.size else None
+            ),
+            "measurement_qc": qc,
+        }
+
+    output = Path(args.output).expanduser().resolve()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(payload, handle, sort_keys=False)
+
+    print("LGCNN real-domain georeference")
+    print(f"  run: {mapping.run_name}")
+    print(f"  transform: {mapping.transform}")
+    print(
+        "  first cell center [m]: "
+        f"x={mapping.first_cell_center_x_m:.3f}, "
+        f"y={mapping.first_cell_center_y_m:.3f}"
+    )
+    print(
+        "  domain edges [m]: "
+        f"W={mapping.west_edge_m:.3f}, S={mapping.south_edge_m:.3f}, "
+        f"E={mapping.east_edge_m:.3f}, N={mapping.north_edge_m:.3f}"
+    )
+    print(
+        "  spatial match: "
+        f"corr={mapping.correlation:.5f}, "
+        f"centered RMSE={mapping.centered_rmse_log10:.5f} log10, "
+        f"coverage={mapping.reference_coverage_fraction:.3f}"
+    )
+    print(
+        "  log10(raw/reference) shift: "
+        f"{mapping.log10_unit_shift_raw_minus_reference:.6f} "
+        f"({mapping.unit_shift_interpretation})"
+    )
+    print(f"  validated: {mapping.validated}")
+    print(f"Saved georeference manifest to {output}")
+    if args.require_validated and not mapping.validated:
+        raise RuntimeError(
+            "geospatial match did not satisfy validation thresholds; inspect the "
+            "reference surface/z mode and do not use this manifest for stochastic generation"
+        )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Calibrate and generate realistic log-Gaussian permeability fields."
@@ -1095,6 +1224,57 @@ def build_parser() -> argparse.ArgumentParser:
     measurement_condition.add_argument("--gravity-m-s2", type=float, default=9.80665)
     measurement_condition.add_argument("--output", required=True)
     measurement_condition.set_defaults(func=_measurement_condition)
+
+    georeference = sub.add_parser(
+        "georeference-domain",
+        help=(
+            "infer the exact projected Munich origin and array orientation of one "
+            "release25/DaRUS real-permeability LGCNN domain by matching its raw "
+            "permeability fingerprint to the 100 m Munich reference model"
+        ),
+    )
+    georeference.add_argument("--raw-dataset", required=True)
+    georeference.add_argument("--run", default="RUN_1")
+    georeference.add_argument("--reference-grid", required=True)
+    georeference.add_argument(
+        "--reference-column",
+        default="K_P50",
+        choices=["K_P10", "K_P50", "K_P90"],
+    )
+    georeference.add_argument(
+        "--reference-z-mode",
+        default="top",
+        choices=["top", "bottom", "first", "log_geomean", "nearest"],
+    )
+    georeference.add_argument("--reference-z-m", type=float)
+    georeference.add_argument("--raw-cell-size-m", type=float, default=5.0)
+    georeference.add_argument("--coarse-anchor-stride", type=int, default=8)
+    georeference.add_argument("--coarse-keep-per-transform", type=int, default=3)
+    georeference.add_argument("--refine-radius-m", type=float, default=100.0)
+    georeference.add_argument("--refine-step-m", type=float)
+    georeference.add_argument("--refine-sample-stride-cells", type=int, default=128)
+    georeference.add_argument("--min-reference-coverage", type=float, default=0.80)
+    georeference.add_argument("--min-correlation", type=float, default=0.90)
+    georeference.add_argument("--max-centered-rmse-log10", type=float, default=0.15)
+    georeference.add_argument(
+        "--require-validated",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Fail instead of silently accepting a weak spatial match. Disable only "
+            "for diagnosis of alternative reference surfaces/z modes."
+        ),
+    )
+    georeference.add_argument("--measurements")
+    georeference.add_argument("--sheet-name", default="kf_werte_180223")
+    georeference.add_argument("--stratigraphy", default="q")
+    georeference.add_argument("--groundwater-state", default="ungespannt")
+    georeference.add_argument("--expected-reference-cell-size-m", type=float, default=100.0)
+    georeference.add_argument("--dynamic-viscosity-pa-s", type=float, default=1.002e-3)
+    georeference.add_argument("--density-kg-m3", type=float, default=998.2)
+    georeference.add_argument("--gravity-m-s2", type=float, default=9.80665)
+    georeference.add_argument("--output", required=True)
+    georeference.set_defaults(func=_georeference_domain)
     return parser
 
 
