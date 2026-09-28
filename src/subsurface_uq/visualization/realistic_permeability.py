@@ -206,3 +206,36 @@ def plot_heldout_metric_comparison(
     figure.savefig(path, dpi=200, bbox_inches="tight")
     plt.close(figure)
     return path
+
+
+def plot_measurement_cv_comparison(
+    rows: Sequence[Mapping[str, object]],
+    destination: str | Path,
+) -> Path:
+    """Plot spatial-CV RMSE, coverage and Gaussian NLPD for real measurements."""
+
+    path = Path(destination).expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    labels = [str(row["covariance_model"]) for row in rows]
+    rmse = [float(row["rmse_log10_k"]) for row in rows]
+    coverage = [float(row["coverage_90"]) for row in rows]
+    nlpd = [float(row["gaussian_nlpd"]) for row in rows]
+    figure, axes = plt.subplots(1, 3, figsize=(15, 4.5), constrained_layout=True)
+    axes[0].bar(labels, rmse)
+    axes[0].set_ylabel("RMSE in log10(K_h)")
+    axes[0].set_title("Spatial-CV prediction error")
+    axes[1].bar(labels, coverage)
+    axes[1].axhline(0.90, linestyle="--", label="nominal 90%")
+    axes[1].set_ylim(0.0, 1.0)
+    axes[1].set_ylabel("coverage fraction")
+    axes[1].set_title("Spatial-CV posterior coverage")
+    axes[1].legend(loc="best")
+    axes[2].bar(labels, nlpd)
+    axes[2].set_ylabel("Gaussian NLPD")
+    axes[2].set_title("Spatial-CV predictive density")
+    for axis in axes:
+        axis.tick_params(axis="x", rotation=15)
+        axis.grid(axis="y", alpha=0.25)
+    figure.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close(figure)
+    return path
