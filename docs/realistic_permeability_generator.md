@@ -119,6 +119,24 @@ The x, y, and combined diagonal directions use configurable angular and lag-bin
 tolerances. Matérn-3/2, separable exponential, and radial anisotropic
 exponential candidates are then fit to those point variograms.
 
+The measurement fit now separates structured spatial variance and a nugget:
+```text
+gamma(h) = tau^2 + sigma_s^2 * (1 - rho(h)),  h > 0
+gamma(0) = 0
+```
+where `tau^2` is the nugget variance and `sigma_s^2` is the spatially
+correlated variance. The optimizer jointly fits the total sill, nugget fraction
+and directional length scales. Empirical variogram bins are weighted by their
+number of contributing point pairs by default, so a sparsely supported bin does
+not have the same influence as a bin supported by hundreds of pairs.
+
+The output reports the nugget fraction
+```text
+tau^2 / (tau^2 + sigma_s^2)
+```
+for each covariance family. Sensitivity flags allow the nugget or pair-count
+weighting to be disabled, but the default thesis workflow uses both.
+
 Because the raw observations are used directly, the covariance fit no longer
 inherits the smoothing properties of an already interpolated P50 raster.
 
@@ -136,7 +154,8 @@ Reported diagnostics include:
 - nominal 90% Gaussian posterior coverage;
 - standardized residual mean and standard deviation;
 - Gaussian negative log predictive density (NLPD);
-- fold-wise fitted length scales and variogram RMSE.
+- fold-wise fitted length scales, nugget fractions and variogram RMSE;
+- pair-count-weighted variogram RMSE.
 
 The workflow records the lowest spatial-CV RMSE candidate as a diagnostic
 selection, but the output explicitly notes that this is not proof of a unique
@@ -157,12 +176,22 @@ python -m subsurface_uq.experiments.realistic_permeability measurement-evaluate 
   --cv-block-size-m 2000 \
   --cv-seed 2907 \
   --observation-std-log10-k 0 \
+  --robustness-upper-k-m-s 5e-2 \
   --output-dir run_output/realistic_k/measurements
 ```
 
 The output includes filtered continuous measurements, a one-value-per-cell
 geometric-mean diagnostic table, empirical point variograms, fitted covariance
-parameters, spatial-CV summaries, and per-fold diagnostics.
+parameters, nugget fractions, spatial-CV summaries, and per-fold diagnostics.
+The figures additionally include `measurement_nugget_fraction.png`.
+
+The baseline calibration always retains all accepted measurements. By default,
+the command also repeats calibration and spatial CV after excluding only values
+above `5e-2 m/s`, corresponding to the nominal upper range used in the
+accompanying parameter table. This is a robustness diagnostic only: the high
+measurements are not clipped or removed from the baseline model. Results are
+written to `measurement_upper_tail_robustness.csv`. Set
+`--robustness-upper-k-m-s 0` to disable this check.
 
 ### Conditioning on all real measurements
 
@@ -182,6 +211,13 @@ If `--model` is omitted, the covariance family with the lowest spatial-CV
 RMSE from the calibration file is used. The analytical posterior is evaluated
 on the active 100 m XY reference grid from the original continuous measurement
 coordinates.
+
+With a fitted nugget, the gridded output distinguishes the posterior of the
+spatially correlated field from measurement/microscale predictive uncertainty.
+The structured posterior variance excludes an independent nugget realization;
+a separate predictive variance adds the fitted nugget back. The nugget is not
+silently injected as independent cell-wise noise into an LGCNN input field,
+because that would require an explicit scale/modeling decision.
 
 The measurement quantity is hydraulic conductivity `K_h [m/s]`, not intrinsic
 permeability `k [m^2]`. The conditioning output therefore stores the posterior
