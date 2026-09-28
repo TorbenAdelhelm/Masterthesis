@@ -235,6 +235,29 @@ all three covariance candidates with the same exact full-covariance simple
 kriging posterior (no KL truncation and no Monte Carlo sampling), then writes
 variogram fits, fitted length scales, and held-out conditional reconstructions.
 
+## Exact geospatial mapping for real LGCNN domains
+
+Before evaluating measurement-conditioned stochastic fields on the release25
+5 m grid, infer the projected Munich origin and raw-array orientation of the
+chosen DaRUS real-permeability run:
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability georeference-domain \
+  --raw-dataset data/dataset_100hp_giant_real_fixP0_0025 \
+  --run RUN_1 \
+  --reference-grid "C:/path/to/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --reference-column K_P50 \
+  --reference-z-mode top \
+  --require-validated \
+  --output run_output/realistic_k/georeference_RUN_1.yaml
+```
+
+The matcher tests PFLOTRAN-array axis/flip conventions, searches the 100 m
+reference model in log space, refines the crop at 5 m resolution and writes an
+explicit cell-centre/domain-edge manifest. See
+`docs/realistic_permeability_generator.md` for validation thresholds and
+alternative vertical reference-surface modes.
+
 ## Real Munich measurement calibration
 
 The preferred realistic-permeability calibration path can now use the actual
