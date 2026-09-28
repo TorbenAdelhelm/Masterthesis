@@ -19,8 +19,8 @@ dependencies = [
 
 [project.optional-dependencies]
 perlin = ["noise>=1.2.2"]
-geostat = ["gstools>=1.7", "h5py>=3.9"]
-test = ["pytest>=7.4", "gstools>=1.7", "h5py>=3.9"]
+geostat = ["gstools>=1.7", "h5py>=3.9", "openpyxl>=3.1"]
+test = ["pytest>=7.4", "gstools>=1.7", "h5py>=3.9", "openpyxl>=3.1"]
 
 [project.scripts]
 subsurface-uq-release25 = "subsurface_uq.experiments.release25_empirical:main"
