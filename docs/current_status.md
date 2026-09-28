@@ -151,6 +151,28 @@ defaults. In particular, the Matérn length scales and log-permeability moments
 still need to be estimated or selected before scientific LGCNN-UQ experiments
 are run.
 
+### Real Munich measurement calibration
+
+The realistic-permeability branch now contains a second, preferred calibration
+path based on the actual Munich hydraulic-conductivity observations. The Excel
+loader retains positive Quaternary/unconfined measurements, intersects them with
+the active XY footprint recovered from the 3-D reference field, and preserves
+the original continuous coordinates while recording nearest 100 m grid cells
+for diagnostics.
+
+Covariance calibration can be performed directly on irregular
+`log10(K_h)` point pairs using directional x/y/diagonal semivariograms.
+Model comparison uses spatial block cross-validation with fold-wise
+recalibration and exact full-covariance simple-kriging predictions at held-out
+real measurement locations. Reported diagnostics include RMSE/MAE, 90% posterior
+coverage, standardized residuals, Gaussian NLPD, fold-wise length scales and
+variogram RMSE.
+
+After model selection, `measurement-condition` evaluates the analytical
+posterior on the active 100 m reference grid from all accepted continuous
+measurements and records both hydraulic-conductivity quantities and an explicit
+conversion to intrinsic permeability using documented fluid-property constants.
+
 ### Real-field-calibrated permeability generation
 
 The repository now contains a calibration/generation layer for realistic
