@@ -282,6 +282,13 @@ observation model, while the generated LGCNN field is the conditioned
 large-scale/structured component. A separate microscale model would be needed
 before interpreting the fitted nugget as spatial white noise.
 
+The new projected domain defines the permeability field only. Existing
+release25 pressure/material-ID/heat-pump inputs do not thereby acquire this
+absolute Munich georeference. If such fixed inputs are reused with a generated
+field, they must be described as **domain-relative forcing/templates**, not as
+co-located measured site data. A fully site-specific experiment would require
+pressure/heat-pump inputs defined on the same projected domain.
+
 Example:
 
 ```bash
