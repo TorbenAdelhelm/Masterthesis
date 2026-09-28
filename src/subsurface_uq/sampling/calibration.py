@@ -169,7 +169,7 @@ def estimate_point_directional_variograms(
     semivariance = 0.5 * (values[j] - values[i]) ** 2
     valid_distance = (distance > 0.0) & (distance <= max_lag_m)
 
-    angle = np.mod(np.arctan2(np.abs(dy), np.abs(dx)), np.pi / 2.0)
+    angle = np.arctan2(np.abs(dy), np.abs(dx))
     tolerance = np.deg2rad(angle_tolerance_deg)
     direction_masks = {
         "x": angle <= tolerance,
