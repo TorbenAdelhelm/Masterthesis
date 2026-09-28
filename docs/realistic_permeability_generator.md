@@ -132,6 +132,7 @@ python -m subsurface_uq.experiments.realistic_permeability georeference-domain \
   --measurements "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf_werte_190201.xlsx" \
   --raw-cell-size-m 5 \
   --require-validated \
+  --plots-dir run_output/realistic_k/georeference_plots \
   --output run_output/realistic_k/georeference_RUN_1.yaml
 ```
 
@@ -146,7 +147,9 @@ scores.
 The resulting YAML manifest is the authoritative mapping for the subsequent
 stochastic generator. It stores geographic first-cell centres and cell-edge
 bounds explicitly, avoiding ambiguity between PFLOTRAN array axes, image rows,
-cell centres and domain edges.
+cell centres and domain edges. When `--plots-dir` is supplied, a validation
+figure shows the full Munich reference surface with the inferred crop rectangle
+beside the oriented, unit-shift-corrected raw field using common color limits.
 
 ## Real Munich measurement workflow
 
