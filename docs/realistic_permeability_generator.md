@@ -151,6 +151,87 @@ cell centres and domain edges. When `--plots-dir` is supplied, a validation
 figure shows the full Munich reference surface with the inferred crop rectangle
 beside the oriented, unit-shift-corrected raw field using common color limits.
 
+### Automatic multi-run georeference sweep
+
+A failed single `K_P50/top` match is not resolved by weakening the validation
+thresholds. Use `georeference-sweep` to test the complete predefined diagnostic
+set
+
+```text
+{K_P10, K_P50, K_P90} x {top, bottom, log_geomean}
+```
+
+across at least two independent `RUN_n` fields. The command always evaluates
+all nine representations and writes one row per
+`run x reference-column x vertical-representation` combination.
+
+Example:
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability georeference-sweep \
+  --raw-dataset data/dataset_100hp_giant_real_fixP0_0025 \
+  --runs RUN_1 RUN_2 RUN_3 \
+  --reference-grid "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf-Werte-3D Modell/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --measurements "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf_werte_190201.xlsx" \
+  --raw-cell-size-m 5 \
+  --output-dir run_output/realistic_k/georeference_sweep
+```
+
+Optional `--plots-dir <dir>` writes the ordinary alignment figure for every
+successful run/representation pair. This can produce many large figures, so it
+is intentionally not required for the first sweep.
+
+The main table is
+
+```text
+georeference_sweep.csv
+```
+
+and contains the individual match diagnostics plus cross-run representation
+diagnostics. In particular, each row records whether its reference
+representation:
+
+- is present and individually validated for every requested run;
+- selects one common raw-array transform across all runs;
+- has a consistent unit-shift interpretation;
+- keeps the max-min fitted log10 unit-shift spread below the configured
+  tolerance (default 0.15);
+- therefore satisfies the explicit `representation_defensible` flag.
+
+The CSV also contains the global
+`consistent_defensible_mapping_exists` flag and the selected representation,
+if one exists. The decision is additionally written in
+`georeference_sweep_summary.yaml`.
+
+The crop origin itself is not required to be identical across runs because
+different DaRUS runs may be different cutouts. Consistency concerns the parent
+reference representation, array orientation, validation quality and unit
+relationship.
+
+A representation is called defensible only if **all** requested runs pass the
+single-run thresholds
+
+```text
+correlation >= 0.90
+centered log10 RMSE <= 0.15
+reference coverage >= 0.80
+```
+
+and the cross-run transform/unit-shift criteria above. If no representation
+passes, the workflow reports
+
+```text
+consistent_defensible_mapping_exists: false
+```
+
+and no exact Munich crop should be assigned to the DaRUS LGCNN runs from this
+reference table. This negative result is scientifically usable: it separates
+measurement-based covariance calibration, which remains valid, from an
+unsupported claim of exact geographic correspondence.
+
+Use `--require-defensible` only when a downstream script should fail after
+writing the diagnostic outputs if no defensible mapping exists.
+
 ## Real Munich measurement workflow
 
 The preferred calibration path now uses the actual hydraulic-conductivity
