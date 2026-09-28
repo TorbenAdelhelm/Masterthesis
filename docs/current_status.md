@@ -163,6 +163,18 @@ conventions, refines the crop at 5 m resolution, and stores an explicit projecte
 cell-centre/domain-edge manifest with match diagnostics. Weak matches are rejected
 by default instead of being silently accepted.
 
+### Multi-run georeference sweep
+
+The branch now provides `georeference-sweep`, which evaluates all nine
+`K_P10/K_P50/K_P90 x top/bottom/log_geomean` reference representations across
+multiple DaRUS `RUN_n` fields. It writes a single comparison CSV and a YAML
+decision summary. An exact Munich mapping is flagged as defensible only when one
+representation passes the single-run validation thresholds for every requested
+run, uses one common raw-array transform, has a common unit-shift interpretation
+and a small cross-run log-unit-shift spread. Otherwise the workflow explicitly
+records that no exact geographic mapping is supported by the available
+reference table.
+
 ### Real Munich measurement calibration
 
 The realistic-permeability branch now contains a second, preferred calibration
