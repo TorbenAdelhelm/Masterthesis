@@ -39,7 +39,18 @@ def _model_semivariogram(
         length_scale_y_m=result.length_scale_y_m,
         length_scale_x_m=result.length_scale_x_m,
     )
-    return result.std_log10_k**2 * (1.0 - rho)
+    structured_std = (
+        result.std_log10_k
+        if result.structured_std_log10_k is None
+        else result.structured_std_log10_k
+    )
+    semivariance = (
+        result.nugget_std_log10_k**2
+        + structured_std**2 * (1.0 - rho)
+    )
+    # A nugget is the discontinuity for h>0; by definition gamma(0)=0.
+    semivariance = np.where(distances == 0.0, 0.0, semivariance)
+    return semivariance
 
 
 def plot_variogram_fits(
@@ -236,6 +247,28 @@ def plot_measurement_cv_comparison(
     for axis in axes:
         axis.tick_params(axis="x", rotation=15)
         axis.grid(axis="y", alpha=0.25)
+    figure.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close(figure)
+    return path
+
+
+def plot_nugget_fraction_comparison(
+    results: Sequence[CovarianceCalibrationResult],
+    destination: str | Path,
+) -> Path:
+    """Plot the fitted nugget fraction of total log-space variance."""
+
+    path = Path(destination).expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    labels = [result.covariance_model for result in results]
+    fractions = [float(result.nugget_fraction) for result in results]
+    figure, axis = plt.subplots(figsize=(8, 5), constrained_layout=True)
+    axis.bar(labels, fractions)
+    axis.set_ylim(0.0, 1.0)
+    axis.set_ylabel("nugget fraction")
+    axis.set_title("Fitted nugget fraction of total log10(K_h) variance")
+    axis.tick_params(axis="x", rotation=15)
+    axis.grid(axis="y", alpha=0.25)
     figure.savefig(path, dpi=200, bbox_inches="tight")
     plt.close(figure)
     return path
