@@ -308,6 +308,7 @@ def summarize_georeference_sweep(
             if key not in {"reference_column", "reference_z_mode"}:
                 augmented[f"representation_{key}"] = value
         augmented["consistent_defensible_mapping_exists"] = bool(defensible)
+        augmented["unique_defensible_representation"] = len(defensible) == 1
         augmented["selected_representation"] = (
             None
             if selected is None
@@ -325,6 +326,7 @@ def summarize_georeference_sweep(
         "max_unit_shift_spread_log10": float(max_unit_shift_spread_log10),
         "consistent_defensible_mapping_exists": bool(defensible),
         "defensible_representation_count": len(defensible),
+        "unique_defensible_representation": len(defensible) == 1,
         "selected_representation": selected,
         "representations": representation_summaries,
         "rows": augmented_rows,
