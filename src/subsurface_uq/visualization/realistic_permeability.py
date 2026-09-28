@@ -18,6 +18,7 @@ from ..sampling.geospatial import (
     ReferencePermeabilitySurface,
     orient_raw_field,
 )
+from ..sampling.new_domain import NewLGCNNDomain
 
 Array = np.ndarray
 
@@ -367,6 +368,49 @@ def plot_georeference_alignment(
         f"Georeference validation: corr={mapping.correlation:.4f}, "
         f"RMSE={mapping.centered_rmse_log10:.4f}"
     )
+    figure.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close(figure)
+    return path
+
+
+def plot_new_domain_summary(
+    *,
+    mean_log10_k: Array,
+    std_log10_k: Array,
+    domain: NewLGCNNDomain,
+    measurement_x_m: Array,
+    measurement_y_m: Array,
+    destination: str | Path,
+) -> Path:
+    """Plot empirical ensemble mean/std on the new projected LGCNN domain."""
+
+    mean = np.asarray(mean_log10_k, dtype=np.float64)
+    std = np.asarray(std_log10_k, dtype=np.float64)
+    if mean.shape != domain.shape or std.shape != domain.shape:
+        raise ValueError("mean/std fields must match the new-domain shape")
+    path = Path(destination).expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    extent = (
+        domain.west_edge_m,
+        domain.east_edge_m,
+        domain.south_edge_m,
+        domain.north_edge_m,
+    )
+    figure, axes = plt.subplots(1, 2, figsize=(14, 6), constrained_layout=True)
+    image0 = axes[0].imshow(mean, origin="lower", extent=extent, aspect="equal")
+    axes[0].scatter(measurement_x_m, measurement_y_m, marker="x", s=18, label="conditioning measurement")
+    axes[0].set_title("Empirical mean log10(k)")
+    axes[0].set_xlabel("x [m]")
+    axes[0].set_ylabel("y [m]")
+    axes[0].legend(loc="best")
+    figure.colorbar(image0, ax=axes[0], label="log10(k / m^2)")
+
+    image1 = axes[1].imshow(std, origin="lower", extent=extent, aspect="equal")
+    axes[1].scatter(measurement_x_m, measurement_y_m, marker="x", s=18)
+    axes[1].set_title("Empirical std. dev. log10(k)")
+    axes[1].set_xlabel("x [m]")
+    axes[1].set_ylabel("y [m]")
+    figure.colorbar(image1, ax=axes[1], label="std. dev. log10(k)")
     figure.savefig(path, dpi=200, bbox_inches="tight")
     plt.close(figure)
     return path
