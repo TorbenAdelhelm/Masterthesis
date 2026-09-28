@@ -21,6 +21,7 @@ from ..sampling import (
     load_release25_raw_permeability_dataset,
     load_release25_raw_permeability_run,
     load_reference_permeability_surface,
+    load_reference_permeability_sweep_surfaces,
     infer_lgcnn_domain_georeference,
     summarize_georeference_sweep,
     load_reference_horizontal_grid,
@@ -1073,14 +1074,9 @@ def _georeference_sweep(args: argparse.Namespace) -> int:
         )
         for run in run_names
     }
-    reference_surfaces = {
-        (column, z_mode): load_reference_permeability_surface(
-            args.reference_grid,
-            column=column,
-            z_mode=z_mode,
-        )
-        for column, z_mode in GEOREFERENCE_SWEEP_REPRESENTATIONS
-    }
+    reference_surfaces = load_reference_permeability_sweep_surfaces(
+        args.reference_grid
+    )
 
     measurements = None
     measurement_qc = None
