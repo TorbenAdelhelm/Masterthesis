@@ -62,3 +62,17 @@ def test_explicit_new_domain_requires_both_origin_coordinates():
         assert "both west_edge_m and south_edge_m" in str(exc)
     else:
         raise AssertionError("partial explicit origin should fail")
+
+
+def test_auto_domain_can_include_points_on_candidate_interval_extremes():
+    coordinates = np.asarray(
+        [[0.0, 0.0], [1000.0, 1000.0], [500.0, 500.0]], dtype=np.float64
+    )
+    domain, inside = select_new_lgcnn_domain(
+        coordinates, domain_size_m=1000.0, cell_size_m=100.0
+    )
+    # The half-open domain cannot include both exact 0 and 1000 at once, but
+    # automatic candidates must not lose the upper point solely because it lies
+    # exactly on an aligned potential east/north boundary.
+    assert int(np.count_nonzero(inside)) >= 2
+    assert domain.conditioning_measurement_count >= 2
