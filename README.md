@@ -249,6 +249,7 @@ python -m subsurface_uq.experiments.realistic_permeability georeference-domain \
   --reference-column K_P50 \
   --reference-z-mode top \
   --require-validated \
+  --plots-dir run_output/realistic_k/georeference_plots \
   --output run_output/realistic_k/georeference_RUN_1.yaml
 ```
 
