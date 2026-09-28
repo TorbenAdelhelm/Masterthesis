@@ -13,6 +13,11 @@ from ..sampling.calibration import (
     CovarianceCalibrationResult,
     correlation_for_offsets,
 )
+from ..sampling.geospatial import (
+    LGCNNDomainGeoreference,
+    ReferencePermeabilitySurface,
+    orient_raw_field,
+)
 
 Array = np.ndarray
 
@@ -269,6 +274,99 @@ def plot_nugget_fraction_comparison(
     axis.set_title("Fitted nugget fraction of total log10(K_h) variance")
     axis.tick_params(axis="x", rotation=15)
     axis.grid(axis="y", alpha=0.25)
+    figure.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close(figure)
+    return path
+
+
+def plot_georeference_alignment(
+    *,
+    reference: ReferencePermeabilitySurface,
+    raw_field: Array,
+    mapping: LGCNNDomainGeoreference,
+    destination: str | Path,
+) -> Path:
+    """Visual check of the inferred Munich crop and oriented raw permeability field."""
+
+    path = Path(destination).expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    reference_log = np.where(
+        reference.active_mask, np.log10(reference.values), np.nan
+    )
+    raw_geo = orient_raw_field(raw_field, mapping.transform)
+    raw_corrected = (
+        np.log10(np.asarray(raw_geo, dtype=np.float64))
+        - mapping.log10_unit_shift_raw_minus_reference
+    )
+    finite_reference = reference_log[np.isfinite(reference_log)]
+    finite_raw = raw_corrected[np.isfinite(raw_corrected)]
+    combined = np.concatenate((finite_reference, finite_raw))
+    vmin, vmax = np.quantile(combined, [0.01, 0.99])
+
+    dx = reference.spacing_x_m
+    dy = reference.spacing_y_m
+    reference_extent = (
+        float(reference.x_m[0] - 0.5 * dx),
+        float(reference.x_m[-1] + 0.5 * dx),
+        float(reference.y_m[0] - 0.5 * dy),
+        float(reference.y_m[-1] + 0.5 * dy),
+    )
+    raw_extent = (
+        mapping.west_edge_m,
+        mapping.east_edge_m,
+        mapping.south_edge_m,
+        mapping.north_edge_m,
+    )
+
+    figure, axes = plt.subplots(1, 2, figsize=(14, 6), constrained_layout=True)
+    image0 = axes[0].imshow(
+        reference_log,
+        origin="lower",
+        extent=reference_extent,
+        aspect="equal",
+        vmin=vmin,
+        vmax=vmax,
+    )
+    rectangle_x = [
+        mapping.west_edge_m,
+        mapping.east_edge_m,
+        mapping.east_edge_m,
+        mapping.west_edge_m,
+        mapping.west_edge_m,
+    ]
+    rectangle_y = [
+        mapping.south_edge_m,
+        mapping.south_edge_m,
+        mapping.north_edge_m,
+        mapping.north_edge_m,
+        mapping.south_edge_m,
+    ]
+    axes[0].plot(rectangle_x, rectangle_y, linewidth=2, label=mapping.run_name)
+    axes[0].set_title("Munich reference + inferred LGCNN crop")
+    axes[0].set_xlabel("x [m]")
+    axes[0].set_ylabel("y [m]")
+    axes[0].legend(loc="best")
+    figure.colorbar(image0, ax=axes[0], label=f"log10({reference.value_name})")
+
+    image1 = axes[1].imshow(
+        raw_corrected,
+        origin="lower",
+        extent=raw_extent,
+        aspect="equal",
+        vmin=vmin,
+        vmax=vmax,
+    )
+    axes[1].set_title(
+        f"Oriented raw field (unit-shift corrected)\n{mapping.transform}"
+    )
+    axes[1].set_xlabel("x [m]")
+    axes[1].set_ylabel("y [m]")
+    figure.colorbar(image1, ax=axes[1], label=f"log10({reference.value_name})")
+
+    figure.suptitle(
+        f"Georeference validation: corr={mapping.correlation:.4f}, "
+        f"RMSE={mapping.centered_rmse_log10:.4f}"
+    )
     figure.savefig(path, dpi=200, bbox_inches="tight")
     plt.close(figure)
     return path
