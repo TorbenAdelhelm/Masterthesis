@@ -10,6 +10,7 @@ import yaml
 
 from ..sampling import (
     ConditionalKLLogGaussianPermeabilityMap,
+    GEOREFERENCE_SWEEP_REPRESENTATIONS,
     GaussianCoordinatePermeabilitySampler,
     KLLogGaussianPermeabilityMap,
     RadialExponentialPermeabilitySampler,
@@ -21,6 +22,7 @@ from ..sampling import (
     load_release25_raw_permeability_run,
     load_reference_permeability_surface,
     infer_lgcnn_domain_georeference,
+    summarize_georeference_sweep,
     load_reference_horizontal_grid,
     load_munich_hydraulic_conductivity_measurements,
     aggregate_measurements_by_reference_cell,
@@ -1048,6 +1050,229 @@ def _georeference_domain(args: argparse.Namespace) -> int:
     return 0
 
 
+def _georeference_sweep(args: argparse.Namespace) -> int:
+    run_names = tuple(dict.fromkeys(str(run) for run in args.runs))
+    if len(run_names) < 2:
+        raise ValueError("georeference-sweep requires at least two distinct RUN_n values")
+
+    output_dir = Path(args.output_dir).expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    plots_dir = (
+        None
+        if args.plots_dir is None
+        else Path(args.plots_dir).expanduser().resolve()
+    )
+    if plots_dir is not None:
+        plots_dir.mkdir(parents=True, exist_ok=True)
+
+    raw_fields = {
+        run: load_release25_raw_permeability_run(
+            args.raw_dataset,
+            run,
+            cell_size_m=args.raw_cell_size_m,
+        )
+        for run in run_names
+    }
+    reference_surfaces = {
+        (column, z_mode): load_reference_permeability_surface(
+            args.reference_grid,
+            column=column,
+            z_mode=z_mode,
+        )
+        for column, z_mode in GEOREFERENCE_SWEEP_REPRESENTATIONS
+    }
+
+    measurements = None
+    measurement_qc = None
+    if args.measurements:
+        grid = load_reference_horizontal_grid(
+            args.reference_grid,
+            expected_cell_size_m=args.expected_reference_cell_size_m,
+        )
+        measurements, measurement_qc = load_munich_hydraulic_conductivity_measurements(
+            args.measurements,
+            sheet_name=args.sheet_name,
+            stratigraphy=args.stratigraphy,
+            groundwater_state=args.groundwater_state,
+            reference_grid=grid,
+        )
+
+    rows: list[dict[str, object]] = []
+    mapping_by_key: dict[tuple[str, str, str], object] = {}
+    for column, z_mode in GEOREFERENCE_SWEEP_REPRESENTATIONS:
+        reference = reference_surfaces[(column, z_mode)]
+        for run in run_names:
+            row: dict[str, object] = {
+                "run_name": run,
+                "reference_column": column,
+                "reference_z_mode": z_mode,
+                "error": None,
+            }
+            try:
+                mapping = infer_lgcnn_domain_georeference(
+                    raw_fields[run],
+                    reference,
+                    run_name=run,
+                    raw_cell_size_m=args.raw_cell_size_m,
+                    coarse_anchor_stride=args.coarse_anchor_stride,
+                    coarse_keep_per_transform=args.coarse_keep_per_transform,
+                    refine_radius_m=args.refine_radius_m,
+                    refine_step_m=args.refine_step_m,
+                    refine_sample_stride_cells=args.refine_sample_stride_cells,
+                    min_reference_coverage=args.min_reference_coverage,
+                    min_correlation=args.min_correlation,
+                    max_centered_rmse_log10=args.max_centered_rmse_log10,
+                    dynamic_viscosity_pa_s=args.dynamic_viscosity_pa_s,
+                    density_kg_m3=args.density_kg_m3,
+                    gravity_m_s2=args.gravity_m_s2,
+                )
+                mapping_by_key[(run, column, z_mode)] = mapping
+                row.update(
+                    {
+                        "transform": mapping.transform,
+                        "first_cell_center_x_m": mapping.first_cell_center_x_m,
+                        "first_cell_center_y_m": mapping.first_cell_center_y_m,
+                        "west_edge_m": mapping.west_edge_m,
+                        "south_edge_m": mapping.south_edge_m,
+                        "east_edge_m": mapping.east_edge_m,
+                        "north_edge_m": mapping.north_edge_m,
+                        "correlation": mapping.correlation,
+                        "centered_rmse_log10": mapping.centered_rmse_log10,
+                        "reference_coverage_fraction": mapping.reference_coverage_fraction,
+                        "log10_unit_shift_raw_minus_reference": (
+                            mapping.log10_unit_shift_raw_minus_reference
+                        ),
+                        "unit_shift_interpretation": mapping.unit_shift_interpretation,
+                        "matched_points": mapping.matched_points,
+                        "validated": mapping.validated,
+                    }
+                )
+                if measurements is not None:
+                    inside = mapping.contains_xy(measurements.x_m, measurements.y_m)
+                    row["measurements_inside_domain"] = int(np.count_nonzero(inside))
+                    row["measurement_fraction_inside_domain"] = float(np.mean(inside))
+                if plots_dir is not None:
+                    representation_dir = plots_dir / f"{column}_{z_mode}"
+                    representation_dir.mkdir(parents=True, exist_ok=True)
+                    plot_georeference_alignment(
+                        reference=reference,
+                        raw_field=raw_fields[run],
+                        mapping=mapping,
+                        destination=representation_dir / f"georeference_{run}.png",
+                    )
+            except Exception as exc:
+                row.update(
+                    {
+                        "transform": None,
+                        "correlation": None,
+                        "centered_rmse_log10": None,
+                        "reference_coverage_fraction": None,
+                        "log10_unit_shift_raw_minus_reference": None,
+                        "unit_shift_interpretation": None,
+                        "validated": False,
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
+            rows.append(row)
+
+    for run in run_names:
+        successful = [
+            row
+            for row in rows
+            if row["run_name"] == run and not row.get("error")
+        ]
+        successful.sort(
+            key=lambda row: (
+                not bool(row.get("validated", False)),
+                -float(row["correlation"]),
+                float(row["centered_rmse_log10"]),
+            )
+        )
+        for rank, row in enumerate(successful, start=1):
+            row["run_rank"] = rank
+
+    summary = summarize_georeference_sweep(
+        rows,
+        run_names=run_names,
+        max_unit_shift_spread_log10=args.max_unit_shift_spread_log10,
+    )
+    comparison_rows = list(summary["rows"])
+    _write_rows_csv(output_dir / "georeference_sweep.csv", comparison_rows)
+
+    summary_payload = {
+        "schema_version": 1,
+        "source": {
+            "raw_dataset": str(Path(args.raw_dataset).expanduser().resolve()),
+            "reference_grid": str(Path(args.reference_grid).expanduser().resolve()),
+            "measurements": (
+                None
+                if args.measurements is None
+                else str(Path(args.measurements).expanduser().resolve())
+            ),
+        },
+        "runs": list(run_names),
+        "representations": [
+            {"reference_column": column, "reference_z_mode": z_mode}
+            for column, z_mode in GEOREFERENCE_SWEEP_REPRESENTATIONS
+        ],
+        "single_run_validation_thresholds": {
+            "min_reference_coverage": float(args.min_reference_coverage),
+            "min_correlation": float(args.min_correlation),
+            "max_centered_rmse_log10": float(args.max_centered_rmse_log10),
+        },
+        "cross_run_consistency_thresholds": {
+            "max_unit_shift_spread_log10": float(args.max_unit_shift_spread_log10),
+            "require_common_transform": True,
+            "require_common_unit_shift_interpretation": True,
+            "require_all_runs_individually_validated": True,
+        },
+        "measurement_qc": measurement_qc,
+        **{key: value for key, value in summary.items() if key != "rows"},
+    }
+    with (output_dir / "georeference_sweep_summary.yaml").open(
+        "w", encoding="utf-8"
+    ) as handle:
+        yaml.safe_dump(summary_payload, handle, sort_keys=False)
+
+    selected = summary["selected_representation"]
+    print("Georeference sweep")
+    print(f"  runs: {', '.join(run_names)}")
+    print("  representations: 9 (K_P10/K_P50/K_P90 x top/bottom/log_geomean)")
+    print(
+        "  consistent, defensible mapping exists: "
+        f"{summary['consistent_defensible_mapping_exists']}"
+    )
+    if selected is None:
+        print(
+            "  selected representation: none; do not assign exact Munich coordinates "
+            "to the LGCNN runs from this reference table"
+        )
+    else:
+        print(
+            "  selected representation: "
+            f"{selected['reference_column']} / {selected['reference_z_mode']}"
+        )
+        print(
+            "  cross-run diagnostics: "
+            f"mean corr={selected['mean_correlation']:.4f}, "
+            f"max RMSE={selected['max_centered_rmse_log10']:.4f}, "
+            f"unit-shift spread={selected['unit_shift_spread_log10']:.4f}, "
+            f"transform={selected['consistent_transform']}"
+        )
+    print(f"Saved comparison CSV to {output_dir / 'georeference_sweep.csv'}")
+    print(
+        f"Saved decision summary to "
+        f"{output_dir / 'georeference_sweep_summary.yaml'}"
+    )
+    if args.require_defensible and not summary["consistent_defensible_mapping_exists"]:
+        raise RuntimeError(
+            "no consistent, defensible mapping exists across the requested runs and "
+            "nine reference representations; do not use an inferred exact Munich "
+            "crop for stochastic generation"
+        )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Calibrate and generate realistic log-Gaussian permeability fields."
@@ -1287,6 +1512,61 @@ def build_parser() -> argparse.ArgumentParser:
     georeference.add_argument("--plots-dir")
     georeference.add_argument("--output", required=True)
     georeference.set_defaults(func=_georeference_domain)
+
+    sweep = sub.add_parser(
+        "georeference-sweep",
+        help=(
+            "test all nine K_P10/K_P50/K_P90 x top/bottom/log_geomean Munich "
+            "reference representations across multiple DaRUS RUN_n fields and "
+            "decide whether one mapping is consistent and defensible"
+        ),
+    )
+    sweep.add_argument("--raw-dataset", required=True)
+    sweep.add_argument(
+        "--runs",
+        nargs="+",
+        default=["RUN_1", "RUN_2", "RUN_3"],
+        help="At least two RUN_n directories; defaults to RUN_1 RUN_2 RUN_3.",
+    )
+    sweep.add_argument("--reference-grid", required=True)
+    sweep.add_argument("--raw-cell-size-m", type=float, default=5.0)
+    sweep.add_argument("--coarse-anchor-stride", type=int, default=8)
+    sweep.add_argument("--coarse-keep-per-transform", type=int, default=3)
+    sweep.add_argument("--refine-radius-m", type=float, default=100.0)
+    sweep.add_argument("--refine-step-m", type=float)
+    sweep.add_argument("--refine-sample-stride-cells", type=int, default=128)
+    sweep.add_argument("--min-reference-coverage", type=float, default=0.80)
+    sweep.add_argument("--min-correlation", type=float, default=0.90)
+    sweep.add_argument("--max-centered-rmse-log10", type=float, default=0.15)
+    sweep.add_argument(
+        "--max-unit-shift-spread-log10",
+        type=float,
+        default=0.15,
+        help=(
+            "Maximum allowed max-min fitted log10 unit-shift spread across runs "
+            "for one representation to be called cross-run consistent."
+        ),
+    )
+    sweep.add_argument(
+        "--require-defensible",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Exit with an error after writing outputs when no representation satisfies "
+            "all single-run and cross-run consistency criteria."
+        ),
+    )
+    sweep.add_argument("--measurements")
+    sweep.add_argument("--sheet-name", default="kf_werte_180223")
+    sweep.add_argument("--stratigraphy", default="q")
+    sweep.add_argument("--groundwater-state", default="ungespannt")
+    sweep.add_argument("--expected-reference-cell-size-m", type=float, default=100.0)
+    sweep.add_argument("--dynamic-viscosity-pa-s", type=float, default=1.002e-3)
+    sweep.add_argument("--density-kg-m3", type=float, default=998.2)
+    sweep.add_argument("--gravity-m-s2", type=float, default=9.80665)
+    sweep.add_argument("--plots-dir")
+    sweep.add_argument("--output-dir", required=True)
+    sweep.set_defaults(func=_georeference_sweep)
     return parser
 
 
