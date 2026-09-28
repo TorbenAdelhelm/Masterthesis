@@ -278,6 +278,30 @@ individually valid for every run and cross-run consistent in orientation and
 unit shift. See `docs/realistic_permeability_generator.md` for the decision
 rule.
 
+## Measurement-conditioned new LGCNN domain
+
+After a negative historical georeference sweep, generate a new projected
+12.8 km x 12.8 km Munich field directly from the real-measurement calibration:
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability new-domain-generate \
+  --measurements "C:/path/to/kf_werte_190201.xlsx" \
+  --reference-grid "C:/path/to/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --calibration run_output/realistic_k/measurements_nugget/measurement_calibration.yaml \
+  --model exponential \
+  --energy-threshold 0.95 \
+  --n-samples 8 \
+  --output-dir run_output/realistic_k/new_domain
+```
+
+Without an explicit projected origin, the 5 m grid is chosen to maximize the
+number of accepted real measurements inside the 12.8 km square. The fitted
+nugget remains observation-scale uncertainty and is not injected as independent
+5 m pixel noise. Continuous-coordinate conditioning uses a Nyström-extended
+factorized KL basis and retains explicit iid Gaussian posterior coordinates for
+MC/RQMC/PCE. See `docs/realistic_permeability_generator.md` for diagnostics
+and storage details.
+
 ## Real Munich measurement calibration
 
 The preferred realistic-permeability calibration path can now use the actual
