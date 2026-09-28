@@ -314,6 +314,7 @@ empirical_mean_log10_permeability_m2.npy
 empirical_std_log10_permeability_m2.npy
 new_domain_generator.yaml
 new_domain_generator.json
+new_domain_mean_std.png
 samples/
   sample_0001_permeability_m2.npy
   ...
