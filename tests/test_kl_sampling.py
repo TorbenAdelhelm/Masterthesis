@@ -5,6 +5,9 @@ from subsurface_uq.sampling.coordinates import (
     GaussianCoordinatePermeabilitySampler,
     StochasticPermeabilityMap,
 )
+from subsurface_uq.sampling.kriging import (
+    ContinuousPointConditionalKLLogGaussianPermeabilityMap,
+)
 from subsurface_uq.sampling.kl import (
     KLLogGaussianPermeabilityMap,
     exponential_correlation_matrix,
@@ -182,3 +185,92 @@ def test_invalid_coordinate_dimension_is_rejected():
         assert "expected stochastic dimension 3" in str(exc)
     else:
         raise AssertionError("dimension mismatch should raise ValueError")
+
+
+def test_continuous_kl_basis_matches_grid_center_basis():
+    field_map = KLLogGaussianPermeabilityMap(
+        shape=(4, 5),
+        domain_size_m=(400.0, 500.0),
+        mean_log10_k=-9.1,
+        std_log10_k=0.3,
+        length_scale_m=(140.0, 180.0),
+        covariance_model="exponential",
+        n_modes=8,
+    )
+    indices = np.asarray([[0, 0], [1, 3], [3, 4]], dtype=np.int64)
+    points = np.column_stack(
+        (
+            (indices[:, 0] + 0.5) * 100.0,
+            (indices[:, 1] + 0.5) * 100.0,
+        )
+    )
+
+    discrete = field_map.mode_matrix_at_indices(indices)
+    continuous = field_map.mode_matrix_at_coordinates(points)
+
+    np.testing.assert_allclose(continuous, discrete, rtol=1e-10, atol=1e-11)
+
+
+def test_continuous_conditional_kl_matches_dense_coordinate_posterior():
+    prior = KLLogGaussianPermeabilityMap(
+        shape=(4, 4),
+        domain_size_m=(400.0, 400.0),
+        mean_log10_k=-9.0,
+        std_log10_k=0.35,
+        length_scale_m=(120.0, 170.0),
+        covariance_model="exponential",
+        n_modes=10,
+    )
+    observations = np.asarray([[55.0, 65.0], [170.0, 245.0], [330.0, 310.0]])
+    values = np.asarray([-9.15, -8.8, -9.05])
+    noise = 0.18
+    conditional = ContinuousPointConditionalKLLogGaussianPermeabilityMap(
+        prior=prior,
+        observation_coordinates_yx_m=observations,
+        observation_log10_k=values,
+        observation_std_log10_k=noise,
+    )
+
+    A = prior.mode_matrix_at_coordinates(observations)
+    innovation = A @ A.T + np.eye(A.shape[0]) * noise**2
+    posterior_mean = A.T @ np.linalg.solve(
+        innovation, values - prior.mean_log10_k
+    )
+    posterior_cov = np.eye(prior.dimension) - A.T @ np.linalg.solve(innovation, A)
+
+    query = np.asarray([[100.0, 100.0], [250.0, 150.0], [350.0, 350.0]])
+    B = prior.mode_matrix_at_coordinates(query)
+    expected_mean = prior.mean_log10_k + B @ posterior_mean
+    expected_var = np.einsum("im,mn,in->i", B, posterior_cov, B)
+    actual_mean, actual_std = conditional.posterior_moments_at_points(query)
+
+    np.testing.assert_allclose(actual_mean, expected_mean, rtol=1e-10, atol=1e-11)
+    np.testing.assert_allclose(actual_std**2, expected_var, rtol=1e-9, atol=1e-11)
+    assert conditional.dimension == prior.dimension
+
+
+def test_continuous_conditional_sampler_reproduces_posterior_moments():
+    prior = KLLogGaussianPermeabilityMap(
+        shape=(3, 3),
+        domain_size_m=(300.0, 300.0),
+        mean_log10_k=-9.0,
+        std_log10_k=0.25,
+        length_scale_m=(100.0, 140.0),
+        covariance_model="exponential",
+        n_modes=6,
+    )
+    observations = np.asarray([[40.0, 60.0], [240.0, 220.0]])
+    conditional = ContinuousPointConditionalKLLogGaussianPermeabilityMap(
+        prior=prior,
+        observation_coordinates_yx_m=observations,
+        observation_log10_k=np.asarray([-9.1, -8.85]),
+        observation_std_log10_k=0.2,
+    )
+    query = np.asarray([[150.0, 150.0]])
+    target_mean, target_std = conditional.posterior_moments_at_points(query)
+    rng = np.random.default_rng(1234)
+    eta = rng.standard_normal((12000, conditional.dimension))
+    samples = conditional.map_log10_coordinates_at_points(eta, query)[:, 0]
+
+    np.testing.assert_allclose(np.mean(samples), target_mean[0], atol=0.01)
+    np.testing.assert_allclose(np.std(samples, ddof=1), target_std[0], atol=0.01)
