@@ -4,8 +4,10 @@ from .calibration import (
     SUPPORTED_CALIBRATION_MODELS,
     CovarianceCalibrationResult,
     calibrate_covariance_candidates,
+    calibrate_point_covariance_candidates,
     correlation_for_offsets,
     estimate_directional_variograms,
+    estimate_point_directional_variograms,
 )
 from .coordinates import (
     GaussianCoordinatePermeabilitySampler,
@@ -24,7 +26,21 @@ from .diagnostics import (
     PermeabilityDiagnosticsResult,
 )
 from .empirical import EmpiricalPermeabilitySampler, load_empirical_fields
-from .exact_kriging import ExactSimpleKrigingResult, exact_simple_kriging_posterior
+from .exact_kriging import (
+    ExactPointKrigingResult,
+    ExactSimpleKrigingResult,
+    exact_simple_kriging_grid_from_points,
+    exact_simple_kriging_posterior,
+    exact_simple_kriging_predict_points,
+)
+from .munich_measurements import (
+    MunichHydraulicConductivityMeasurements,
+    ReferenceHorizontalGrid,
+    aggregate_measurements_by_reference_cell,
+    hydraulic_conductivity_to_intrinsic_permeability,
+    load_munich_hydraulic_conductivity_measurements,
+    load_reference_horizontal_grid,
+)
 from .kl import (
     KLLogGaussianPermeabilityMap,
     exponential_correlation_matrix,
@@ -50,6 +66,17 @@ from .qmc import ScrambledSobolGaussianPermeabilitySampler
 from .radial_exponential import RadialExponentialPermeabilitySampler
 
 __all__ = [
+    "load_reference_horizontal_grid",
+    "load_munich_hydraulic_conductivity_measurements",
+    "hydraulic_conductivity_to_intrinsic_permeability",
+    "exact_simple_kriging_predict_points",
+    "exact_simple_kriging_grid_from_points",
+    "estimate_point_directional_variograms",
+    "calibrate_point_covariance_candidates",
+    "aggregate_measurements_by_reference_cell",
+    "ReferenceHorizontalGrid",
+    "MunichHydraulicConductivityMeasurements",
+    "ExactPointKrigingResult",
     "BoreholeObservationSet",
     "ConditionalKLLogGaussianPermeabilityMap",
     "CovarianceCalibrationResult",
