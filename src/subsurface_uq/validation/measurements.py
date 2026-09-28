@@ -115,6 +115,7 @@ def spatial_block_cross_validate_measurements(
     observation_std_log10_k: float = 0.0,
     fit_nugget: bool = True,
     pair_count_weighted_fit: bool = True,
+    fold_assignment: Array | None = None,
 ) -> SpatialMeasurementCVResult:
     """Spatial block CV with fold-wise variogram recalibration and exact kriging."""
 
@@ -125,9 +126,21 @@ def spatial_block_cross_validate_measurements(
     if not np.all(np.isfinite(conductivity)) or np.any(conductivity <= 0.0):
         raise ValueError("hydraulic conductivity values must be finite and positive")
     log_values = np.log10(conductivity)
-    assignment = spatial_block_fold_assignment(
-        coordinates, n_folds=n_folds, block_size_m=block_size_m, seed=fold_seed
-    )
+    if fold_assignment is None:
+        assignment = spatial_block_fold_assignment(
+            coordinates, n_folds=n_folds, block_size_m=block_size_m, seed=fold_seed
+        )
+    else:
+        assignment = np.asarray(fold_assignment, dtype=np.int64).reshape(-1)
+        if assignment.shape != (conductivity.size,):
+            raise ValueError("fold_assignment must contain one fold index per measurement")
+        expected_folds = set(range(int(n_folds)))
+        observed_folds = set(assignment.tolist())
+        if observed_folds != expected_folds:
+            raise ValueError(
+                f"fold_assignment must contain exactly folds {sorted(expected_folds)}, "
+                f"got {sorted(observed_folds)}"
+            )
 
     requested = tuple(str(model).strip().lower() for model in models)
     predictions: dict[str, list[tuple[Array, Array, Array]]] = {model: [] for model in requested}
