@@ -241,8 +241,9 @@ The preferred realistic-permeability calibration path can now use the actual
 Munich hydraulic-conductivity measurements together with the active XY footprint
 of the 3-D reference field. The workflow keeps the original continuous
 measurement coordinates, fits directional irregular-point variograms in
-`log10(K_h)`, compares covariance families with spatial block
-cross-validation, and conditions the selected model on all accepted real
+`log10(K_h)` with a fitted nugget and pair-count weighting, compares
+covariance families with spatial block cross-validation, runs an upper-tail
+robustness check, and conditions the selected model on all accepted real
 observations.
 
 ```bash
