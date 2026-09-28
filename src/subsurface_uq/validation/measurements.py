@@ -113,6 +113,8 @@ def spatial_block_cross_validate_measurements(
     angle_tolerance_deg: float = 22.5,
     min_pairs_per_bin: int = 8,
     observation_std_log10_k: float = 0.0,
+    fit_nugget: bool = True,
+    pair_count_weighted_fit: bool = True,
 ) -> SpatialMeasurementCVResult:
     """Spatial block CV with fold-wise variogram recalibration and exact kriging."""
 
@@ -143,6 +145,8 @@ def spatial_block_cross_validate_measurements(
             max_lag_m=max_lag_m,
             angle_tolerance_deg=angle_tolerance_deg,
             min_pairs_per_bin=min_pairs_per_bin,
+            fit_nugget=fit_nugget,
+            pair_count_weighted_fit=pair_count_weighted_fit,
         )
         by_model = {result.covariance_model: result for result in calibration}
         for model in requested:
@@ -157,6 +161,13 @@ def spatial_block_cross_validate_measurements(
                 length_scale_y_m=result.length_scale_y_m,
                 length_scale_x_m=result.length_scale_x_m,
                 observation_std_log10_k=observation_std_log10_k,
+                structured_std_log10_k=(
+                    result.structured_std_log10_k
+                    if result.structured_std_log10_k is not None
+                    else result.std_log10_k
+                ),
+                nugget_std_log10_k=result.nugget_std_log10_k,
+                include_query_nugget=True,
                 angle_rad=result.angle_rad,
             )
             metrics = _predictive_metrics(
@@ -172,6 +183,10 @@ def spatial_block_cross_validate_measurements(
                     "length_scale_y_m": result.length_scale_y_m,
                     "ell_x_over_ell_y": result.length_scale_x_m / result.length_scale_y_m,
                     "variogram_rmse": result.variogram_rmse,
+                    "variogram_weighted_rmse": result.variogram_weighted_rmse,
+                    "structured_std_log10_k": result.structured_std_log10_k,
+                    "nugget_std_log10_k": result.nugget_std_log10_k,
+                    "nugget_fraction": result.nugget_fraction,
                     **metrics,
                 }
             )
@@ -194,9 +209,26 @@ def spatial_block_cross_validate_measurements(
             {
                 "covariance_model": model,
                 "n_predictions": int(truth.size),
-                "mean_fold_variogram_rmse": float(np.mean([row["variogram_rmse"] for row in model_folds])),
-                "mean_fold_length_scale_x_m": float(np.mean([row["length_scale_x_m"] for row in model_folds])),
-                "mean_fold_length_scale_y_m": float(np.mean([row["length_scale_y_m"] for row in model_folds])),
+                "mean_fold_variogram_rmse": float(
+                    np.mean([row["variogram_rmse"] for row in model_folds])
+                ),
+                "mean_fold_weighted_variogram_rmse": float(
+                    np.mean([row["variogram_weighted_rmse"] for row in model_folds])
+                ),
+                "mean_fold_length_scale_x_m": float(
+                    np.mean([row["length_scale_x_m"] for row in model_folds])
+                ),
+                "mean_fold_length_scale_y_m": float(
+                    np.mean([row["length_scale_y_m"] for row in model_folds])
+                ),
+                "mean_fold_nugget_fraction": float(
+                    np.mean([row["nugget_fraction"] for row in model_folds])
+                ),
+                "std_fold_nugget_fraction": float(
+                    np.std([row["nugget_fraction"] for row in model_folds], ddof=1)
+                    if len(model_folds) > 1
+                    else 0.0
+                ),
                 **metrics,
             }
         )
