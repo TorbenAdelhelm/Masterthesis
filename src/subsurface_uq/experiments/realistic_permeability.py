@@ -18,8 +18,15 @@ from ..sampling import (
     estimate_directional_variograms,
     load_empirical_fields,
     load_release25_raw_permeability_dataset,
+    load_reference_horizontal_grid,
+    load_munich_hydraulic_conductivity_measurements,
+    aggregate_measurements_by_reference_cell,
+    exact_simple_kriging_grid_from_points,
+    hydraulic_conductivity_to_intrinsic_permeability,
+    calibrate_point_covariance_candidates,
     sample_borehole_observations,
 )
+from ..validation.measurements import spatial_block_cross_validate_measurements
 from ..visualization.realistic_permeability import (
     plot_heldout_metric_comparison,
     plot_heldout_reconstruction,
@@ -470,6 +477,270 @@ def _evaluate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _write_rows_csv(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not rows:
+        raise ValueError("cannot write empty CSV rows")
+    fieldnames: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in fieldnames:
+                fieldnames.append(key)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _measurement_evaluate(args: argparse.Namespace) -> int:
+    reference_grid = load_reference_horizontal_grid(
+        args.reference_grid, expected_cell_size_m=args.expected_cell_size_m
+    )
+    measurements, qc = load_munich_hydraulic_conductivity_measurements(
+        args.measurements,
+        sheet_name=args.sheet_name,
+        stratigraphy=args.stratigraphy,
+        groundwater_state=args.groundwater_state,
+        reference_grid=reference_grid,
+    )
+    root = Path(args.output_dir).expanduser().resolve()
+    figures = root / "figures"
+    root.mkdir(parents=True, exist_ok=True)
+    figures.mkdir(parents=True, exist_ok=True)
+
+    _write_rows_csv(root / "measurements_filtered.csv", measurements.to_rows())
+    _write_rows_csv(
+        root / "measurements_by_reference_cell.csv",
+        aggregate_measurements_by_reference_cell(measurements),
+    )
+
+    calibration, variograms, pair_counts = calibrate_point_covariance_candidates(
+        measurements.coordinates_xy_m,
+        measurements.hydraulic_conductivity_m_s,
+        models=args.models,
+        lag_bin_m=args.lag_bin_m,
+        max_lag_m=args.max_lag_m,
+        angle_tolerance_deg=args.angle_tolerance_deg,
+        min_pairs_per_bin=args.min_pairs_per_bin,
+    )
+    plot_variogram_fits(
+        variograms, calibration, figures / "measurement_variogram_fits.png"
+    )
+    plot_length_scale_comparison(
+        calibration, figures / "measurement_length_scales.png"
+    )
+    np.savez_compressed(
+        root / "measurement_variograms.npz",
+        x_distance_m=variograms["x"][0],
+        x_semivariance=variograms["x"][1],
+        x_pair_count=pair_counts["x"],
+        y_distance_m=variograms["y"][0],
+        y_semivariance=variograms["y"][1],
+        y_pair_count=pair_counts["y"],
+        diag_distance_m=variograms["diag"][0],
+        diag_semivariance=variograms["diag"][1],
+        diag_pair_count=pair_counts["diag"],
+    )
+
+    cv = spatial_block_cross_validate_measurements(
+        measurements.coordinates_xy_m,
+        measurements.hydraulic_conductivity_m_s,
+        models=args.models,
+        n_folds=args.cv_folds,
+        block_size_m=args.cv_block_size_m,
+        fold_seed=args.cv_seed,
+        lag_bin_m=args.lag_bin_m,
+        max_lag_m=args.max_lag_m,
+        angle_tolerance_deg=args.angle_tolerance_deg,
+        min_pairs_per_bin=args.min_pairs_per_bin,
+        observation_std_log10_k=args.observation_std_log10_k,
+    )
+    _write_rows_csv(root / "measurement_cv_summary.csv", list(cv.summary_rows))
+    _write_rows_csv(root / "measurement_cv_folds.csv", list(cv.fold_rows))
+
+    full_by_model = {item.covariance_model: item for item in calibration}
+    cv_by_model = {str(row["covariance_model"]): row for row in cv.summary_rows}
+    comparison_rows: list[dict[str, object]] = []
+    for model in args.models:
+        result = full_by_model[model]
+        cv_row = cv_by_model[model]
+        comparison_rows.append(
+            {
+                "covariance_model": model,
+                "full_variogram_rmse": result.variogram_rmse,
+                "length_scale_x_m": result.length_scale_x_m,
+                "length_scale_y_m": result.length_scale_y_m,
+                "ell_x_over_ell_y": result.length_scale_x_m / result.length_scale_y_m,
+                **{key: value for key, value in cv_row.items() if key != "covariance_model"},
+            }
+        )
+    _write_rows_csv(root / "measurement_model_comparison.csv", comparison_rows)
+    selected = min(comparison_rows, key=lambda row: float(row["rmse_log10_k"]))
+
+    payload = {
+        "schema_version": 1,
+        "source": {
+            "measurements": str(Path(args.measurements).expanduser().resolve()),
+            "reference_grid": str(Path(args.reference_grid).expanduser().resolve()),
+            "sheet_name": args.sheet_name,
+        },
+        "measurement_qc": qc,
+        "reference_grid": {
+            "x_min_m": reference_grid.x_min_m,
+            "y_min_m": reference_grid.y_min_m,
+            "cell_size_x_m": reference_grid.cell_size_x_m,
+            "cell_size_y_m": reference_grid.cell_size_y_m,
+            "nx": reference_grid.nx,
+            "ny": reference_grid.ny,
+            "active_horizontal_cells": int(np.count_nonzero(reference_grid.active_mask)),
+        },
+        "variogram_settings": {
+            "lag_bin_m": float(args.lag_bin_m),
+            "max_lag_m": float(args.max_lag_m),
+            "angle_tolerance_deg": float(args.angle_tolerance_deg),
+            "min_pairs_per_bin": int(args.min_pairs_per_bin),
+        },
+        "spatial_cv": {
+            "n_folds": int(args.cv_folds),
+            "block_size_m": float(args.cv_block_size_m),
+            "seed": int(args.cv_seed),
+            "summary": list(cv.summary_rows),
+        },
+        "candidates_full_data": [item.to_dict() for item in calibration],
+        "selected_by_spatial_cv_rmse": selected,
+        "selection_note": (
+            "The selected entry is the lowest spatial-block-CV RMSE diagnostic, "
+            "not a claim that the covariance family is uniquely geologically correct."
+        ),
+        "units_note": (
+            "Calibration and CV use measured hydraulic conductivity K [m/s] in log10 space. "
+            "For constant fluid properties, conversion to intrinsic permeability shifts log10(K) "
+            "by a constant and leaves covariance length scales/variograms unchanged."
+        ),
+        "crs_assumption": (
+            "DHDN / Gauss-Kruger zone 4 (EPSG:31468), inferred from the source coordinates "
+            "and pending external confirmation."
+        ),
+    }
+    with (root / "measurement_calibration.yaml").open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(payload, handle, sort_keys=False)
+    with (root / "measurement_calibration.json").open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+
+    print(f"Accepted real measurements: {len(measurements)}")
+    print(
+        "model | full variogram RMSE | spatial-CV RMSE | MAE | 90% coverage | NLPD"
+    )
+    for row in comparison_rows:
+        print(
+            f"{row['covariance_model']} | {row['full_variogram_rmse']:.4g} | "
+            f"{row['rmse_log10_k']:.4g} | {row['mae_log10_k']:.4g} | "
+            f"{row['coverage_90']:.3f} | {row['gaussian_nlpd']:.4g}"
+        )
+    print(f"Saved real-measurement calibration to {root}")
+    return 0
+
+
+def _measurement_condition(args: argparse.Namespace) -> int:
+    calibration_path = Path(args.calibration).expanduser().resolve()
+    with calibration_path.open("r", encoding="utf-8") as handle:
+        payload = yaml.safe_load(handle)
+    candidates = {
+        item["covariance_model"]: item for item in payload["candidates_full_data"]
+    }
+    model = args.model
+    if model is None:
+        model = str(payload["selected_by_spatial_cv_rmse"]["covariance_model"])
+    if model not in candidates:
+        raise ValueError(f"model {model!r} is not present in measurement calibration")
+    selected = candidates[model]
+
+    reference_grid = load_reference_horizontal_grid(
+        args.reference_grid, expected_cell_size_m=args.expected_cell_size_m
+    )
+    measurements, qc = load_munich_hydraulic_conductivity_measurements(
+        args.measurements,
+        sheet_name=args.sheet_name,
+        stratigraphy=args.stratigraphy,
+        groundwater_state=args.groundwater_state,
+        reference_grid=reference_grid,
+    )
+    posterior = exact_simple_kriging_grid_from_points(
+        observation_coordinates_xy_m=measurements.coordinates_xy_m,
+        observation_log10_k=measurements.log10_hydraulic_conductivity,
+        x_min_m=reference_grid.x_min_m,
+        y_min_m=reference_grid.y_min_m,
+        nx=reference_grid.nx,
+        ny=reference_grid.ny,
+        cell_size_x_m=reference_grid.cell_size_x_m,
+        cell_size_y_m=reference_grid.cell_size_y_m,
+        covariance_model=model,
+        mean_log10_k=float(selected["mean_log10_k"]),
+        std_log10_k=float(selected["std_log10_k"]),
+        length_scale_y_m=float(selected["length_scale_y_m"]),
+        length_scale_x_m=float(selected["length_scale_x_m"]),
+        observation_std_log10_k=args.observation_std_log10_k,
+        angle_rad=float(selected.get("angle_rad", 0.0)),
+        active_mask=reference_grid.active_mask,
+        chunk_size=args.kriging_chunk_size,
+    )
+    mean_log = np.asarray(posterior.mean_log10_k, dtype=np.float64)
+    variance_log = np.asarray(posterior.variance_log10_k, dtype=np.float64)
+    active = reference_grid.active_mask
+    median_kh = np.full(mean_log.shape, np.nan, dtype=np.float64)
+    mean_kh = np.full(mean_log.shape, np.nan, dtype=np.float64)
+    median_kh[active] = np.power(10.0, mean_log[active])
+    mean_kh[active] = (
+        np.power(10.0, mean_log[active])
+        * np.exp(0.5 * (np.log(10.0) ** 2) * variance_log[active])
+    )
+    factor = float(
+        hydraulic_conductivity_to_intrinsic_permeability(
+            np.asarray([1.0]),
+            dynamic_viscosity_pa_s=args.dynamic_viscosity_pa_s,
+            density_kg_m3=args.density_kg_m3,
+            gravity_m_s2=args.gravity_m_s2,
+        )[0]
+    )
+    median_intrinsic = median_kh * factor
+    mean_intrinsic = mean_kh * factor
+
+    output = Path(args.output).expanduser().resolve()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        output,
+        posterior_mean_log10_hydraulic_conductivity=posterior.mean_log10_k,
+        posterior_std_log10_hydraulic_conductivity=posterior.std_log10_k,
+        posterior_variance_log10_hydraulic_conductivity=posterior.variance_log10_k,
+        posterior_median_hydraulic_conductivity_m_s=median_kh.astype(np.float32),
+        posterior_mean_hydraulic_conductivity_m_s=mean_kh.astype(np.float32),
+        posterior_median_intrinsic_permeability_m2=median_intrinsic.astype(np.float32),
+        posterior_mean_intrinsic_permeability_m2=mean_intrinsic.astype(np.float32),
+        active_mask=active,
+    )
+    metadata = {
+        "schema_version": 1,
+        "model": model,
+        "calibration": selected,
+        "measurement_qc": qc,
+        "conditioning_measurements": len(measurements),
+        "conditioning_max_abs_log10_residual": posterior.conditioning_max_abs_log10_residual,
+        "conditioning_rms_log10_residual": posterior.conditioning_rms_log10_residual,
+        "fluid_conversion": {
+            "dynamic_viscosity_pa_s": float(args.dynamic_viscosity_pa_s),
+            "density_kg_m3": float(args.density_kg_m3),
+            "gravity_m_s2": float(args.gravity_m_s2),
+            "intrinsic_permeability_factor_m_s_to_m2": factor,
+            "note": "Default constants correspond approximately to liquid water near 20 degC.",
+        },
+    }
+    with output.with_suffix(".json").open("w", encoding="utf-8") as handle:
+        json.dump(metadata, handle, indent=2, sort_keys=True)
+    print(f"Conditioned {model} posterior on {len(measurements)} real measurements")
+    print(f"Saved posterior grid to {output}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Calibrate and generate realistic log-Gaussian permeability fields."
@@ -576,6 +847,60 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--energy-threshold", type=float, default=None, help=argparse.SUPPRESS)
     evaluate.add_argument("--output-dir", required=True)
     evaluate.set_defaults(func=_evaluate)
+
+    measurement_evaluate = sub.add_parser(
+        "measurement-evaluate",
+        help=(
+            "load the real Munich hydraulic-conductivity measurements, fit irregular-point "
+            "variograms, and compare covariance models by spatial block cross-validation"
+        ),
+    )
+    measurement_evaluate.add_argument("--measurements", required=True)
+    measurement_evaluate.add_argument("--reference-grid", required=True)
+    measurement_evaluate.add_argument("--sheet-name", default="kf_werte_180223")
+    measurement_evaluate.add_argument("--stratigraphy", default="q")
+    measurement_evaluate.add_argument("--groundwater-state", default="ungespannt")
+    measurement_evaluate.add_argument(
+        "--models",
+        nargs="+",
+        default=["matern32", "exponential", "radial_exponential"],
+    )
+    measurement_evaluate.add_argument("--expected-cell-size-m", type=float, default=100.0)
+    measurement_evaluate.add_argument("--lag-bin-m", type=float, default=250.0)
+    measurement_evaluate.add_argument("--max-lag-m", type=float, default=3000.0)
+    measurement_evaluate.add_argument("--angle-tolerance-deg", type=float, default=22.5)
+    measurement_evaluate.add_argument("--min-pairs-per-bin", type=int, default=8)
+    measurement_evaluate.add_argument("--cv-folds", type=int, default=5)
+    measurement_evaluate.add_argument("--cv-block-size-m", type=float, default=2000.0)
+    measurement_evaluate.add_argument("--cv-seed", type=int, default=2907)
+    measurement_evaluate.add_argument("--observation-std-log10-k", type=float, default=0.0)
+    measurement_evaluate.add_argument("--output-dir", required=True)
+    measurement_evaluate.set_defaults(func=_measurement_evaluate)
+
+    measurement_condition = sub.add_parser(
+        "measurement-condition",
+        help=(
+            "condition a selected covariance model on all real Munich measurements and "
+            "write the analytical posterior on the active 100 m reference grid"
+        ),
+    )
+    measurement_condition.add_argument("--measurements", required=True)
+    measurement_condition.add_argument("--reference-grid", required=True)
+    measurement_condition.add_argument("--calibration", required=True)
+    measurement_condition.add_argument(
+        "--model", choices=["matern32", "exponential", "radial_exponential"]
+    )
+    measurement_condition.add_argument("--sheet-name", default="kf_werte_180223")
+    measurement_condition.add_argument("--stratigraphy", default="q")
+    measurement_condition.add_argument("--groundwater-state", default="ungespannt")
+    measurement_condition.add_argument("--expected-cell-size-m", type=float, default=100.0)
+    measurement_condition.add_argument("--observation-std-log10-k", type=float, default=0.0)
+    measurement_condition.add_argument("--kriging-chunk-size", type=int, default=100000)
+    measurement_condition.add_argument("--dynamic-viscosity-pa-s", type=float, default=1.002e-3)
+    measurement_condition.add_argument("--density-kg-m3", type=float, default=998.2)
+    measurement_condition.add_argument("--gravity-m-s2", type=float, default=9.80665)
+    measurement_condition.add_argument("--output", required=True)
+    measurement_condition.set_defaults(func=_measurement_condition)
     return parser
 
 
