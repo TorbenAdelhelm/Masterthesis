@@ -137,6 +137,12 @@ tau^2 / (tau^2 + sigma_s^2)
 for each covariance family. Sensitivity flags allow the nugget or pair-count
 weighting to be disabled, but the default thesis workflow uses both.
 
+The fitted nugget must be interpreted as an effective unresolved short-scale
+component. The available workbook does not provide repeated co-located
+measurement uncertainty or quality metadata, so `tau^2` cannot be uniquely
+decomposed into measurement error, sub-bin spatial variability and true
+microscale heterogeneity.
+
 Because the raw observations are used directly, the covariance fit no longer
 inherits the smoothing properties of an already interpolated P50 raster.
 
