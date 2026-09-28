@@ -7,6 +7,7 @@ from subsurface_uq.sampling.geospatial import (
     ReferencePermeabilitySurface,
     infer_lgcnn_domain_georeference,
     load_reference_permeability_surface,
+    load_reference_permeability_sweep_surfaces,
     orient_raw_field,
     geographic_to_raw_field,
     summarize_georeference_sweep,
@@ -36,6 +37,33 @@ def test_reference_surface_loader_selects_top_layer(tmp_path):
     expected00 = 1.0e-3 * (1.0 + 0.02 * 30.0)
     np.testing.assert_allclose(surface.values[0, 0], expected00)
     assert np.all(surface.active_mask)
+
+
+def test_sweep_surface_loader_matches_individual_surface_loaders(tmp_path):
+    path = tmp_path / "reference.csv"
+    rows = []
+    for x in (1000.0, 1100.0, 1200.0):
+        for y in (2000.0, 2100.0):
+            for z in (10.0, 20.0, 30.0):
+                base = 1.0e-3 + 1.0e-6 * (x - 1000.0) + 2.0e-6 * (y - 2000.0)
+                values = (
+                    base * (1.0 + 0.01 * z),
+                    base * (1.0 + 0.02 * z),
+                    base * (1.0 + 0.03 * z),
+                )
+                rows.append(
+                    f"{x} {y} {z} {values[0]} {values[1]} {values[2]}\n"
+                )
+    path.write_text("".join(rows), encoding="utf-8")
+
+    sweep = load_reference_permeability_sweep_surfaces(path)
+    assert set(sweep) == set(GEOREFERENCE_SWEEP_REPRESENTATIONS)
+    for column, mode in GEOREFERENCE_SWEEP_REPRESENTATIONS:
+        direct = load_reference_permeability_surface(path, column=column, z_mode=mode)
+        np.testing.assert_allclose(sweep[(column, mode)].values, direct.values)
+        np.testing.assert_array_equal(
+            sweep[(column, mode)].active_mask, direct.active_mask
+        )
 
 
 def test_infer_lgcnn_georeference_recovers_crop_orientation_and_origin():
