@@ -83,6 +83,32 @@ def _raw_grid_shape(settings: dict, *, cell_size_m: float) -> tuple[int, ...]:
     return dims
 
 
+def load_release25_raw_permeability_run(
+    dataset_root: str | Path,
+    run_name: str,
+    *,
+    cell_size_m: float = 5.0,
+) -> Array:
+    """Load one release25/DaRUS RUN_*/pflotran.h5 permeability field."""
+
+    root = Path(dataset_root).expanduser().resolve()
+    if not root.is_dir():
+        raise NotADirectoryError(root)
+    settings_path = root / "settings.yaml"
+    if not settings_path.is_file():
+        raise FileNotFoundError(settings_path)
+    with settings_path.open("r", encoding="utf-8") as handle:
+        settings = yaml.safe_load(handle)
+    if not isinstance(settings, dict):
+        raise ValueError("settings.yaml must contain a mapping")
+    shape = _raw_grid_shape(settings, cell_size_m=float(cell_size_m))
+    run = str(run_name)
+    h5_path = root / run / "pflotran.h5"
+    if not h5_path.is_file():
+        raise FileNotFoundError(h5_path)
+    return load_pflotran_permeability_h5(h5_path, shape=shape)
+
+
 def load_release25_raw_permeability_dataset(
     dataset_root: str | Path,
     *,
