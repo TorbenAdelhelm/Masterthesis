@@ -19,6 +19,7 @@ from .darus_real import (
     RELEASE25_PERMEABILITY_DATASET,
     load_pflotran_permeability_h5,
     load_release25_raw_permeability_dataset,
+    load_release25_raw_permeability_run,
 )
 from .diagnostics import (
     DiagnosticPermeabilitySampler,
@@ -40,6 +41,14 @@ from .munich_measurements import (
     hydraulic_conductivity_to_intrinsic_permeability,
     load_munich_hydraulic_conductivity_measurements,
     load_reference_horizontal_grid,
+)
+from .geospatial import (
+    LGCNNDomainGeoreference,
+    RAW_TO_GEO_TRANSFORMS,
+    ReferencePermeabilitySurface,
+    infer_lgcnn_domain_georeference,
+    load_reference_permeability_surface,
+    orient_raw_field,
 )
 from .kl import (
     KLLogGaussianPermeabilityMap,
@@ -66,6 +75,13 @@ from .qmc import ScrambledSobolGaussianPermeabilitySampler
 from .radial_exponential import RadialExponentialPermeabilitySampler
 
 __all__ = [
+    "load_release25_raw_permeability_run",
+    "orient_raw_field",
+    "load_reference_permeability_surface",
+    "infer_lgcnn_domain_georeference",
+    "ReferencePermeabilitySurface",
+    "RAW_TO_GEO_TRANSFORMS",
+    "LGCNNDomainGeoreference",
     "load_reference_horizontal_grid",
     "load_munich_hydraulic_conductivity_measurements",
     "hydraulic_conductivity_to_intrinsic_permeability",
