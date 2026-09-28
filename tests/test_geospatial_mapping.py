@@ -7,6 +7,7 @@ from subsurface_uq.sampling.geospatial import (
     infer_lgcnn_domain_georeference,
     load_reference_permeability_surface,
     orient_raw_field,
+    geographic_to_raw_field,
 )
 
 
@@ -120,6 +121,23 @@ def test_orientation_transforms_round_trip_basic_shapes():
     np.testing.assert_array_equal(orient_raw_field(raw, "transpose"), raw.T)
     np.testing.assert_array_equal(orient_raw_field(raw, "flip_x"), raw[:, ::-1])
     np.testing.assert_array_equal(orient_raw_field(raw, "flip_y"), raw[::-1, :])
+
+
+def test_geographic_to_raw_is_inverse_for_all_transforms():
+    raw = np.arange(30).reshape(5, 6)
+    for transform in (
+        "identity",
+        "flip_y",
+        "flip_x",
+        "flip_xy",
+        "transpose",
+        "transpose_flip_y",
+        "transpose_flip_x",
+        "transpose_flip_xy",
+    ):
+        geographic = orient_raw_field(raw, transform)
+        reconstructed = geographic_to_raw_field(geographic, transform)
+        np.testing.assert_array_equal(reconstructed, raw)
 
 
 def test_georeference_edges_are_cell_edge_coordinates():
