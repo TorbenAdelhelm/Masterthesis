@@ -234,6 +234,107 @@ unsupported claim of exact geographic correspondence.
 Use `--require-defensible` only when a downstream script should fail after
 writing the diagnostic outputs if no defensible mapping exists.
 
+## Measurement-conditioned new LGCNN domain
+
+The georeference sweep can legitimately conclude that the historical DaRUS
+`RUN_n` cutouts cannot be tied to the available 3-D Munich reference table.
+That negative result does not block the measurement-based stochastic model.
+Instead, `new-domain-generate` defines a *new* projected Munich domain and
+generates permeability fields directly from the calibrated real-measurement
+model.
+
+The default geometry matches the release25/LGCNN field size:
+
+```text
+12.8 km x 12.8 km
+2560 x 2560 cells
+5 m cell size
+```
+
+The domain can be supplied explicitly with
+`--domain-origin-x-m/--domain-origin-y-m`. If no origin is supplied, a
+cell-aligned 12.8 km square is chosen automatically to maximize the number of
+accepted real measurements inside the domain; ties are resolved by proximity to
+the complete measurement centroid. This selection optimizes conditioning-data
+coverage and is not presented as the location of any historical DaRUS run.
+
+For the selected separable covariance (currently the exponential model), the
+generator:
+
+1. converts the calibrated hydraulic-conductivity mean to intrinsic
+   permeability with the documented constant fluid-property factor;
+2. uses only the **structured** fitted standard deviation in the KL prior;
+3. evaluates the truncated KL basis at the original continuous measurement
+   coordinates by a Nyström extension of the one-dimensional eigensystems;
+4. treats the fitted nugget, plus any explicitly supplied measurement error, as
+   observation noise during conditioning;
+5. computes the posterior coordinate square root with a low-rank SVD of the
+   whitened observation operator rather than forming an `m x m` posterior
+   covariance;
+6. retains exactly `m` independent standard-normal posterior coordinates, so
+   the finite map remains compatible with MC, scrambled Sobol RQMC and later
+   Hermite PCE;
+7. writes intrinsic-permeability fields in canonical geographic
+   `[y,x]` order on the 5 m grid.
+
+The nugget is **not** sampled independently at every 5 m pixel. It enters the
+observation model, while the generated LGCNN field is the conditioned
+large-scale/structured component. A separate microscale model would be needed
+before interpreting the fitted nugget as spatial white noise.
+
+Example:
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability new-domain-generate \
+  --measurements "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf_werte_190201.xlsx" \
+  --reference-grid "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf-Werte-3D Modell/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --calibration run_output/realistic_k/measurements_nugget/measurement_calibration.yaml \
+  --model exponential \
+  --domain-size-m 12800 \
+  --cell-size-m 5 \
+  --energy-threshold 0.95 \
+  --n-samples 8 \
+  --batch-size 1 \
+  --seed 4901 \
+  --output-dir run_output/realistic_k/new_domain
+```
+
+For an explicit projected domain add, for example,
+
+```text
+--domain-origin-x-m <west-edge>
+--domain-origin-y-m <south-edge>
+```
+
+The output directory contains:
+
+```text
+conditioning_measurements.csv
+empirical_mean_log10_permeability_m2.npy
+empirical_std_log10_permeability_m2.npy
+new_domain_generator.yaml
+new_domain_generator.json
+samples/
+  sample_0001_permeability_m2.npy
+  ...
+```
+
+The metadata records the exact projected domain edges/cell centres, number of
+conditioning measurements, fitted nugget and effective observation uncertainty,
+KL retained-energy fraction, covariance approximation error at the actual
+measurement locations, posterior-predictive measurement coverage, empirical
+versus analytical posterior mean/std errors on a diagnostic grid, and the
+fraction of generated cells outside the release25 permeability training range.
+
+At 2560 x 2560 resolution a full field is about 26 MB as float32. Use
+`--no-save-samples` for convergence/diagnostic runs that should retain only the
+streaming ensemble mean/std instead of all individual realizations.
+
+The factorized KL field evaluator groups retained two-dimensional tensor-product
+modes into unique one-dimensional eigenspaces and evaluates
+`U_y C U_x^T`; this avoids the direct `O(H W m)` mode-by-mode sum that would
+otherwise make a 95% energy 5 m field unnecessarily expensive.
+
 ## Real Munich measurement workflow
 
 The preferred calibration path now uses the actual hydraulic-conductivity
