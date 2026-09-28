@@ -138,11 +138,27 @@ def select_new_lgcnn_domain(
         west_candidates = set()
         south_candidates = set()
         for value in x:
-            west_candidates.add(_aligned(np.floor(value / cell_size_m) * cell_size_m, cell_size_m))
-            west_candidates.add(_aligned(np.ceil((value - domain_size_m) / cell_size_m) * cell_size_m, cell_size_m))
+            west_candidates.add(
+                _aligned(np.floor(value / cell_size_m) * cell_size_m, cell_size_m)
+            )
+            west_candidates.add(
+                _aligned(
+                    (np.floor((value - domain_size_m) / cell_size_m) + 1.0)
+                    * cell_size_m,
+                    cell_size_m,
+                )
+            )
         for value in y:
-            south_candidates.add(_aligned(np.floor(value / cell_size_m) * cell_size_m, cell_size_m))
-            south_candidates.add(_aligned(np.ceil((value - domain_size_m) / cell_size_m) * cell_size_m, cell_size_m))
+            south_candidates.add(
+                _aligned(np.floor(value / cell_size_m) * cell_size_m, cell_size_m)
+            )
+            south_candidates.add(
+                _aligned(
+                    (np.floor((value - domain_size_m) / cell_size_m) + 1.0)
+                    * cell_size_m,
+                    cell_size_m,
+                )
+            )
         centroid = np.mean(coordinates, axis=0)
         west_candidates.add(_aligned(centroid[0] - 0.5 * domain_size_m, cell_size_m))
         south_candidates.add(_aligned(centroid[1] - 0.5 * domain_size_m, cell_size_m))
