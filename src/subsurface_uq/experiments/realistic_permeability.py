@@ -690,7 +690,7 @@ def _measurement_evaluate(args: argparse.Namespace) -> int:
             }
 
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source": {
             "measurements": str(Path(args.measurements).expanduser().resolve()),
             "reference_grid": str(Path(args.reference_grid).expanduser().resolve()),
@@ -1034,7 +1034,15 @@ def build_parser() -> argparse.ArgumentParser:
     measurement_evaluate.add_argument("--cv-folds", type=int, default=5)
     measurement_evaluate.add_argument("--cv-block-size-m", type=float, default=2000.0)
     measurement_evaluate.add_argument("--cv-seed", type=int, default=2907)
-    measurement_evaluate.add_argument("--observation-std-log10-k", type=float, default=0.0)
+    measurement_evaluate.add_argument(
+        "--observation-std-log10-k",
+        type=float,
+        default=0.0,
+        help=(
+            "Additional known measurement-error standard deviation in log10(K_h). "
+            "This is separate from the fitted variogram nugget."
+        ),
+    )
     measurement_evaluate.add_argument(
         "--disable-nugget",
         action="store_true",
