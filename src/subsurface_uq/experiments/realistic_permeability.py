@@ -723,6 +723,11 @@ def _measurement_evaluate(args: argparse.Namespace) -> int:
         "candidates_full_data": [item.to_dict() for item in calibration],
         "selected_by_spatial_cv_rmse": selected,
         "upper_tail_robustness": robustness_payload,
+        "nugget_interpretation": (
+            "The fitted nugget is an effective unresolved short-scale component. "
+            "With the available source data it cannot be uniquely separated into "
+            "measurement error, sub-bin spatial variability, and true microscale heterogeneity."
+        ),
         "selection_note": (
             "The selected entry is the lowest spatial-block-CV RMSE diagnostic, "
             "not a claim that the covariance family is uniquely geologically correct."
