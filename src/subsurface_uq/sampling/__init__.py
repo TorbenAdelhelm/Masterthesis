@@ -43,6 +43,7 @@ from .munich_measurements import (
     load_reference_horizontal_grid,
 )
 from .geospatial import (
+    GEOREFERENCE_SWEEP_REPRESENTATIONS,
     LGCNNDomainGeoreference,
     RAW_TO_GEO_TRANSFORMS,
     ReferencePermeabilitySurface,
@@ -50,6 +51,7 @@ from .geospatial import (
     load_reference_permeability_surface,
     orient_raw_field,
     geographic_to_raw_field,
+    summarize_georeference_sweep,
 )
 from .kl import (
     KLLogGaussianPermeabilityMap,
@@ -76,6 +78,8 @@ from .qmc import ScrambledSobolGaussianPermeabilitySampler
 from .radial_exponential import RadialExponentialPermeabilitySampler
 
 __all__ = [
+    "summarize_georeference_sweep",
+    "GEOREFERENCE_SWEEP_REPRESENTATIONS",
     "geographic_to_raw_field",
     "load_release25_raw_permeability_run",
     "orient_raw_field",
