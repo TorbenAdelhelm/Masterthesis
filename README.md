@@ -235,6 +235,27 @@ all three covariance candidates with the same exact full-covariance simple
 kriging posterior (no KL truncation and no Monte Carlo sampling), then writes
 variogram fits, fitted length scales, and held-out conditional reconstructions.
 
+## Real Munich measurement calibration
+
+The preferred realistic-permeability calibration path can now use the actual
+Munich hydraulic-conductivity measurements together with the active XY footprint
+of the 3-D reference field. The workflow keeps the original continuous
+measurement coordinates, fits directional irregular-point variograms in
+`log10(K_h)`, compares covariance families with spatial block
+cross-validation, and conditions the selected model on all accepted real
+observations.
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability measurement-evaluate \
+  --measurements "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf_werte_190201.xlsx" \
+  --reference-grid "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf-Werte-3D Modell/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --output-dir run_output/realistic_k/measurements
+```
+
+See `docs/realistic_permeability_generator.md` for the exact filtering,
+spatial-CV metrics, hydraulic-conductivity/intrinsic-permeability distinction,
+and the follow-up `measurement-condition` command.
+
 ## Monte Carlo statistics and extensible QoIs
 
 For propagated temperature fields `T^(m)(x)`, the core computes
