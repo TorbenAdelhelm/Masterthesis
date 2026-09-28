@@ -259,6 +259,25 @@ explicit cell-centre/domain-edge manifest. See
 `docs/realistic_permeability_generator.md` for validation thresholds and
 alternative vertical reference-surface modes.
 
+## Multi-run georeference sweep
+
+When a single Munich-reference match is weak, run the predefined nine-way
+diagnostic sweep instead of lowering the thresholds:
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability georeference-sweep \
+  --raw-dataset data/dataset_100hp_giant_real_fixP0_0025 \
+  --runs RUN_1 RUN_2 RUN_3 \
+  --reference-grid "C:/path/to/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --output-dir run_output/realistic_k/georeference_sweep
+```
+
+It evaluates `K_P10/K_P50/K_P90 x top/bottom/log_geomean`, writes one
+comparison CSV, and explicitly reports whether any reference representation is
+individually valid for every run and cross-run consistent in orientation and
+unit shift. See `docs/realistic_permeability_generator.md` for the decision
+rule.
+
 ## Real Munich measurement calibration
 
 The preferred realistic-permeability calibration path can now use the actual
