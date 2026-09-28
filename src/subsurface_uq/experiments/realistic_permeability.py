@@ -1238,6 +1238,10 @@ def _georeference_sweep(args: argparse.Namespace) -> int:
         "  consistent, defensible mapping exists: "
         f"{summary['consistent_defensible_mapping_exists']}"
     )
+    print(
+        "  unique defensible reference representation: "
+        f"{summary['unique_defensible_representation']}"
+    )
     if selected is None:
         print(
             "  selected representation: none; do not assign exact Munich coordinates "
