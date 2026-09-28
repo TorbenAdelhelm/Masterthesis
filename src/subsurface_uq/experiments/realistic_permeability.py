@@ -1480,7 +1480,17 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
 
     np.save(root / "empirical_mean_log10_permeability_m2.npy", mean_log.astype(np.float32))
     np.save(root / "empirical_std_log10_permeability_m2.npy", std_log.astype(np.float32))
-    _write_rows_csv(root / "conditioning_measurements.csv", selected_measurements.to_rows())
+    conditioning_rows = selected_measurements.to_rows()
+    for row_payload, local_yx in zip(conditioning_rows, observation_local_yx):
+        row_payload["new_domain_local_y_m"] = float(local_yx[0])
+        row_payload["new_domain_local_x_m"] = float(local_yx[1])
+        row_payload["new_domain_fractional_row"] = float(
+            local_yx[0] / domain.cell_size_m - 0.5
+        )
+        row_payload["new_domain_fractional_col"] = float(
+            local_yx[1] / domain.cell_size_m - 0.5
+        )
+    _write_rows_csv(root / "conditioning_measurements.csv", conditioning_rows)
 
     posterior_reproduction = {
         "diagnostic_point_count": int(analytic_mean_diag.size),
