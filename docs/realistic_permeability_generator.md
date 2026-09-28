@@ -86,6 +86,68 @@ subsurface-uq-realistic-permeability calibrate \
   --output run_output/realistic_k/calibration.yaml
 ```
 
+## Exact Munich-to-LGCNN domain georeferencing
+
+The release25 real-permeability runs contain local PFLOTRAN arrays, but the raw
+HDF5 files do not encode the projected Munich origin of each 12.8 km cutout.
+Before measurement-conditioned stochastic fields are evaluated on a 5 m LGCNN
+grid, the local array must therefore be tied back to the projected Munich
+reference model.
+
+The `georeference-domain` command infers this mapping from the spatial
+permeability fingerprint rather than hard-coding an undocumented crop origin.
+It:
+
+- loads one DaRUS/release25 `RUN_*/pflotran.h5` permeability field;
+- reads a horizontal `K_P10`, `K_P50` or `K_P90` surface from the
+  headerless Munich reference table;
+- tests all axis-swap / x-flip / y-flip combinations because the release25 raw
+  loader reshapes PFLOTRAN arrays in settings-file dimension order whereas the
+  geostatistical code uses geographic `[y,x]` indexing;
+- coarsens the 5 m raw field to a 100 m log-space fingerprint and searches the
+  reference grid for candidate cutouts;
+- refines the winning crop at 5 m resolution by bilinear interpolation of the
+  reference surface;
+- fits one additive log10 offset during matching, so an unknown constant
+  hydraulic-conductivity-to-intrinsic-permeability conversion does not alter the
+  spatial score;
+- records the first 5 m cell centre, domain edges, array transform, match
+  correlation/RMSE, unit-shift diagnostic and optional overlap with the real
+  measurement locations.
+
+For a standard DARUS-5065 real run, the target geometry is 12.8 km x 12.8 km,
+2560 x 2560 cells at 5 m resolution. The public dataset metadata confirms this
+geometry, but not the projected crop origin; the manifest produced here supplies
+that missing information.
+
+Example for the fixed RQ1 run:
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability georeference-domain \
+  --raw-dataset data/dataset_100hp_giant_real_fixP0_0025 \
+  --run RUN_1 \
+  --reference-grid "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf-Werte-3D Modell/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --reference-column K_P50 \
+  --reference-z-mode top \
+  --measurements "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf_werte_190201.xlsx" \
+  --raw-cell-size-m 5 \
+  --require-validated \
+  --output run_output/realistic_k/georeference_RUN_1.yaml
+```
+
+The command fails when `--require-validated` is active and the best match does
+not meet the default minimum correlation, maximum centred log-RMSE and reference
+coverage. In that case the reference surface must be inspected rather than
+silently accepting an uncertain origin. In particular, if the 3-D reference
+model varies materially with depth, rerun with `--reference-z-mode bottom`,
+`log_geomean`, or `nearest --reference-z-m <z>` and compare the validation
+scores.
+
+The resulting YAML manifest is the authoritative mapping for the subsequent
+stochastic generator. It stores geographic first-cell centres and cell-edge
+bounds explicitly, avoiding ambiguity between PFLOTRAN array axes, image rows,
+cell centres and domain edges.
+
 ## Real Munich measurement workflow
 
 The preferred calibration path now uses the actual hydraulic-conductivity
