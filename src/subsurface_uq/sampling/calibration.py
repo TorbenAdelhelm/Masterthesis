@@ -37,6 +37,14 @@ class CovarianceCalibrationResult:
     lag_bin_m: float | None = None
     max_lag_m: float | None = None
     angle_tolerance_deg: float | None = None
+    structured_std_log10_k: float | None = None
+    nugget_std_log10_k: float = 0.0
+    nugget_fraction: float = 0.0
+    variogram_weighted_rmse: float | None = None
+    variogram_weighted_rmse_y: float | None = None
+    variogram_weighted_rmse_x: float | None = None
+    variogram_weighted_rmse_diag: float | None = None
+    pair_count_weighted_fit: bool = False
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -58,6 +66,14 @@ class CovarianceCalibrationResult:
             "lag_bin_m": self.lag_bin_m,
             "max_lag_m": self.max_lag_m,
             "angle_tolerance_deg": self.angle_tolerance_deg,
+            "structured_std_log10_k": self.structured_std_log10_k,
+            "nugget_std_log10_k": self.nugget_std_log10_k,
+            "nugget_fraction": self.nugget_fraction,
+            "variogram_weighted_rmse": self.variogram_weighted_rmse,
+            "variogram_weighted_rmse_y": self.variogram_weighted_rmse_y,
+            "variogram_weighted_rmse_x": self.variogram_weighted_rmse_x,
+            "variogram_weighted_rmse_diag": self.variogram_weighted_rmse_diag,
+            "pair_count_weighted_fit": self.pair_count_weighted_fit,
             "log_space": "log10",
         }
 
@@ -220,6 +236,8 @@ def calibrate_point_covariance_candidates(
     max_lag_m: float = 3000.0,
     angle_tolerance_deg: float = 22.5,
     min_pairs_per_bin: int = 8,
+    fit_nugget: bool = True,
+    pair_count_weighted_fit: bool = True,
 ) -> tuple[tuple[CovarianceCalibrationResult, ...], dict[str, tuple[Array, Array]], dict[str, Array]]:
     """Fit covariance candidates directly to irregular real measurements."""
 
@@ -260,20 +278,29 @@ def calibrate_point_covariance_candidates(
 
     results: list[CovarianceCalibrationResult] = []
     for model in requested:
-        ly, lx, errors = _fit_candidate(
+        ly, lx, structured_variance, nugget_variance, errors = _fit_point_candidate_with_nugget(
             covariance_model=model,
             variograms=variograms,
-            sill=sill,
+            pair_counts=counts,
+            sample_variance=sill,
             initial_y_m=initial_y,
             initial_x_m=initial_x,
             lower_m=lower,
             upper_m=upper,
+            fit_nugget=bool(fit_nugget),
+            pair_count_weighted_fit=bool(pair_count_weighted_fit),
+        )
+        total_variance = structured_variance + nugget_variance
+        structured_std = float(np.sqrt(structured_variance))
+        nugget_std = float(np.sqrt(nugget_variance))
+        nugget_fraction = (
+            float(nugget_variance / total_variance) if total_variance > 0.0 else 0.0
         )
         results.append(
             CovarianceCalibrationResult(
                 covariance_model=model,
                 mean_log10_k=mean,
-                std_log10_k=std,
+                std_log10_k=float(np.sqrt(total_variance)),
                 between_field_mean_std_log10_k=0.0,
                 length_scale_y_m=ly,
                 length_scale_x_m=lx,
@@ -289,9 +316,22 @@ def calibrate_point_covariance_candidates(
                 lag_bin_m=float(lag_bin_m),
                 max_lag_m=float(max_lag_m),
                 angle_tolerance_deg=float(angle_tolerance_deg),
+                structured_std_log10_k=structured_std,
+                nugget_std_log10_k=nugget_std,
+                nugget_fraction=nugget_fraction,
+                variogram_weighted_rmse=errors["weighted_all"],
+                variogram_weighted_rmse_y=errors["weighted_y"],
+                variogram_weighted_rmse_x=errors["weighted_x"],
+                variogram_weighted_rmse_diag=errors["weighted_diag"],
+                pair_count_weighted_fit=bool(pair_count_weighted_fit),
             )
         )
-    return tuple(sorted(results, key=lambda item: item.variogram_rmse)), variograms, counts
+    key = (
+        (lambda item: float(item.variogram_weighted_rmse))
+        if pair_count_weighted_fit
+        else (lambda item: item.variogram_rmse)
+    )
+    return tuple(sorted(results, key=key)), variograms, counts
 
 
 def _matern32_rho(scaled_distance: Array) -> Array:
@@ -407,6 +447,189 @@ def _fit_candidate(
     )
     errors["all"] = float(np.sqrt(np.mean(all_differences * all_differences)))
     return float(ly), float(lx), errors
+
+
+def _fit_point_candidate_with_nugget(
+    *,
+    covariance_model: str,
+    variograms: Mapping[str, tuple[Array, Array]],
+    pair_counts: Mapping[str, Array],
+    sample_variance: float,
+    initial_y_m: float,
+    initial_x_m: float,
+    lower_m: float,
+    upper_m: float,
+    fit_nugget: bool,
+    pair_count_weighted_fit: bool,
+) -> tuple[float, float, float, float, dict[str, float]]:
+    """Weighted variogram fit with separate structured and nugget variances."""
+
+    sample_variance = float(sample_variance)
+    if not np.isfinite(sample_variance) or sample_variance <= 0.0:
+        raise ValueError("sample_variance must be finite and positive")
+
+    def rho_for(direction: str, distances: Array, ly: float, lx: float) -> Array:
+        distances = np.asarray(distances, dtype=np.float64)
+        if direction == "y":
+            dy, dx = distances, np.zeros_like(distances)
+        elif direction == "x":
+            dy, dx = np.zeros_like(distances), distances
+        elif direction == "diag":
+            component = distances / np.sqrt(2.0)
+            dy, dx = component, component
+        else:
+            raise ValueError("direction must be x, y or diag")
+        return correlation_for_offsets(
+            covariance_model,
+            delta_y_m=dy,
+            delta_x_m=dx,
+            length_scale_y_m=ly,
+            length_scale_x_m=lx,
+        )
+
+    first_bin_values = np.asarray(
+        [variograms[direction][1][0] for direction in ("y", "x", "diag")],
+        dtype=np.float64,
+    )
+    initial_total_variance = sample_variance
+    initial_fraction = float(
+        np.clip(np.median(first_bin_values) / sample_variance, 0.05, 0.80)
+    )
+    if not fit_nugget:
+        initial_fraction = 0.0
+
+    total_lower = max(sample_variance * 0.10, np.finfo(float).eps)
+    total_upper = max(sample_variance * 4.0, total_lower * 10.0)
+    directions = ("y", "x", "diag")
+    all_counts = np.concatenate(
+        [np.asarray(pair_counts[direction], dtype=np.float64) for direction in directions]
+    )
+    count_scale = max(float(np.mean(all_counts)), 1.0)
+
+    if fit_nugget:
+        fraction_lower = 1.0e-6
+        fraction_upper = 0.95
+        logit = lambda value: np.log(value / (1.0 - value))
+        x0 = np.asarray(
+            [
+                np.log(initial_y_m),
+                np.log(initial_x_m),
+                np.log(initial_total_variance),
+                logit(initial_fraction),
+            ],
+            dtype=np.float64,
+        )
+        lower_bounds = np.asarray(
+            [
+                np.log(lower_m),
+                np.log(lower_m),
+                np.log(total_lower),
+                logit(fraction_lower),
+            ]
+        )
+        upper_bounds = np.asarray(
+            [
+                np.log(upper_m),
+                np.log(upper_m),
+                np.log(total_upper),
+                logit(fraction_upper),
+            ]
+        )
+
+        def unpack(parameters: Array) -> tuple[float, float, float, float]:
+            ly, lx, total_variance = np.exp(parameters[:3])
+            fraction = 1.0 / (1.0 + np.exp(-parameters[3]))
+            nugget_variance = total_variance * fraction
+            structured_variance = total_variance - nugget_variance
+            return float(ly), float(lx), float(structured_variance), float(nugget_variance)
+
+    else:
+        x0 = np.asarray(
+            [np.log(initial_y_m), np.log(initial_x_m), np.log(initial_total_variance)],
+            dtype=np.float64,
+        )
+        lower_bounds = np.log([lower_m, lower_m, total_lower])
+        upper_bounds = np.log([upper_m, upper_m, total_upper])
+
+        def unpack(parameters: Array) -> tuple[float, float, float, float]:
+            ly, lx, structured_variance = np.exp(parameters)
+            return float(ly), float(lx), float(structured_variance), 0.0
+
+    scale = max(sample_variance, np.finfo(float).eps)
+
+    def prediction(
+        direction: str,
+        distances: Array,
+        ly: float,
+        lx: float,
+        structured_variance: float,
+        nugget_variance: float,
+    ) -> Array:
+        rho = rho_for(direction, distances, ly, lx)
+        return nugget_variance + structured_variance * (1.0 - rho)
+
+    def residual(parameters: Array) -> Array:
+        ly, lx, structured_variance, nugget_variance = unpack(parameters)
+        pieces: list[Array] = []
+        for direction in directions:
+            distances, empirical = variograms[direction]
+            difference = (
+                prediction(
+                    direction,
+                    distances,
+                    ly,
+                    lx,
+                    structured_variance,
+                    nugget_variance,
+                )
+                - empirical
+            ) / scale
+            if pair_count_weighted_fit:
+                weights = np.sqrt(
+                    np.asarray(pair_counts[direction], dtype=np.float64) / count_scale
+                )
+                difference = difference * weights
+            pieces.append(difference)
+        return np.concatenate(pieces)
+
+    fit = least_squares(
+        residual,
+        x0=x0,
+        bounds=(lower_bounds, upper_bounds),
+        method="trf",
+    )
+    ly, lx, structured_variance, nugget_variance = unpack(fit.x)
+
+    errors: dict[str, float] = {}
+    all_differences: list[Array] = []
+    all_weights: list[Array] = []
+    for direction in directions:
+        distances, empirical = variograms[direction]
+        difference = (
+            prediction(
+                direction,
+                distances,
+                ly,
+                lx,
+                structured_variance,
+                nugget_variance,
+            )
+            - empirical
+        )
+        counts = np.asarray(pair_counts[direction], dtype=np.float64)
+        errors[direction] = float(np.sqrt(np.mean(difference**2)))
+        errors[f"weighted_{direction}"] = float(
+            np.sqrt(np.sum(counts * difference**2) / np.sum(counts))
+        )
+        all_differences.append(difference)
+        all_weights.append(counts)
+    concatenated = np.concatenate(all_differences)
+    weights = np.concatenate(all_weights)
+    errors["all"] = float(np.sqrt(np.mean(concatenated**2)))
+    errors["weighted_all"] = float(
+        np.sqrt(np.sum(weights * concatenated**2) / np.sum(weights))
+    )
+    return ly, lx, structured_variance, nugget_variance, errors
 
 
 def calibrate_covariance_candidates(
