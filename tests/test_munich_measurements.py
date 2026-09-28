@@ -171,3 +171,31 @@ def test_exact_grid_from_continuous_points_respects_active_mask():
     assert np.isnan(result.mean_log10_k[0, 2])
     assert np.isnan(result.std_log10_k[2, 0])
     assert np.isfinite(result.mean_log10_k[1, 1])
+
+
+def test_spatial_block_cv_predicts_every_measurement_once():
+    x, y = np.meshgrid(np.arange(8) * 500.0, np.arange(8) * 500.0)
+    coordinates = np.column_stack((x.ravel(), y.ravel()))
+    log_values = (
+        -2.3
+        + 0.12 * np.sin(x.ravel() / 1000.0)
+        + 0.09 * np.cos(y.ravel() / 1200.0)
+    )
+    conductivity = 10.0 ** log_values
+    result = spatial_block_cross_validate_measurements(
+        coordinates,
+        conductivity,
+        models=("radial_exponential",),
+        n_folds=4,
+        block_size_m=1000.0,
+        fold_seed=11,
+        lag_bin_m=500.0,
+        max_lag_m=2500.0,
+        angle_tolerance_deg=22.5,
+        min_pairs_per_bin=2,
+    )
+    assert result.summary_rows[0]["n_predictions"] == coordinates.shape[0]
+    assert len(result.fold_rows) == 4
+    assert np.isfinite(result.summary_rows[0]["rmse_log10_k"])
+    assert np.isfinite(result.summary_rows[0]["gaussian_nlpd"])
+    assert 0.0 <= result.summary_rows[0]["coverage_90"] <= 1.0
