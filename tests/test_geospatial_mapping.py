@@ -2,12 +2,14 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
 from subsurface_uq.sampling.geospatial import (
+    GEOREFERENCE_SWEEP_REPRESENTATIONS,
     LGCNNDomainGeoreference,
     ReferencePermeabilitySurface,
     infer_lgcnn_domain_georeference,
     load_reference_permeability_surface,
     orient_raw_field,
     geographic_to_raw_field,
+    summarize_georeference_sweep,
 )
 
 
@@ -168,3 +170,78 @@ def test_georeference_edges_are_cell_edge_coordinates():
     assert mapping.east_edge_m == 120.0
     assert mapping.north_edge_m == 215.0
     assert mapping.contains_xy(np.asarray([100.0, 119.9]), np.asarray([200.0, 214.9])).all()
+
+
+def test_georeference_sweep_requires_cross_run_consistency():
+    rows = []
+    runs = ("RUN_1", "RUN_2", "RUN_3")
+    for column, z_mode in GEOREFERENCE_SWEEP_REPRESENTATIONS:
+        for index, run in enumerate(runs):
+            good = (column, z_mode) == ("K_P50", "log_geomean")
+            rows.append(
+                {
+                    "run_name": run,
+                    "reference_column": column,
+                    "reference_z_mode": z_mode,
+                    "transform": "transpose" if good else ("identity" if index < 2 else "flip_x"),
+                    "correlation": 0.96 if good else 0.25,
+                    "centered_rmse_log10": 0.08 if good else 0.9,
+                    "reference_coverage_fraction": 0.95,
+                    "log10_unit_shift_raw_minus_reference": (
+                        -6.99 + 0.02 * index if good else -5.5 + 0.4 * index
+                    ),
+                    "unit_shift_interpretation": (
+                        "reference_values_behave_like_hydraulic_conductivity_m_per_s"
+                        if good
+                        else "unit_relation_ambiguous"
+                    ),
+                    "validated": good,
+                    "error": None,
+                }
+            )
+
+    summary = summarize_georeference_sweep(
+        rows,
+        run_names=runs,
+        max_unit_shift_spread_log10=0.15,
+    )
+
+    assert summary["consistent_defensible_mapping_exists"]
+    assert summary["defensible_representation_count"] == 1
+    selected = summary["selected_representation"]
+    assert selected["reference_column"] == "K_P50"
+    assert selected["reference_z_mode"] == "log_geomean"
+    assert selected["consistent_transform"] == "transpose"
+    assert selected["unit_shift_spread_log10"] < 0.15
+    selected_rows = [row for row in summary["rows"] if row["selected_representation_row"]]
+    assert len(selected_rows) == 3
+    assert all(row["consistent_defensible_mapping_exists"] for row in selected_rows)
+
+
+def test_georeference_sweep_rejects_individually_good_but_inconsistent_transforms():
+    runs = ("RUN_1", "RUN_2")
+    rows = []
+    for column, z_mode in GEOREFERENCE_SWEEP_REPRESENTATIONS:
+        for index, run in enumerate(runs):
+            target = (column, z_mode) == ("K_P10", "top")
+            rows.append(
+                {
+                    "run_name": run,
+                    "reference_column": column,
+                    "reference_z_mode": z_mode,
+                    "transform": ("identity" if index == 0 else "flip_y") if target else "identity",
+                    "correlation": 0.95 if target else 0.2,
+                    "centered_rmse_log10": 0.10 if target else 1.0,
+                    "reference_coverage_fraction": 0.95,
+                    "log10_unit_shift_raw_minus_reference": -6.99,
+                    "unit_shift_interpretation": "reference_values_behave_like_hydraulic_conductivity_m_per_s",
+                    "validated": target,
+                    "error": None,
+                }
+            )
+
+    summary = summarize_georeference_sweep(rows, run_names=runs)
+
+    assert not summary["consistent_defensible_mapping_exists"]
+    assert summary["defensible_representation_count"] == 0
+    assert summary["selected_representation"] is None
