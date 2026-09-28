@@ -121,6 +121,7 @@ class KLLogGaussianPermeabilityMap:
     covariance_model: str = "matern32"
     n_modes: int | None = None
     energy_threshold: float = 0.95
+    global_mean_std_log10_k: float = 0.0
 
     _eigvals_y: Array = field(init=False, repr=False)
     _eigvecs_y: Array = field(init=False, repr=False)
@@ -133,6 +134,7 @@ class KLLogGaussianPermeabilityMap:
     _retained_energy_fraction: float = field(init=False, repr=False)
     _selection_method: str = field(init=False, repr=False)
     _requested_n_modes: int | None = field(init=False, repr=False)
+    _spatial_dimension: int = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         if len(self.shape) != 2 or any(int(value) <= 0 for value in self.shape):
@@ -149,6 +151,8 @@ class KLLogGaussianPermeabilityMap:
             raise ValueError("mean_log10_k must be finite")
         if not np.isfinite(self.std_log10_k) or self.std_log10_k <= 0.0:
             raise ValueError("std_log10_k must be finite and positive")
+        if not np.isfinite(self.global_mean_std_log10_k) or self.global_mean_std_log10_k < 0.0:
+            raise ValueError("global_mean_std_log10_k must be finite and non-negative")
         if not np.isfinite(self.energy_threshold) or not (0.0 < self.energy_threshold <= 1.0):
             raise ValueError("energy_threshold must lie in (0, 1]")
         self.covariance_model = str(self.covariance_model).strip().lower()
@@ -168,6 +172,7 @@ class KLLogGaussianPermeabilityMap:
         )
         self.mean_log10_k = float(self.mean_log10_k)
         self.std_log10_k = float(self.std_log10_k)
+        self.global_mean_std_log10_k = float(self.global_mean_std_log10_k)
         self.energy_threshold = float(self.energy_threshold)
 
         total_modes = self.shape[0] * self.shape[1]
@@ -227,13 +232,20 @@ class KLLogGaussianPermeabilityMap:
             raise RuntimeError("selected KL modes must have strictly positive eigenvalues")
 
         self.n_modes = int(selected_count)
+        self._spatial_dimension = int(selected_count)
+        global_trace = self.global_mean_std_log10_k**2 * self.shape[0] * self.shape[1]
         self._retained_energy_fraction = float(
-            np.sum(self._eigenvalues, dtype=np.float64) / self._total_variance
+            (np.sum(self._eigenvalues, dtype=np.float64) + global_trace)
+            / (self._total_variance + global_trace)
         )
 
     @property
     def dimension(self) -> int:
-        return int(self.n_modes)
+        return int(self._spatial_dimension + (self.global_mean_std_log10_k > 0.0))
+
+    @property
+    def spatial_dimension(self) -> int:
+        return int(self._spatial_dimension)
 
     @property
     def field_shape(self) -> tuple[int, int]:
@@ -241,11 +253,17 @@ class KLLogGaussianPermeabilityMap:
 
     @property
     def eigenvalues(self) -> Array:
-        return self._eigenvalues.copy()
+        if self.global_mean_std_log10_k <= 0.0:
+            return self._eigenvalues.copy()
+        global_eigenvalue = self.global_mean_std_log10_k**2 * self.shape[0] * self.shape[1]
+        return np.concatenate((np.asarray([global_eigenvalue]), self._eigenvalues))
 
     @property
     def mode_pairs(self) -> Array:
-        return np.column_stack((self._mode_y, self._mode_x))
+        pairs = np.column_stack((self._mode_y, self._mode_x))
+        if self.global_mean_std_log10_k <= 0.0:
+            return pairs
+        return np.vstack((np.asarray([[-1, -1]], dtype=np.int64), pairs))
 
     @property
     def retained_energy_fraction(self) -> float:
@@ -279,10 +297,15 @@ class KLLogGaussianPermeabilityMap:
 
         vectors_y = self._eigvecs_y[:, self._mode_y]
         vectors_x = self._eigvecs_x[:, self._mode_x]
-        return (
+        spatial = (
             vectors_y[rows, :]
             * vectors_x[cols, :]
             * np.sqrt(self._eigenvalues)[None, :]
+        )
+        if self.global_mean_std_log10_k <= 0.0:
+            return spatial
+        return np.column_stack(
+            (np.full(rows.shape[0], self.global_mean_std_log10_k), spatial)
         )
 
     def mode_matrix_at_coordinates(self, coordinates_yx_m: Array) -> Array:
@@ -342,7 +365,12 @@ class KLLogGaussianPermeabilityMap:
         extended_x = (
             corr_x @ self._eigvecs_x[:, self._mode_x]
         ) / eig_x[None, :]
-        return extended_y * extended_x * np.sqrt(self._eigenvalues)[None, :]
+        spatial = extended_y * extended_x * np.sqrt(self._eigenvalues)[None, :]
+        if self.global_mean_std_log10_k <= 0.0:
+            return spatial
+        return np.column_stack(
+            (np.full(coordinates.shape[0], self.global_mean_std_log10_k), spatial)
+        )
 
     def map_log10_coordinates_at_points(
         self,
@@ -366,8 +394,10 @@ class KLLogGaussianPermeabilityMap:
             "axis_convention": "shape=(H,W), domain=(L_y,L_x), length_scale=(ell_y,ell_x)",
             "mean_log10_k": self.mean_log10_k,
             "std_log10_k": self.std_log10_k,
+            "global_mean_std_log10_k": self.global_mean_std_log10_k,
             "length_scale_m": [self.length_scale_m[0], self.length_scale_m[1]],
             "dimension": self.dimension,
+            "spatial_dimension": self.spatial_dimension,
             "selection": self._selection_method,
             "requested_n_modes": self._requested_n_modes,
             "energy_threshold_requested": self.energy_threshold,
@@ -397,7 +427,13 @@ class KLLogGaussianPermeabilityMap:
         """Map coordinates to truncated-KL log10-permeability fields."""
 
         coordinates, single = self._prepare_coordinates(coordinates)
-        weighted = coordinates * np.sqrt(self._eigenvalues)[None, :]
+        if self.global_mean_std_log10_k > 0.0:
+            global_shift = coordinates[:, 0] * self.global_mean_std_log10_k
+            spatial_coordinates = coordinates[:, 1:]
+        else:
+            global_shift = np.zeros(coordinates.shape[0], dtype=np.float64)
+            spatial_coordinates = coordinates
+        weighted = spatial_coordinates * np.sqrt(self._eigenvalues)[None, :]
 
         # The naive sum over every selected 2-D mode costs O(B*H*W*m).
         # Regroup the selected tensor-product modes into the unique retained
@@ -420,6 +456,7 @@ class KLLogGaussianPermeabilityMap:
             vectors_x,
             optimize=True,
         )
+        fields += global_shift[:, None, None]
         return fields[0] if single else fields
 
     def map_coordinates(self, coordinates: Array) -> Array:

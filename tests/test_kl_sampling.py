@@ -274,3 +274,35 @@ def test_continuous_conditional_sampler_reproduces_posterior_moments():
 
     np.testing.assert_allclose(np.mean(samples), target_mean[0], atol=0.01)
     np.testing.assert_allclose(np.std(samples, ddof=1), target_std[0], atol=0.01)
+
+
+
+def test_training_field_mean_mode_adds_constant_covariance_and_preserves_gaussian_coordinates():
+    shape = (3, 4)
+    spatial_std = 0.25
+    global_std = 0.12
+    field_map = KLLogGaussianPermeabilityMap(
+        shape=shape,
+        domain_size_m=(300.0, 400.0),
+        mean_log10_k=0.0,
+        std_log10_k=spatial_std,
+        global_mean_std_log10_k=global_std,
+        length_scale_m=(90.0, 140.0),
+        covariance_model="exponential",
+        n_modes=shape[0] * shape[1],
+    )
+
+    basis_columns = field_map.map_log10_coordinates(
+        np.eye(field_map.dimension)
+    ).reshape(field_map.dimension, -1).T
+    reconstructed = basis_columns @ basis_columns.T
+
+    corr_y = exponential_correlation_matrix(shape[0], 300.0, 90.0)
+    corr_x = exponential_correlation_matrix(shape[1], 400.0, 140.0)
+    expected = spatial_std**2 * np.kron(corr_y, corr_x)
+    expected += global_std**2 * np.ones_like(expected)
+
+    np.testing.assert_allclose(reconstructed, expected, rtol=1e-11, atol=1e-12)
+    assert field_map.dimension == shape[0] * shape[1] + 1
+    assert field_map.spatial_dimension == shape[0] * shape[1]
+    assert field_map.metadata["global_mean_std_log10_k"] == global_std

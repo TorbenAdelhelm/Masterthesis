@@ -75,6 +75,7 @@ def _build_grf_maps(
         domain_size_m=domain_size_m,
         mean_log10_k=config.mean_log10_k,
         std_log10_k=config.std_log10_k,
+        global_mean_std_log10_k=config.global_mean_std_log10_k,
         length_scale_m=(config.length_scale_y_m, config.length_scale_x_m),
         covariance_model=config.covariance_model,
         n_modes=config.n_modes,

@@ -43,6 +43,7 @@ class RQ1Config:
     input_preview_count: int
     mean_log10_k: float
     std_log10_k: float
+    global_mean_std_log10_k: float
     covariance_model: str
     length_scale_y_m: float
     length_scale_x_m: float
@@ -104,6 +105,7 @@ class RQ1Config:
             "grf": {
                 "mean_log10_k": self.mean_log10_k,
                 "std_log10_k": self.std_log10_k,
+                "global_mean_std_log10_k": self.global_mean_std_log10_k,
                 "covariance_model": self.covariance_model,
                 "length_scale_y_m": self.length_scale_y_m,
                 "length_scale_x_m": self.length_scale_x_m,
@@ -250,6 +252,7 @@ def load_rq1_config(path: str | Path) -> RQ1Config:
         raise ValueError("release25.background_temperature must be finite")
 
     std_log10_k = float(grf["std_log10_k"])
+    global_mean_std_log10_k = float(grf.get("global_mean_std_log10_k", 0.0))
     covariance_model = str(grf.get("covariance_model", "matern32")).strip().lower()
     if covariance_model not in {"matern32", "exponential"}:
         raise ValueError(
@@ -260,6 +263,8 @@ def load_rq1_config(path: str | Path) -> RQ1Config:
     lx = float(grf["length_scale_x_m"])
     if std_log10_k <= 0.0 or ly <= 0.0 or lx <= 0.0:
         raise ValueError("GRF standard deviation and length scales must be positive")
+    if not np.isfinite(global_mean_std_log10_k) or global_mean_std_log10_k < 0.0:
+        raise ValueError("grf.global_mean_std_log10_k must be finite and non-negative")
 
     mode = str(streamlines.get("mode", "bounded"))
     method = str(streamlines.get("method", "RK45"))
@@ -292,6 +297,7 @@ def load_rq1_config(path: str | Path) -> RQ1Config:
         input_preview_count=int(sampling.get("input_preview_count", 3)),
         mean_log10_k=float(grf["mean_log10_k"]),
         std_log10_k=std_log10_k,
+        global_mean_std_log10_k=global_mean_std_log10_k,
         covariance_model=covariance_model,
         length_scale_y_m=ly,
         length_scale_x_m=lx,

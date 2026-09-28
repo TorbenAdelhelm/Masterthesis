@@ -309,6 +309,7 @@ streamlines:
     assert config.comparison_budgets == (2, 4)
     assert config.repetition_seeds == (20, 30)
     assert config.covariance_model == "exponential"
+    assert config.global_mean_std_log10_k == 0.0
 
     completed = subprocess.run(
         [sys.executable, "-m", "subsurface_uq.experiments.release25_rq1", "--help"],

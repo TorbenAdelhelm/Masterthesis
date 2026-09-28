@@ -389,6 +389,50 @@ class ContinuousPointConditionalKLLogGaussianPermeabilityMap:
         return self._noise_std.copy()
 
     @property
+    def prior_predictive_diagnostics(self) -> dict[str, object]:
+        """Describe how compatible the observations are with the unconditioned prior."""
+
+        innovation = self._A @ self._A.T + np.diag(self._noise_std**2)
+        innovation = 0.5 * (innovation + innovation.T)
+        residual = self._values - self.prior.mean_log10_k
+        try:
+            solved = np.linalg.solve(innovation, residual)
+        except np.linalg.LinAlgError:
+            solved = np.linalg.pinv(innovation, rcond=self.rank_tolerance) @ residual
+        marginal_std = np.sqrt(
+            np.maximum(np.diag(innovation), np.finfo(float).eps)
+        )
+        standardized = residual / marginal_std
+        mahalanobis_sq = float(residual @ solved)
+        z90 = 1.6448536269514722
+        return {
+            "measurement_count": int(residual.size),
+            "rmse_log10": float(np.sqrt(np.mean(residual * residual))),
+            "mean_standardized_residual": float(np.mean(standardized)),
+            "std_standardized_residual": (
+                float(np.std(standardized, ddof=1))
+                if standardized.size > 1
+                else 0.0
+            ),
+            "max_abs_standardized_residual": float(np.max(np.abs(standardized))),
+            "marginal_90pct_coverage": float(
+                np.mean(np.abs(standardized) <= z90)
+            ),
+            "mahalanobis_squared": mahalanobis_sq,
+            "mahalanobis_squared_per_observation": float(
+                mahalanobis_sq / max(residual.size, 1)
+            ),
+            "posterior_coordinate_mean_norm": float(
+                np.linalg.norm(self._posterior_mean)
+            ),
+            "interpretation": (
+                "These are diagnostics of the real measurements under the "
+                "training-informed unconditioned prior plus observation noise. "
+                "They do not filter posterior samples."
+            ),
+        }
+
+    @property
     def metadata(self) -> dict[str, object]:
         return {
             "map": "ContinuousPointConditionalKLLogGaussianPermeabilityMap",
@@ -398,8 +442,12 @@ class ContinuousPointConditionalKLLogGaussianPermeabilityMap:
             "prior_dimension": int(self.prior.dimension),
             "posterior_dimension": int(self.dimension),
             "n_observations": int(self._coordinates.shape[0]),
+            "observation_coordinates_yx_m": self._coordinates.tolist(),
+            "observation_log10_k": self._values.tolist(),
+            "observation_std_log10_k": self._noise_std.tolist(),
             "observation_std_log10_k_min": float(np.min(self._noise_std)),
             "observation_std_log10_k_max": float(np.max(self._noise_std)),
+            "prior_predictive_diagnostics": self.prior_predictive_diagnostics,
             "rank_tolerance": self.rank_tolerance,
             "prior": self.prior.metadata,
         }

@@ -80,6 +80,12 @@ from .perlin_coordinates import (
     PerlinCoordinatePermeabilityMap,
 )
 from .qmc import ScrambledSobolGaussianPermeabilitySampler
+from .training_compatibility import (
+    TrainingCompatibilityDiagnostics,
+    TrainingDistributionProfile,
+    characterize_training_distribution,
+    permeability_field_features,
+)
 from .radial_exponential import RadialExponentialPermeabilitySampler
 
 __all__ = [
@@ -134,6 +140,8 @@ __all__ = [
     "SUPPORTED_CALIBRATION_MODELS",
     "Release25PerlinPermeabilitySampler",
     "ScrambledSobolGaussianPermeabilitySampler",
+    "TrainingCompatibilityDiagnostics",
+    "TrainingDistributionProfile",
     "StochasticPermeabilityMap",
     "UniformCoordinatePermeabilitySampler",
     "calibrate_covariance_candidates",
@@ -147,4 +155,6 @@ __all__ = [
     "load_release25_raw_permeability_dataset",
     "matern32_correlation_matrix",
     "sample_borehole_observations",
+    "characterize_training_distribution",
+    "permeability_field_features",
 ]

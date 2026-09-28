@@ -15,6 +15,8 @@ from ..sampling import (
     GaussianCoordinatePermeabilitySampler,
     KLLogGaussianPermeabilityMap,
     RadialExponentialPermeabilitySampler,
+    TrainingCompatibilityDiagnostics,
+    characterize_training_distribution,
     calibrate_covariance_candidates,
     correlation_for_offsets,
     exact_simple_kriging_posterior,
@@ -1278,24 +1280,66 @@ def _georeference_sweep(args: argparse.Namespace) -> int:
 
 
 def _new_domain_generate(args: argparse.Namespace) -> int:
-    calibration_path = Path(args.calibration).expanduser().resolve()
-    with calibration_path.open("r", encoding="utf-8") as handle:
-        calibration_payload = yaml.safe_load(handle)
-    candidates = {
-        str(item["covariance_model"]): item
-        for item in calibration_payload["candidates_full_data"]
-    }
+    training_calibration_path = Path(args.training_calibration).expanduser().resolve()
+    with training_calibration_path.open("r", encoding="utf-8") as handle:
+        training_calibration_payload = yaml.safe_load(handle)
+    measurement_calibration_path = Path(args.measurement_calibration).expanduser().resolve()
+    with measurement_calibration_path.open("r", encoding="utf-8") as handle:
+        measurement_calibration_payload = yaml.safe_load(handle)
+
+    training_candidates = [
+        dict(item) for item in training_calibration_payload.get("candidates", [])
+    ]
+    if not training_candidates:
+        raise ValueError(
+            "training calibration must come from the field-based 'calibrate' command "
+            "and contain covariance candidates"
+        )
+    supported = {"matern32", "exponential"}
     model = args.model
     if model is None:
-        model = str(calibration_payload["selected_by_spatial_cv_rmse"]["covariance_model"])
-    if model not in {"matern32", "exponential"}:
-        raise ValueError(
-            "new-domain KL generation currently supports the separable matern32 or "
-            "exponential covariance; select --model exponential for the current Munich fit"
+        selected_name = str(
+            training_calibration_payload.get("selected", {}).get(
+                "covariance_model", ""
+            )
         )
-    if model not in candidates:
-        raise ValueError(f"model {model!r} is not present in measurement calibration")
-    selected = candidates[model]
+        if selected_name in supported:
+            model = selected_name
+        else:
+            model = next(
+                (
+                    str(item["covariance_model"])
+                    for item in training_candidates
+                    if str(item["covariance_model"]) in supported
+                ),
+                None,
+            )
+    if model not in supported:
+        raise ValueError(
+            "training-informed Gaussian-coordinate generation requires a separable "
+            "matern32 or exponential training-prior covariance"
+        )
+    training_prior = next(
+        (
+            item
+            for item in training_candidates
+            if str(item.get("covariance_model")) == model
+        ),
+        None,
+    )
+    if training_prior is None:
+        raise ValueError(f"model {model!r} is not present in training calibration")
+
+    measurement_candidates = {
+        str(item["covariance_model"]): dict(item)
+        for item in measurement_calibration_payload.get("candidates_full_data", [])
+    }
+    if model not in measurement_candidates:
+        raise ValueError(
+            f"model {model!r} is not present in measurement calibration; "
+            "the same family is required to obtain its fitted nugget diagnostic"
+        )
+    measurement_fit = measurement_candidates[model]
 
     reference_grid = load_reference_horizontal_grid(
         args.reference_grid, expected_cell_size_m=args.expected_reference_cell_size_m
@@ -1320,6 +1364,23 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             f"selected domain contains only {len(selected_measurements)} measurements; "
             f"minimum requested is {args.min_conditioning_measurements}"
         )
+
+    training_fields, training_source = _load_source(
+        args.training_fields,
+        key=args.training_key,
+        cell_size_m=args.cell_size_m,
+    )
+    if tuple(training_fields.shape[1:]) != domain.shape:
+        raise ValueError(
+            "training permeability fields must have the same spatial shape as the "
+            f"LGCNN input domain: {tuple(training_fields.shape[1:])} != {domain.shape}"
+        )
+    training_profile = characterize_training_distribution(
+        training_fields,
+        cell_size_m=args.cell_size_m,
+        spatial_stride=args.training_diagnostic_stride,
+    )
+    training_compatibility = TrainingCompatibilityDiagnostics(training_profile)
 
     reference_rows, reference_cols = np.indices(reference_grid.shape)
     reference_x = (
@@ -1352,10 +1413,11 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         )[0]
     )
     log10_shift = float(np.log10(conversion_factor))
-    structured_std = float(
-        selected.get("structured_std_log10_k") or selected["std_log10_k"]
+    structured_std = float(training_prior["std_log10_k"])
+    global_mean_std = float(
+        training_prior.get("between_field_mean_std_log10_k", 0.0) or 0.0
     )
-    nugget_std = float(selected.get("nugget_std_log10_k", 0.0))
+    nugget_std = float(measurement_fit.get("nugget_std_log10_k", 0.0))
     extra_std = float(args.observation_std_log10_k)
     if extra_std < 0.0:
         raise ValueError("observation-std-log10-k must be non-negative")
@@ -1368,11 +1430,12 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     prior = KLLogGaussianPermeabilityMap(
         shape=domain.shape,
         domain_size_m=domain.size_m,
-        mean_log10_k=float(selected["mean_log10_k"]) + log10_shift,
+        mean_log10_k=float(training_prior["mean_log10_k"]),
         std_log10_k=structured_std,
+        global_mean_std_log10_k=global_mean_std,
         length_scale_m=(
-            float(selected["length_scale_y_m"]),
-            float(selected["length_scale_x_m"]),
+            float(training_prior["length_scale_y_m"]),
+            float(training_prior["length_scale_x_m"]),
         ),
         covariance_model=model,
         n_modes=args.n_modes,
@@ -1407,9 +1470,11 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         model,
         delta_y_m=delta_y,
         delta_x_m=delta_x,
-        length_scale_y_m=float(selected["length_scale_y_m"]),
-        length_scale_x_m=float(selected["length_scale_x_m"]),
+        length_scale_y_m=float(training_prior["length_scale_y_m"]),
+        length_scale_x_m=float(training_prior["length_scale_x_m"]),
     )
+    if global_mean_std > 0.0:
+        exact_covariance = exact_covariance + global_mean_std**2
     covariance_denominator = max(float(np.linalg.norm(exact_covariance)), np.finfo(float).eps)
     conditioning_covariance_relative_error = float(
         np.linalg.norm(approximate_covariance - exact_covariance)
@@ -1458,12 +1523,10 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     outside_total = 0
     total_cells = 0
     outside_by_sample: list[float] = []
-    training_min = float(args.training_k_min_m2)
-    training_max = float(args.training_k_max_m2)
-    if not (0.0 < training_min < training_max):
-        raise ValueError("training permeability bounds must satisfy 0 < min < max")
+    training_min, training_max = training_profile.training_k_range
 
     for batch in sampler:
+        training_compatibility.update(batch)
         for field in np.asarray(batch):
             sample_count += 1
             physical = np.asarray(field, dtype=np.float64)
@@ -1552,9 +1615,9 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
                 np.count_nonzero(active_reference_in_domain)
             ),
             "interpretation": (
-                "Reference-grid coverage is a support diagnostic only; the stochastic "
-                "field is generated from real-measurement covariance/conditioning, not "
-                "from the failed historical DaRUS georeference."
+                "Reference-grid coverage is a support diagnostic only. The stochastic "
+                "prior is learned from the actual LGCNN training permeability fields; "
+                "real measurements are used for conditioning, not to redefine that prior."
             ),
         },
         "measurement_qc": measurement_qc,
@@ -1564,18 +1627,22 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "fitted_nugget_std_log10_k": nugget_std,
             "additional_observation_std_log10_k": extra_std,
             "effective_observation_std_log10_k": effective_observation_std,
+            "prior_predictive_under_training_prior": conditional.prior_predictive_diagnostics,
             "posterior_predictive_90pct_coverage_at_measurements": observation_coverage90,
             "standardized_residual_mean": float(np.mean(standardized)),
             "standardized_residual_std": float(np.std(standardized, ddof=1)) if standardized.size > 1 else 0.0,
         },
         "kl": {
             "dimension": prior.dimension,
+            "spatial_dimension": prior.spatial_dimension,
+            "global_field_mean_coordinate": bool(global_mean_std > 0.0),
             "retained_energy_fraction": prior.retained_energy_fraction,
             "requested_n_modes": args.n_modes,
             "requested_energy_threshold": float(args.energy_threshold),
             "conditioning_point_covariance_relative_frobenius_error": conditioning_covariance_relative_error,
         },
         "posterior_reproduction": posterior_reproduction,
+        "training_distribution_compatibility": training_compatibility.finalize(),
         "generated_ensemble": {
             "n_samples": sample_count,
             "seed": int(args.seed),
@@ -1586,7 +1653,48 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "outside_training_fraction": float(outside_total / total_cells),
             "outside_training_fraction_by_sample": outside_by_sample,
         },
-        "calibration": selected,
+        "prior_definition": {
+            "source": "lgcnn_training_permeability_fields",
+            "training_fields": training_source,
+            "training_calibration_path": str(training_calibration_path),
+            "selected_covariance": training_prior,
+            "global_mean_std_log10_k": global_mean_std,
+            "policy": (
+                "Prior mean, structured variance and correlation lengths come from "
+                "LGCNN training inputs. Real measurements condition this prior but do "
+                "not replace it."
+            ),
+        },
+        "measurement_model": {
+            "measurement_calibration_path": str(measurement_calibration_path),
+            "same_family_fit": measurement_fit,
+            "use": (
+                "Real measurements provide conditioning values and the fitted nugget "
+                "used as observation-scale uncertainty."
+            ),
+            "converted_mean_log10_intrinsic_permeability": (
+                float(measurement_fit["mean_log10_k"]) + log10_shift
+            ),
+            "mean_difference_measurement_minus_training_log10": (
+                float(measurement_fit["mean_log10_k"]) + log10_shift
+                - float(training_prior["mean_log10_k"])
+            ),
+            "structured_std_ratio_measurement_to_training": (
+                float(
+                    measurement_fit.get("structured_std_log10_k")
+                    or measurement_fit["std_log10_k"]
+                )
+                / structured_std
+            ),
+            "length_scale_y_ratio_measurement_to_training": (
+                float(measurement_fit["length_scale_y_m"])
+                / float(training_prior["length_scale_y_m"])
+            ),
+            "length_scale_x_ratio_measurement_to_training": (
+                float(measurement_fit["length_scale_x_m"])
+                / float(training_prior["length_scale_x_m"])
+            ),
+        },
         "hydraulic_to_intrinsic_conversion": {
             "factor": conversion_factor,
             "log10_shift": log10_shift,
@@ -1604,12 +1712,32 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         },
         "sampler": sampler.metadata,
     }
+    stochastic_input_model = {
+        "schema_version": 1,
+        "coordinate_distribution": "iid_standard_normal",
+        "coordinate_dimension": int(conditional.dimension),
+        "field_shape": list(domain.shape),
+        "domain": domain.to_dict(),
+        "prior": prior.metadata,
+        "conditioning": {
+            "observation_coordinates_yx_m": observation_local_yx.tolist(),
+            "observation_log10_intrinsic_permeability": observation_log10_intrinsic.tolist(),
+            "observation_std_log10_k": conditional.observation_std_array.tolist(),
+        },
+        "source_policy": {
+            "prior": "actual_lgcnn_training_permeability_fields",
+            "conditioning": "real_munich_measurements",
+            "sample_filtering": None,
+        },
+    }
+    with (root / "stochastic_input_model.yaml").open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(stochastic_input_model, handle, sort_keys=False)
     with (root / "new_domain_generator.yaml").open("w", encoding="utf-8") as handle:
         yaml.safe_dump(diagnostics, handle, sort_keys=False)
     with (root / "new_domain_generator.json").open("w", encoding="utf-8") as handle:
         json.dump(diagnostics, handle, indent=2, sort_keys=True)
 
-    print("Measurement-conditioned new LGCNN domain")
+    print("Training-informed, measurement-conditioned new LGCNN domain")
     print(
         f"  domain: W={domain.west_edge_m:.1f}, S={domain.south_edge_m:.1f}, "
         f"E={domain.east_edge_m:.1f}, N={domain.north_edge_m:.1f} m"
@@ -1622,7 +1750,7 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         f"conditioning covariance error={conditioning_covariance_relative_error:.4g}"
     )
     print(
-        f"  generated samples: {sample_count}, outside release25 K range="
+        f"  generated samples: {sample_count}, outside empirical training K range="
         f"{diagnostics['generated_ensemble']['outside_training_fraction']:.4%}"
     )
     print(f"Saved new-domain generator outputs to {root}")
@@ -1819,14 +1947,32 @@ def build_parser() -> argparse.ArgumentParser:
     new_domain = sub.add_parser(
         "new-domain-generate",
         help=(
-            "define a new 12.8 km projected Munich domain, condition the calibrated "
-            "structured KL field on the real measurements inside it, and generate "
-            "5 m intrinsic-permeability realizations for LGCNN input"
+            "define a projected Munich domain, build the Gaussian KL prior from actual "
+            "LGCNN training permeability fields, condition it on real measurements, "
+            "and generate intrinsic-permeability realizations for LGCNN input"
         ),
     )
     new_domain.add_argument("--measurements", required=True)
     new_domain.add_argument("--reference-grid", required=True)
-    new_domain.add_argument("--calibration", required=True)
+    new_domain.add_argument(
+        "--training-fields",
+        required=True,
+        help="Actual permeability fields used to train the pretrained LGCNN.",
+    )
+    new_domain.add_argument("--training-key")
+    new_domain.add_argument(
+        "--training-calibration",
+        required=True,
+        help="Field-based calibration YAML produced from --training-fields.",
+    )
+    new_domain.add_argument(
+        "--measurement-calibration",
+        required=True,
+        help=(
+            "Real-measurement calibration YAML; used for the fitted nugget "
+            "diagnostic/observation noise."
+        ),
+    )
     new_domain.add_argument("--model", choices=["matern32", "exponential"])
     new_domain.add_argument("--sheet-name", default="kf_werte_180223")
     new_domain.add_argument("--stratigraphy", default="q")
@@ -1844,8 +1990,14 @@ def build_parser() -> argparse.ArgumentParser:
     new_domain.add_argument("--seed", type=int, default=4901)
     new_domain.add_argument("--observation-std-log10-k", type=float, default=0.0)
     new_domain.add_argument("--diagnostic-grid-stride", type=int, default=128)
-    new_domain.add_argument("--training-k-min-m2", type=float, default=1.02e-11)
-    new_domain.add_argument("--training-k-max-m2", type=float, default=5.10e-9)
+    new_domain.add_argument(
+        "--training-diagnostic-stride",
+        type=int,
+        default=4,
+        help=(
+            "Spatial stride used for training-vs-generated compatibility descriptors."
+        ),
+    )
     new_domain.add_argument("--dynamic-viscosity-pa-s", type=float, default=1.002e-3)
     new_domain.add_argument("--density-kg-m3", type=float, default=998.2)
     new_domain.add_argument("--gravity-m-s2", type=float, default=9.80665)
