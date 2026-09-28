@@ -142,6 +142,201 @@ class LGCNNDomainGeoreference:
         }
 
 
+GEOREFERENCE_SWEEP_REPRESENTATIONS = tuple(
+    (column, z_mode)
+    for column in ("K_P10", "K_P50", "K_P90")
+    for z_mode in ("top", "bottom", "log_geomean")
+)
+
+
+def summarize_georeference_sweep(
+    rows: list[dict[str, object]],
+    *,
+    run_names: Iterable[str],
+    max_unit_shift_spread_log10: float = 0.15,
+) -> dict[str, object]:
+    """Assess whether any reference representation maps consistently across runs.
+
+    A representation is called defensible only when every requested run produced
+    a validated match, every run selected the same raw-array transform, and the
+    fitted additive log10 unit shifts agree within the configured max-min spread.
+    The crop origin itself is allowed to vary across runs because the DaRUS runs
+    may be different cutouts of the same parent field.
+    """
+
+    requested_runs = tuple(str(name) for name in run_names)
+    if len(requested_runs) < 2:
+        raise ValueError("georeference sweep consistency requires at least two runs")
+    if float(max_unit_shift_spread_log10) < 0.0:
+        raise ValueError("max_unit_shift_spread_log10 must be non-negative")
+
+    grouped: dict[tuple[str, str], list[dict[str, object]]] = {}
+    for row in rows:
+        key = (str(row["reference_column"]), str(row["reference_z_mode"]))
+        grouped.setdefault(key, []).append(row)
+
+    representation_summaries: list[dict[str, object]] = []
+    for column, z_mode in GEOREFERENCE_SWEEP_REPRESENTATIONS:
+        group = grouped.get((column, z_mode), [])
+        by_run = {str(row["run_name"]): row for row in group}
+        complete = all(run in by_run for run in requested_runs)
+        usable = [
+            by_run[run]
+            for run in requested_runs
+            if run in by_run and not by_run[run].get("error")
+        ]
+        validated_all = (
+            complete
+            and len(usable) == len(requested_runs)
+            and all(bool(row.get("validated", False)) for row in usable)
+        )
+        transforms = {str(row["transform"]) for row in usable if row.get("transform")}
+        transform_consistent = (
+            len(usable) == len(requested_runs) and len(transforms) == 1
+        )
+        unit_interpretations = {
+            str(row["unit_shift_interpretation"])
+            for row in usable
+            if row.get("unit_shift_interpretation")
+        }
+        interpretation_consistent = (
+            len(usable) == len(requested_runs) and len(unit_interpretations) == 1
+        )
+        shifts = np.asarray(
+            [
+                float(row["log10_unit_shift_raw_minus_reference"])
+                for row in usable
+                if row.get("log10_unit_shift_raw_minus_reference") is not None
+            ],
+            dtype=np.float64,
+        )
+        shift_spread = (
+            float(np.max(shifts) - np.min(shifts))
+            if shifts.size == len(requested_runs)
+            else float("inf")
+        )
+        shift_consistent = (
+            np.isfinite(shift_spread)
+            and shift_spread <= float(max_unit_shift_spread_log10)
+        )
+        correlations = np.asarray(
+            [float(row["correlation"]) for row in usable if row.get("correlation") is not None],
+            dtype=np.float64,
+        )
+        rmses = np.asarray(
+            [
+                float(row["centered_rmse_log10"])
+                for row in usable
+                if row.get("centered_rmse_log10") is not None
+            ],
+            dtype=np.float64,
+        )
+        coverages = np.asarray(
+            [
+                float(row["reference_coverage_fraction"])
+                for row in usable
+                if row.get("reference_coverage_fraction") is not None
+            ],
+            dtype=np.float64,
+        )
+        defensible = bool(
+            validated_all
+            and transform_consistent
+            and shift_consistent
+            and interpretation_consistent
+        )
+        representation_summaries.append(
+            {
+                "reference_column": column,
+                "reference_z_mode": z_mode,
+                "run_count": len(usable),
+                "all_runs_present": bool(complete),
+                "all_runs_validated": bool(validated_all),
+                "transform_consistent": bool(transform_consistent),
+                "consistent_transform": next(iter(transforms)) if len(transforms) == 1 else None,
+                "unit_shift_consistent": bool(shift_consistent),
+                "unit_shift_interpretation_consistent": bool(interpretation_consistent),
+                "unit_shift_spread_log10": (
+                    None if not np.isfinite(shift_spread) else shift_spread
+                ),
+                "mean_correlation": (
+                    float(np.mean(correlations))
+                    if correlations.size == len(requested_runs)
+                    else None
+                ),
+                "min_correlation": (
+                    float(np.min(correlations))
+                    if correlations.size == len(requested_runs)
+                    else None
+                ),
+                "mean_centered_rmse_log10": (
+                    float(np.mean(rmses)) if rmses.size == len(requested_runs) else None
+                ),
+                "max_centered_rmse_log10": (
+                    float(np.max(rmses)) if rmses.size == len(requested_runs) else None
+                ),
+                "min_reference_coverage_fraction": (
+                    float(np.min(coverages))
+                    if coverages.size == len(requested_runs)
+                    else None
+                ),
+                "defensible": defensible,
+            }
+        )
+
+    defensible = [item for item in representation_summaries if item["defensible"]]
+    selected: dict[str, object] | None = None
+    if defensible:
+        selected = sorted(
+            defensible,
+            key=lambda item: (
+                -float(item["mean_correlation"]),
+                float(item["mean_centered_rmse_log10"]),
+                float(item["unit_shift_spread_log10"]),
+            ),
+        )[0]
+
+    summary_by_key = {
+        (item["reference_column"], item["reference_z_mode"]): item
+        for item in representation_summaries
+    }
+    augmented_rows: list[dict[str, object]] = []
+    for row in rows:
+        rep = summary_by_key[(str(row["reference_column"]), str(row["reference_z_mode"]))]
+        augmented = dict(row)
+        for key, value in rep.items():
+            if key not in {"reference_column", "reference_z_mode"}:
+                augmented[f"representation_{key}"] = value
+        augmented["consistent_defensible_mapping_exists"] = bool(defensible)
+        augmented["selected_representation"] = (
+            None
+            if selected is None
+            else f"{selected['reference_column']}:{selected['reference_z_mode']}"
+        )
+        augmented["selected_representation_row"] = bool(
+            selected is not None
+            and row["reference_column"] == selected["reference_column"]
+            and row["reference_z_mode"] == selected["reference_z_mode"]
+        )
+        augmented_rows.append(augmented)
+
+    return {
+        "run_names": list(requested_runs),
+        "max_unit_shift_spread_log10": float(max_unit_shift_spread_log10),
+        "consistent_defensible_mapping_exists": bool(defensible),
+        "defensible_representation_count": len(defensible),
+        "selected_representation": selected,
+        "representations": representation_summaries,
+        "rows": augmented_rows,
+        "decision_rule": (
+            "A representation is defensible only if all requested runs pass the "
+            "single-run validation thresholds, use one common raw-array transform, "
+            "share one unit-shift interpretation, and the max-min fitted log10 unit "
+            "shift does not exceed the configured tolerance."
+        ),
+    }
+
+
 def orient_raw_field(field: Array, transform: str) -> Array:
     """Return a view/copy whose axes are geographic [y increasing, x increasing]."""
 
