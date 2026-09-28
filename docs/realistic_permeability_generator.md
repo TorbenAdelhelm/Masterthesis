@@ -199,9 +199,11 @@ representation:
 - therefore satisfies the explicit `representation_defensible` flag.
 
 The CSV also contains the global
-`consistent_defensible_mapping_exists` flag and the selected representation,
-if one exists. The decision is additionally written in
-`georeference_sweep_summary.yaml`.
+`consistent_defensible_mapping_exists` flag, the number of defensible
+representations, the `unique_defensible_representation` flag, and the selected
+representation, if one exists. This avoids treating several equally defensible
+reference representations as a uniquely identified parent field. The decision
+is additionally written in `georeference_sweep_summary.yaml`.
 
 The crop origin itself is not required to be identical across runs because
 different DaRUS runs may be different cutouts. Consistency concerns the parent
