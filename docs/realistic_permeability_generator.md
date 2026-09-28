@@ -195,8 +195,10 @@ The baseline calibration always retains all accepted measurements. By default,
 the command also repeats calibration and spatial CV after excluding only values
 above `5e-2 m/s`, corresponding to the nominal upper range used in the
 accompanying parameter table. This is a robustness diagnostic only: the high
-measurements are not clipped or removed from the baseline model. Results are
-written to `measurement_upper_tail_robustness.csv`. Set
+measurements are not clipped or removed from the baseline model. The retained
+measurements keep the same spatial fold assignments as in the baseline CV, so
+changes in the robustness table are not caused by a new fold partition. Results
+are written to `measurement_upper_tail_robustness.csv`. Set
 `--robustness-upper-k-m-s 0` to disable this check.
 
 ### Conditioning on all real measurements
