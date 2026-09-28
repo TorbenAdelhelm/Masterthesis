@@ -38,6 +38,48 @@ def matern32_correlation_matrix(
     root3_r = np.sqrt(3.0) * scaled_distance
     return (1.0 + root3_r) * np.exp(-root3_r)
 
+def exponential_correlation_matrix(
+    size: int,
+    domain_length_m: float,
+    length_scale_m: float,
+) -> Array:
+    """Return the 1-D exponential correlation matrix on cell centers.
+
+    The correlation is rho(r)=exp(-r) with r=|x-x'|/length_scale_m.
+    In a Gaussian-process interpretation this is the Matern nu=1/2 kernel
+    and therefore produces rougher sample paths than Matern-3/2.
+    """
+
+    size = int(size)
+    domain_length_m = float(domain_length_m)
+    length_scale_m = float(length_scale_m)
+    if size <= 0:
+        raise ValueError("size must be positive")
+    if not np.isfinite(domain_length_m) or domain_length_m <= 0.0:
+        raise ValueError("domain_length_m must be finite and positive")
+    if not np.isfinite(length_scale_m) or length_scale_m <= 0.0:
+        raise ValueError("length_scale_m must be finite and positive")
+
+    spacing = domain_length_m / size
+    locations = (np.arange(size, dtype=np.float64) + 0.5) * spacing
+    scaled_distance = np.abs(locations[:, None] - locations[None, :]) / length_scale_m
+    return np.exp(-scaled_distance)
+
+
+def _correlation_matrix(
+    covariance_model: str,
+    size: int,
+    domain_length_m: float,
+    length_scale_m: float,
+) -> Array:
+    if covariance_model == "matern32":
+        return matern32_correlation_matrix(size, domain_length_m, length_scale_m)
+    if covariance_model == "exponential":
+        return exponential_correlation_matrix(size, domain_length_m, length_scale_m)
+    raise ValueError(
+        "covariance_model must be 'matern32' or 'exponential' for the factorized KL map"
+    )
+
 
 def _sorted_psd_eigendecomposition(matrix: Array) -> tuple[Array, Array]:
     """Symmetric eigendecomposition sorted from largest to smallest value."""
@@ -59,7 +101,7 @@ class KLLogGaussianPermeabilityMap:
 
     ``sigma^2 * C_y ⊗ C_x``
 
-    where each one-dimensional factor is a Matérn-3/2 correlation matrix. This
+    where each one-dimensional factor is either Matérn-3/2 or exponential. This
     avoids constructing the full ``(H*W) x (H*W)`` covariance matrix. If
     ``C_y u_i = lambda_i^y u_i`` and ``C_x v_j = lambda_j^x v_j``, the two-
     dimensional eigenpairs are outer products with eigenvalues
@@ -76,6 +118,7 @@ class KLLogGaussianPermeabilityMap:
     mean_log10_k: float
     std_log10_k: float
     length_scale_m: tuple[float, float]
+    covariance_model: str = "matern32"
     n_modes: int | None = None
     energy_threshold: float = 0.95
 
@@ -108,6 +151,11 @@ class KLLogGaussianPermeabilityMap:
             raise ValueError("std_log10_k must be finite and positive")
         if not np.isfinite(self.energy_threshold) or not (0.0 < self.energy_threshold <= 1.0):
             raise ValueError("energy_threshold must lie in (0, 1]")
+        self.covariance_model = str(self.covariance_model).strip().lower()
+        if self.covariance_model not in {"matern32", "exponential"}:
+            raise ValueError(
+                "factorized KL covariance_model must be 'matern32' or 'exponential'"
+            )
 
         self.shape = (int(self.shape[0]), int(self.shape[1]))
         self.domain_size_m = (
@@ -134,11 +182,17 @@ class KLLogGaussianPermeabilityMap:
                 f"n_modes must lie in [1, {total_modes}], got {self._requested_n_modes}"
             )
 
-        corr_y = matern32_correlation_matrix(
-            self.shape[0], self.domain_size_m[0], self.length_scale_m[0]
+        corr_y = _correlation_matrix(
+            self.covariance_model,
+            self.shape[0],
+            self.domain_size_m[0],
+            self.length_scale_m[0],
         )
-        corr_x = matern32_correlation_matrix(
-            self.shape[1], self.domain_size_m[1], self.length_scale_m[1]
+        corr_x = _correlation_matrix(
+            self.covariance_model,
+            self.shape[1],
+            self.domain_size_m[1],
+            self.length_scale_m[1],
         )
         self._eigvals_y, self._eigvecs_y = _sorted_psd_eigendecomposition(corr_y)
         self._eigvals_x, self._eigvecs_x = _sorted_psd_eigendecomposition(corr_x)
@@ -231,12 +285,82 @@ class KLLogGaussianPermeabilityMap:
             * np.sqrt(self._eigenvalues)[None, :]
         )
 
+    def mode_matrix_at_coordinates(self, coordinates_yx_m: Array) -> Array:
+        """Return truncated-KL loadings at continuous local (y,x) coordinates.
+
+        Coordinates are measured in metres from the lower/southern and
+        left/western domain edges. The KL eigensystem itself is defined at
+        cell centres. A Nystrom extension of each retained one-dimensional
+        eigenvector evaluates the discrete KL basis between cell centres.
+
+        The returned matrix B has shape [n_points, dimension] and satisfies
+        Y(points) = mean_log10_k + B @ xi for the same truncated prior used
+        on the regular grid.
+        """
+
+        coordinates = np.asarray(coordinates_yx_m, dtype=np.float64)
+        if coordinates.ndim != 2 or coordinates.shape[1] != 2:
+            raise ValueError("coordinates_yx_m must have shape [n,2] as local y,x")
+        if coordinates.shape[0] == 0:
+            raise ValueError("at least one continuous coordinate is required")
+        if not np.all(np.isfinite(coordinates)):
+            raise ValueError("continuous coordinates must be finite")
+        y = coordinates[:, 0]
+        x = coordinates[:, 1]
+        ly_domain, lx_domain = self.domain_size_m
+        tolerance = 1e-9 * max(ly_domain, lx_domain, 1.0)
+        if np.any(y < -tolerance) or np.any(y > ly_domain + tolerance):
+            raise ValueError("continuous y coordinate lies outside the KL domain")
+        if np.any(x < -tolerance) or np.any(x > lx_domain + tolerance):
+            raise ValueError("continuous x coordinate lies outside the KL domain")
+
+        h, w = self.shape
+        dy = ly_domain / h
+        dx = lx_domain / w
+        grid_y = (np.arange(h, dtype=np.float64) + 0.5) * dy
+        grid_x = (np.arange(w, dtype=np.float64) + 0.5) * dx
+        ell_y, ell_x = self.length_scale_m
+
+        def correlation(distance: Array, length_scale: float) -> Array:
+            scaled = np.asarray(distance, dtype=np.float64) / float(length_scale)
+            if self.covariance_model == "exponential":
+                return np.exp(-scaled)
+            root3 = np.sqrt(3.0) * scaled
+            return (1.0 + root3) * np.exp(-root3)
+
+        corr_y = correlation(np.abs(y[:, None] - grid_y[None, :]), ell_y)
+        corr_x = correlation(np.abs(x[:, None] - grid_x[None, :]), ell_x)
+
+        eig_y = self._eigvals_y[self._mode_y]
+        eig_x = self._eigvals_x[self._mode_x]
+        if np.any(eig_y <= 0.0) or np.any(eig_x <= 0.0):
+            raise RuntimeError("selected one-dimensional KL eigenvalues must be positive")
+
+        extended_y = (
+            corr_y @ self._eigvecs_y[:, self._mode_y]
+        ) / eig_y[None, :]
+        extended_x = (
+            corr_x @ self._eigvecs_x[:, self._mode_x]
+        ) / eig_x[None, :]
+        return extended_y * extended_x * np.sqrt(self._eigenvalues)[None, :]
+
+    def map_log10_coordinates_at_points(
+        self,
+        stochastic_coordinates: Array,
+        coordinates_yx_m: Array,
+    ) -> Array:
+        """Evaluate truncated-KL log10 fields at continuous local points."""
+
+        xi, single = self._prepare_coordinates(stochastic_coordinates)
+        basis = self.mode_matrix_at_coordinates(coordinates_yx_m)
+        values = self.mean_log10_k + xi @ basis.T
+        return values[0] if single else values
     @property
     def metadata(self) -> dict[str, object]:
         return {
             "map": "KLLogGaussianPermeabilityMap",
             "log_space": "log10",
-            "covariance": "separable_matern32",
+            "covariance": f"separable_{self.covariance_model}",
             "shape": [self.shape[0], self.shape[1]],
             "domain_size_m": [self.domain_size_m[0], self.domain_size_m[1]],
             "axis_convention": "shape=(H,W), domain=(L_y,L_x), length_scale=(ell_y,ell_x)",
@@ -274,12 +398,25 @@ class KLLogGaussianPermeabilityMap:
 
         coordinates, single = self._prepare_coordinates(coordinates)
         weighted = coordinates * np.sqrt(self._eigenvalues)[None, :]
-        vectors_y = self._eigvecs_y[:, self._mode_y]
-        vectors_x = self._eigvecs_x[:, self._mode_x]
+
+        # The naive sum over every selected 2-D mode costs O(B*H*W*m).
+        # Regroup the selected tensor-product modes into the unique retained
+        # one-dimensional y/x eigenspaces and evaluate U_y @ C @ U_x^T instead.
+        # This is essential for 2560x2560 fields where a 95% energy threshold
+        # can retain O(10^3) two-dimensional modes.
+        unique_y, compact_y = np.unique(self._mode_y, return_inverse=True)
+        unique_x, compact_x = np.unique(self._mode_x, return_inverse=True)
+        vectors_y = self._eigvecs_y[:, unique_y]
+        vectors_x = self._eigvecs_x[:, unique_x]
+        coefficients = np.zeros(
+            (coordinates.shape[0], unique_y.size, unique_x.size),
+            dtype=np.float64,
+        )
+        coefficients[:, compact_y, compact_x] = weighted
         fields = self.mean_log10_k + np.einsum(
-            "bm,ym,xm->byx",
-            weighted,
+            "ya,bac,xc->byx",
             vectors_y,
+            coefficients,
             vectors_x,
             optimize=True,
         )

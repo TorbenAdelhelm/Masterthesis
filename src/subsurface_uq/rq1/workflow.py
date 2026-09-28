@@ -76,6 +76,7 @@ def _build_grf_maps(
         mean_log10_k=config.mean_log10_k,
         std_log10_k=config.std_log10_k,
         length_scale_m=(config.length_scale_y_m, config.length_scale_x_m),
+        covariance_model=config.covariance_model,
         n_modes=config.n_modes,
         energy_threshold=(
             config.energy_threshold if config.energy_threshold is not None else 0.95

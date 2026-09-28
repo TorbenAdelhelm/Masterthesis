@@ -31,20 +31,45 @@ the historical Perlin transformation, release25 normalization and output
 alignment.
 
 Runtime/data details are in
-[`docs/release25_darus.md`](docs/release25_darus.md), and the synthetic Perlin
+[`docs/release25_darus.md`](docs/release25_darus.md), the synthetic Perlin
 baseline is documented in
-[`docs/release25_perlin_uq.md`](docs/release25_perlin_uq.md).
+[`docs/release25_perlin_uq.md`](docs/release25_perlin_uq.md), and calibration/
+generation of realistic conditioned permeability fields is documented in
+[`docs/realistic_permeability_generator.md`](docs/realistic_permeability_generator.md).
 
 ## Installation
 
+Core package:
+
 ```bash
-python -m pip install -e ".[test]"
-python -m pytest
+python -m pip install -e .
 ```
 
-`noise>=1.2.2` is currently required because the historical synthetic generator
-uses `noise.pnoise2`. On Windows this package may require a working MSVC/Windows
-SDK build environment.
+For the realistic DaRUS/geostatistical permeability workflow:
+
+```bash
+python -m pip install -e ".[geostat]"
+```
+
+The historical Perlin baseline is optional and uses the legacy C-extension
+package `noise`:
+
+```bash
+python -m pip install -e ".[perlin]"
+```
+
+Keeping `noise` out of the core/geostat dependencies is intentional. On
+Windows, especially with newer Python versions, `noise` may otherwise require
+a locally configured MSVC + Windows SDK toolchain (for headers such as
+`io.h`). The DaRUS calibration, KL/GRF, GSTools and radial-exponential
+workflows do not require `noise`.
+
+For the complete Linux CI test environment:
+
+```bash
+python -m pip install -e ".[test,perlin]"
+python -m pytest
+```
 
 ## Deterministic release25 integration
 
@@ -185,6 +210,120 @@ See [`docs/perlin_pce_proof_of_concept.md`](docs/perlin_pce_proof_of_concept.md)
 for the mathematical definition and the important Perlin-offset smoothness
 caveat.
 
+## Realistic conditioned permeability fields
+
+Real permeability ensembles can be used to calibrate log10-permeability
+covariance parameters before drawing synthetic boreholes and conditional fields.
+The workflow compares separable Matérn-3/2, separable exponential, and radial
+anisotropic exponential covariance models. The first two reuse the explicit KL
+coordinate path; the radial model uses GSTools conditioned random fields for
+scalable Monte Carlo generation.
+
+```bash
+subsurface-uq-realistic-permeability calibrate \
+  --fields data/real_k.npy \
+  --cell-size-m 5 \
+  --spatial-stride 4 \
+  --output run_output/realistic_k/calibration.yaml
+```
+
+See `docs/realistic_permeability_generator.md` for the held-out synthetic
+borehole experiment and the distinction between separable and radial
+exponential covariance. The recommended pre-RQ2 inspection is the
+`evaluate` subcommand, which performs leave-one-out calibration and compares
+all three covariance candidates with the same exact full-covariance simple
+kriging posterior (no KL truncation and no Monte Carlo sampling), then writes
+variogram fits, fitted length scales, and held-out conditional reconstructions.
+
+## Exact geospatial mapping for real LGCNN domains
+
+Before evaluating measurement-conditioned stochastic fields on the release25
+5 m grid, infer the projected Munich origin and raw-array orientation of the
+chosen DaRUS real-permeability run:
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability georeference-domain \
+  --raw-dataset data/dataset_100hp_giant_real_fixP0_0025 \
+  --run RUN_1 \
+  --reference-grid "C:/path/to/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --reference-column K_P50 \
+  --reference-z-mode top \
+  --require-validated \
+  --plots-dir run_output/realistic_k/georeference_plots \
+  --output run_output/realistic_k/georeference_RUN_1.yaml
+```
+
+The matcher tests PFLOTRAN-array axis/flip conventions, searches the 100 m
+reference model in log space, refines the crop at 5 m resolution and writes an
+explicit cell-centre/domain-edge manifest. See
+`docs/realistic_permeability_generator.md` for validation thresholds and
+alternative vertical reference-surface modes.
+
+## Multi-run georeference sweep
+
+When a single Munich-reference match is weak, run the predefined nine-way
+diagnostic sweep instead of lowering the thresholds:
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability georeference-sweep \
+  --raw-dataset data/dataset_100hp_giant_real_fixP0_0025 \
+  --runs RUN_1 RUN_2 RUN_3 \
+  --reference-grid "C:/path/to/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --output-dir run_output/realistic_k/georeference_sweep
+```
+
+It evaluates `K_P10/K_P50/K_P90 x top/bottom/log_geomean`, writes one
+comparison CSV, and explicitly reports whether any reference representation is
+individually valid for every run and cross-run consistent in orientation and
+unit shift. See `docs/realistic_permeability_generator.md` for the decision
+rule.
+
+## Measurement-conditioned new LGCNN domain
+
+After a negative historical georeference sweep, generate a new projected
+12.8 km x 12.8 km Munich field directly from the real-measurement calibration:
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability new-domain-generate \
+  --measurements "C:/path/to/kf_werte_190201.xlsx" \
+  --reference-grid "C:/path/to/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --calibration run_output/realistic_k/measurements_nugget/measurement_calibration.yaml \
+  --model exponential \
+  --energy-threshold 0.95 \
+  --n-samples 8 \
+  --output-dir run_output/realistic_k/new_domain
+```
+
+Without an explicit projected origin, the 5 m grid is chosen to maximize the
+number of accepted real measurements inside the 12.8 km square. The fitted
+nugget remains observation-scale uncertainty and is not injected as independent
+5 m pixel noise. Continuous-coordinate conditioning uses a Nyström-extended
+factorized KL basis and retains explicit iid Gaussian posterior coordinates for
+MC/RQMC/PCE. See `docs/realistic_permeability_generator.md` for diagnostics
+and storage details.
+
+## Real Munich measurement calibration
+
+The preferred realistic-permeability calibration path can now use the actual
+Munich hydraulic-conductivity measurements together with the active XY footprint
+of the 3-D reference field. The workflow keeps the original continuous
+measurement coordinates, fits directional irregular-point variograms in
+`log10(K_h)` with a fitted nugget and pair-count weighting, compares
+covariance families with spatial block cross-validation, runs an upper-tail
+robustness check, and conditions the selected model on all accepted real
+observations.
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability measurement-evaluate \
+  --measurements "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf_werte_190201.xlsx" \
+  --reference-grid "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf-Werte-3D Modell/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --output-dir run_output/realistic_k/measurements
+```
+
+See `docs/realistic_permeability_generator.md` for the exact filtering,
+spatial-CV metrics, hydraulic-conductivity/intrinsic-permeability distinction,
+and the follow-up `measurement-condition` command.
+
 ## Monte Carlo statistics and extensible QoIs
 
 For propagated temperature fields `T^(m)(x)`, the core computes
@@ -282,11 +421,10 @@ original release25 runtime; that remains a distinct validation step.
 
 ## Next phases
 
-The cleaned baseline is intended to support the next scientific layers without
-changing the propagation core: first QoIs and Monte Carlo convergence
-diagnostics, then a borehole-conditioned geostatistical permeability sampler.
-The latter will replace the synthetic/empirical `PermeabilitySampler` with draws
-from a conditional spatial uncertainty model while retaining the release25
-surrogate, Monte Carlo runner, accumulators and visualization interfaces.
-Model uncertainty and alternative propagation methods remain later/optional
-extensions.
+The cleaned baseline supports the next scientific layers without changing the
+propagation core. A borehole-conditioned geostatistical permeability workflow is
+now available, including real-field covariance calibration and Matérn-3/2,
+separable exponential and radial anisotropic exponential candidates. The next
+scientific step is to calibrate and validate these candidates on the real DaRUS
+permeability fields before fixing the input law for later QoIs. Model uncertainty
+and alternative propagation methods remain later/optional extensions.

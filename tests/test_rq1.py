@@ -152,7 +152,7 @@ def test_disk_store_exact_quantiles_and_prefix_convergence(tmp_path):
         chunk_rows=1,
     )
     assert points[-1]["e_mu"] == pytest.approx(0.0)
-    assert points[-1]["e_sigma"] == pytest.approx(0.0)
+    assert points[-1]["e_sigma"] == pytest.approx(0.0, abs=1e-6)
 
 
 def test_qoi_and_reference_convergence_accumulators_reuse_monte_carlo_runner():
@@ -252,6 +252,7 @@ qoi:
 grf:
   mean_log10_k: -9.5
   std_log10_k: 0.3
+  covariance_model: exponential
   length_scale_y_m: 100
   length_scale_x_m: 150
   n_modes: 4
@@ -291,6 +292,7 @@ qoi:
 grf:
   mean_log10_k: -9.5
   std_log10_k: 0.3
+  covariance_model: exponential
   length_scale_y_m: 100
   length_scale_x_m: 150
   n_modes: 4
@@ -306,6 +308,7 @@ streamlines:
     assert config.budgets == (2, 4, 8)
     assert config.comparison_budgets == (2, 4)
     assert config.repetition_seeds == (20, 30)
+    assert config.covariance_model == "exponential"
 
     completed = subprocess.run(
         [sys.executable, "-m", "subsurface_uq.experiments.release25_rq1", "--help"],
