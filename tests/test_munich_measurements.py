@@ -115,8 +115,21 @@ def test_point_variogram_calibration_and_continuous_exact_kriging():
     }
     assert all(len(variograms[key][0]) >= 3 for key in ("x", "y", "diag"))
     assert all(np.all(counts[key] >= 2) for key in counts)
+    assert all(item.pair_count_weighted_fit for item in results)
+    assert all(0.0 <= item.nugget_fraction <= 0.95 for item in results)
+    assert all(np.isfinite(item.variogram_weighted_rmse) for item in results)
 
-    selected = results[0]
+    no_nugget, _, _ = calibrate_point_covariance_candidates(
+        coordinates,
+        conductivity,
+        models=("radial_exponential",),
+        lag_bin_m=500.0,
+        max_lag_m=2500.0,
+        angle_tolerance_deg=22.5,
+        min_pairs_per_bin=2,
+        fit_nugget=False,
+    )
+    selected = no_nugget[0]
     obs = coordinates[[0, 7, 14, 21, 28, 35]]
     obs_values = log_values[[0, 7, 14, 21, 28, 35]]
     posterior = exact_simple_kriging_predict_points(
@@ -128,9 +141,54 @@ def test_point_variogram_calibration_and_continuous_exact_kriging():
         std_log10_k=selected.std_log10_k,
         length_scale_y_m=selected.length_scale_y_m,
         length_scale_x_m=selected.length_scale_x_m,
+        structured_std_log10_k=selected.structured_std_log10_k,
+        nugget_std_log10_k=selected.nugget_std_log10_k,
     )
     np.testing.assert_allclose(posterior.mean_log10_k, obs_values, atol=1e-7)
     np.testing.assert_allclose(posterior.std_log10_k, 0.0, atol=1e-5)
+
+
+def test_nugget_is_used_as_observation_and_predictive_variance():
+    observations = np.asarray([[0.0, 0.0], [1000.0, 0.0], [500.0, 800.0]])
+    values = np.asarray([-3.0, -2.5, -2.8])
+    query = np.asarray([[500.0, 200.0]])
+
+    latent = exact_simple_kriging_predict_points(
+        observation_coordinates_xy_m=observations,
+        observation_log10_k=values,
+        query_coordinates_xy_m=query,
+        covariance_model="radial_exponential",
+        mean_log10_k=-2.8,
+        std_log10_k=0.4,
+        structured_std_log10_k=0.3,
+        nugget_std_log10_k=0.2,
+        length_scale_y_m=600.0,
+        length_scale_x_m=700.0,
+        include_query_nugget=False,
+    )
+    predictive = exact_simple_kriging_predict_points(
+        observation_coordinates_xy_m=observations,
+        observation_log10_k=values,
+        query_coordinates_xy_m=query,
+        covariance_model="radial_exponential",
+        mean_log10_k=-2.8,
+        std_log10_k=0.4,
+        structured_std_log10_k=0.3,
+        nugget_std_log10_k=0.2,
+        length_scale_y_m=600.0,
+        length_scale_x_m=700.0,
+        include_query_nugget=True,
+    )
+
+    np.testing.assert_allclose(
+        predictive.mean_log10_k, latent.mean_log10_k, rtol=0.0, atol=1e-12
+    )
+    np.testing.assert_allclose(
+        predictive.variance_log10_k - latent.variance_log10_k,
+        np.asarray([0.2**2]),
+        rtol=1e-10,
+        atol=1e-12,
+    )
 
 
 def test_spatial_block_assignment_keeps_blocks_together():
@@ -198,4 +256,6 @@ def test_spatial_block_cv_predicts_every_measurement_once():
     assert len(result.fold_rows) == 4
     assert np.isfinite(result.summary_rows[0]["rmse_log10_k"])
     assert np.isfinite(result.summary_rows[0]["gaussian_nlpd"])
+    assert np.isfinite(result.summary_rows[0]["mean_fold_nugget_fraction"])
+    assert 0.0 <= result.summary_rows[0]["mean_fold_nugget_fraction"] <= 0.95
     assert 0.0 <= result.summary_rows[0]["coverage_90"] <= 1.0
