@@ -395,6 +395,115 @@ def _column_index(column: str, n_columns: int) -> int:
     )
 
 
+def load_reference_permeability_sweep_surfaces(
+    path: str | Path,
+) -> dict[tuple[str, str], ReferencePermeabilitySurface]:
+    """Load all nine sweep reference surfaces in one pass over the 3-D table."""
+
+    source = Path(path).expanduser().resolve()
+    if not source.is_file():
+        raise FileNotFoundError(source)
+
+    # Per XY location store per-column top/bottom values and log-geomean sums.
+    # Arrays use column order K_P10, K_P50, K_P90.
+    state: dict[
+        tuple[float, float],
+        tuple[Array, Array, Array, Array, Array, Array],
+    ] = {}
+    with source.open("r", encoding="utf-8", errors="replace") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            parts = line.split()
+            if not parts:
+                continue
+            if len(parts) < 6:
+                raise ValueError(
+                    "the nine-way georeference sweep requires the six-column "
+                    "X Y Z K_P10 K_P50 K_P90 reference table"
+                )
+            try:
+                x = float(parts[0])
+                y = float(parts[1])
+                z = float(parts[2])
+                values = np.asarray(
+                    [float(parts[3]), float(parts[4]), float(parts[5])],
+                    dtype=np.float64,
+                )
+            except ValueError as exc:
+                raise ValueError(f"invalid numeric reference row {line_number}") from exc
+            valid = np.isfinite(values) & (values > 0.0)
+            if not np.any(valid):
+                continue
+            key = (x, y)
+            payload = state.get(key)
+            if payload is None:
+                top_z = np.full(3, -np.inf, dtype=np.float64)
+                top_values = np.full(3, np.nan, dtype=np.float64)
+                bottom_z = np.full(3, np.inf, dtype=np.float64)
+                bottom_values = np.full(3, np.nan, dtype=np.float64)
+                log_sum = np.zeros(3, dtype=np.float64)
+                counts = np.zeros(3, dtype=np.int64)
+                payload = (
+                    top_z,
+                    top_values,
+                    bottom_z,
+                    bottom_values,
+                    log_sum,
+                    counts,
+                )
+                state[key] = payload
+            top_z, top_values, bottom_z, bottom_values, log_sum, counts = payload
+            top_update = valid & (z > top_z)
+            bottom_update = valid & (z < bottom_z)
+            top_z[top_update] = z
+            top_values[top_update] = values[top_update]
+            bottom_z[bottom_update] = z
+            bottom_values[bottom_update] = values[bottom_update]
+            log_sum[valid] += np.log10(values[valid])
+            counts[valid] += 1
+
+    if not state:
+        raise ValueError("reference table produced no finite positive values")
+
+    x_values = np.asarray(sorted({key[0] for key in state}), dtype=np.float64)
+    y_values = np.asarray(sorted({key[1] for key in state}), dtype=np.float64)
+    x_to_i = {value: index for index, value in enumerate(x_values.tolist())}
+    y_to_i = {value: index for index, value in enumerate(y_values.tolist())}
+    column_names = ("K_P10", "K_P50", "K_P90")
+    arrays = {
+        (column, mode): np.full(
+            (y_values.size, x_values.size), np.nan, dtype=np.float64
+        )
+        for column, mode in GEOREFERENCE_SWEEP_REPRESENTATIONS
+    }
+
+    for (x, y), payload in state.items():
+        top_z, top_values, bottom_z, bottom_values, log_sum, counts = payload
+        iy = y_to_i[y]
+        ix = x_to_i[x]
+        for column_index, column in enumerate(column_names):
+            if np.isfinite(top_values[column_index]):
+                arrays[(column, "top")][iy, ix] = top_values[column_index]
+            if np.isfinite(bottom_values[column_index]):
+                arrays[(column, "bottom")][iy, ix] = bottom_values[column_index]
+            if counts[column_index] > 0:
+                arrays[(column, "log_geomean")][iy, ix] = 10.0 ** (
+                    log_sum[column_index] / counts[column_index]
+                )
+
+    return {
+        (column, mode): ReferencePermeabilitySurface(
+            x_m=x_values,
+            y_m=y_values,
+            values=values,
+            active_mask=np.isfinite(values) & (values > 0.0),
+            value_name=column,
+            z_mode=mode,
+            z_value_m=None,
+        )
+        for (column, mode), values in arrays.items()
+    }
+
+
 def load_reference_permeability_surface(
     path: str | Path,
     *,
