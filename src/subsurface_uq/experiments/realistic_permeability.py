@@ -1784,7 +1784,7 @@ def build_parser() -> argparse.ArgumentParser:
     new_domain.add_argument("--measurements", required=True)
     new_domain.add_argument("--reference-grid", required=True)
     new_domain.add_argument("--calibration", required=True)
-    new_domain.add_argument("--model", choices=["matern32", "exponential"], default="exponential")
+    new_domain.add_argument("--model", choices=["matern32", "exponential"])
     new_domain.add_argument("--sheet-name", default="kf_werte_180223")
     new_domain.add_argument("--stratigraphy", default="q")
     new_domain.add_argument("--groundwater-state", default="ungespannt")
