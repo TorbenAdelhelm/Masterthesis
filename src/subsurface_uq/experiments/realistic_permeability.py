@@ -42,6 +42,7 @@ from ..visualization.realistic_permeability import (
     plot_heldout_reconstruction,
     plot_length_scale_comparison,
     plot_measurement_cv_comparison,
+    plot_new_domain_summary,
     plot_nugget_fraction_comparison,
     plot_variogram_fits,
 )
@@ -1480,6 +1481,14 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
 
     np.save(root / "empirical_mean_log10_permeability_m2.npy", mean_log.astype(np.float32))
     np.save(root / "empirical_std_log10_permeability_m2.npy", std_log.astype(np.float32))
+    plot_new_domain_summary(
+        mean_log10_k=mean_log,
+        std_log10_k=std_log,
+        domain=domain,
+        measurement_x_m=selected_measurements.x_m,
+        measurement_y_m=selected_measurements.y_m,
+        destination=root / "new_domain_mean_std.png",
+    )
     conditioning_rows = selected_measurements.to_rows()
     for row_payload, local_yx in zip(conditioning_rows, observation_local_yx):
         row_payload["new_domain_local_y_m"] = float(local_yx[0])
