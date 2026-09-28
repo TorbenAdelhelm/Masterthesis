@@ -19,6 +19,7 @@ from ..sampling import (
     GaussianCoordinatePermeabilitySampler,
     KLLogGaussianPermeabilityMap,
     PerlinCoordinatePermeabilityMap,
+    load_conditional_kl_input_model,
     PermeabilityDiagnostics,
     ScrambledSobolGaussianPermeabilitySampler,
     UniformCoordinatePermeabilitySampler,
@@ -65,7 +66,35 @@ class _MainVariant:
 def _build_grf_maps(
     config: RQ1Config,
     shape: tuple[int, int],
-) -> tuple[KLLogGaussianPermeabilityMap, ConditionalKLLogGaussianPermeabilityMap]:
+):
+    if config.input_model is not None:
+        loaded = load_conditional_kl_input_model(config.input_model)
+        if loaded.prior.field_shape != shape:
+            raise ValueError(
+                "stochastic input model field shape does not match release25 runtime: "
+                f"{loaded.prior.field_shape} != {shape}"
+            )
+        expected_domain = np.asarray(
+            [shape[0] * config.cell_size_m, shape[1] * config.cell_size_m],
+            dtype=np.float64,
+        )
+        actual_domain = np.asarray(loaded.prior.domain_size_m, dtype=np.float64)
+        if not np.allclose(actual_domain, expected_domain, rtol=0.0, atol=1e-8):
+            raise ValueError(
+                "stochastic input model physical domain does not match the configured "
+                "release25 cell size"
+            )
+        return loaded.prior, loaded.conditional, loaded
+
+    required = (
+        config.mean_log10_k,
+        config.std_log10_k,
+        config.covariance_model,
+        config.length_scale_y_m,
+        config.length_scale_x_m,
+    )
+    if any(value is None for value in required):
+        raise ValueError("manual GRF parameters are incomplete")
     domain_size_m = (
         float(shape[0]) * config.cell_size_m,
         float(shape[1]) * config.cell_size_m,
@@ -73,35 +102,43 @@ def _build_grf_maps(
     prior = KLLogGaussianPermeabilityMap(
         shape=shape,
         domain_size_m=domain_size_m,
-        mean_log10_k=config.mean_log10_k,
-        std_log10_k=config.std_log10_k,
+        mean_log10_k=float(config.mean_log10_k),
+        std_log10_k=float(config.std_log10_k),
         global_mean_std_log10_k=config.global_mean_std_log10_k,
-        length_scale_m=(config.length_scale_y_m, config.length_scale_x_m),
-        covariance_model=config.covariance_model,
+        length_scale_m=(
+            float(config.length_scale_y_m),
+            float(config.length_scale_x_m),
+        ),
+        covariance_model=str(config.covariance_model),
         n_modes=config.n_modes,
         energy_threshold=(
             config.energy_threshold if config.energy_threshold is not None else 0.95
         ),
     )
-    indices = np.asarray([[row, col] for row, col, _ in config.observations], dtype=int)
-    values = np.asarray([value for _, _, value in config.observations], dtype=np.float64)
+    indices = np.asarray(
+        [[row, col] for row, col, _ in config.observations], dtype=int
+    )
+    values = np.asarray(
+        [value for _, _, value in config.observations], dtype=np.float64
+    )
     conditional = ConditionalKLLogGaussianPermeabilityMap.from_permeability_observations(
         prior=prior,
         observation_indices=indices,
         observation_k=values,
         observation_std_log10_k=config.observation_std_log10_k,
     )
-    return prior, conditional
+    return prior, conditional, None
 
 
 def _diagnostics(
     config: RQ1Config,
     *,
     conditional: bool,
+    training_k_range: tuple[float, float] | None = None,
 ) -> PermeabilityDiagnostics:
     indices = None
     log_values = None
-    if conditional:
+    if conditional and config.input_model is None:
         indices = np.asarray(
             [[row, col] for row, col, _ in config.observations],
             dtype=np.int64,
@@ -112,7 +149,11 @@ def _diagnostics(
     return PermeabilityDiagnostics(
         preview_count=config.input_preview_count,
         ddof=1,
-        training_k_range=(RELEASE25_PERLIN_K_MIN, RELEASE25_PERLIN_K_MAX),
+        training_k_range=(
+            training_k_range
+            if training_k_range is not None
+            else (RELEASE25_PERLIN_K_MIN, RELEASE25_PERLIN_K_MAX)
+        ),
         observation_indices=indices,
         observation_log10_k=log_values,
     )
@@ -466,8 +507,15 @@ def _run_main_variant(
         figures_root / "input",
         cell_size_m=config.cell_size_m,
         observation_indices=(
-            np.asarray([[row, col] for row, col, _ in config.observations], dtype=int)
-            if variant.key == "C_conditional_grf_mc"
+            np.asarray(
+                [[row, col] for row, col, _ in config.observations],
+                dtype=int,
+            )
+            if (
+                variant.key == "C_conditional_grf_mc"
+                and config.input_model is None
+                and config.observations
+            )
             else None
         ),
     )
@@ -590,7 +638,12 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
     )
 
     shape = tuple(int(v) for v in runtime.scenario.shape)
-    prior, conditional = _build_grf_maps(config, shape)
+    prior, conditional, loaded_input_model = _build_grf_maps(config, shape)
+    training_k_range = (
+        None
+        if loaded_input_model is None
+        else loaded_input_model.training_k_range
+    )
     domain_size_m = (shape[0] * config.cell_size_m, shape[1] * config.cell_size_m)
 
     perlin_map = PerlinCoordinatePermeabilityMap(
@@ -623,19 +676,31 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
             "A_perlin_mc",
             "MC",
             perlin,
-            _diagnostics(config, conditional=False),
+            _diagnostics(
+                config,
+                conditional=False,
+                training_k_range=training_k_range,
+            ),
         ),
         _MainVariant(
             "B_unconditional_grf_mc",
             "MC",
             unconditional_sampler,
-            _diagnostics(config, conditional=False),
+            _diagnostics(
+                config,
+                conditional=False,
+                training_k_range=training_k_range,
+            ),
         ),
         _MainVariant(
             "C_conditional_grf_mc",
             "MC",
             conditional_sampler,
-            _diagnostics(config, conditional=True),
+            _diagnostics(
+                config,
+                conditional=True,
+                training_k_range=training_k_range,
+            ),
         ),
     )
 
@@ -815,6 +880,18 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
             "seeds": list(config.repetition_seeds),
             "gain_definition": "G(N)=RMSE_MC(N)/RMSE_RQMC(N)",
         },
+        "stochastic_input_model": (
+            None
+            if loaded_input_model is None
+            else {
+                "path": str(loaded_input_model.source_path),
+                "sha256": sha256_file(loaded_input_model.source_path),
+                "source_policy": loaded_input_model.payload.get("source_policy"),
+                "training_reference": loaded_input_model.payload.get(
+                    "training_reference"
+                ),
+            }
+        ),
         "streamlines": {
             "mode": config.streamline_mode,
             "method": config.streamline_method,

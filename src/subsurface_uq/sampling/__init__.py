@@ -63,6 +63,7 @@ from .kriging import (
     ConditionalKLLogGaussianPermeabilityMap,
     ContinuousPointConditionalKLLogGaussianPermeabilityMap,
 )
+from .input_model import ConditionalKLInputModel, load_conditional_kl_input_model
 from .new_domain import NewLGCNNDomain, select_new_lgcnn_domain
 from .perlin import (
     RELEASE25_PERLIN_DEFAULT_SEED,
@@ -116,6 +117,7 @@ __all__ = [
     "ExactPointKrigingResult",
     "BoreholeObservationSet",
     "ConditionalKLLogGaussianPermeabilityMap",
+    "ConditionalKLInputModel",
     "CovarianceCalibrationResult",
     "DiagnosticPermeabilitySampler",
     "EmpiricalPermeabilitySampler",
@@ -153,6 +155,7 @@ __all__ = [
     "load_empirical_fields",
     "load_pflotran_permeability_h5",
     "load_release25_raw_permeability_dataset",
+    "load_conditional_kl_input_model",
     "matern32_correlation_matrix",
     "sample_borehole_observations",
     "characterize_training_distribution",

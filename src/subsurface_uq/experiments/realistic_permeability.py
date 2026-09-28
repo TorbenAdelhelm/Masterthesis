@@ -1719,6 +1719,7 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         "field_shape": list(domain.shape),
         "domain": domain.to_dict(),
         "prior": prior.metadata,
+        "training_reference": training_profile.to_dict(),
         "conditioning": {
             "observation_coordinates_yx_m": observation_local_yx.tolist(),
             "observation_log10_intrinsic_permeability": observation_log10_intrinsic.tolist(),

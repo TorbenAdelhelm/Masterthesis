@@ -41,12 +41,13 @@ class RQ1Config:
     mean_anomaly_roi: tuple[int, int, int, int] | None
     quantile_chunk_rows: int
     input_preview_count: int
-    mean_log10_k: float
-    std_log10_k: float
+    input_model: Path | None
+    mean_log10_k: float | None
+    std_log10_k: float | None
     global_mean_std_log10_k: float
-    covariance_model: str
-    length_scale_y_m: float
-    length_scale_x_m: float
+    covariance_model: str | None
+    length_scale_y_m: float | None
+    length_scale_x_m: float | None
     n_modes: int | None
     energy_threshold: float | None
     observations: tuple[tuple[int, int, float], ...]
@@ -103,6 +104,7 @@ class RQ1Config:
                 ),
             },
             "grf": {
+                "input_model": None if self.input_model is None else str(self.input_model),
                 "mean_log10_k": self.mean_log10_k,
                 "std_log10_k": self.std_log10_k,
                 "global_mean_std_log10_k": self.global_mean_std_log10_k,
@@ -218,31 +220,12 @@ def load_rq1_config(path: str | Path) -> RQ1Config:
             roi_values[3],
         )
 
-    n_modes_raw = grf.get("n_modes")
-    energy_raw = grf.get("energy_threshold")
-    if (n_modes_raw is None) == (energy_raw is None):
-        raise ValueError("grf must define exactly one of n_modes or energy_threshold")
-    n_modes = None if n_modes_raw is None else int(n_modes_raw)
-    energy = None if energy_raw is None else float(energy_raw)
-
-    observations: list[tuple[int, int, float]] = []
-    for item in grf.get("observations", []):
-        if not isinstance(item, (list, tuple)) or len(item) != 3:
-            raise ValueError("each grf.observations entry must be [row, col, K_m2]")
-        row, col, permeability = int(item[0]), int(item[1]), float(item[2])
-        if row < 0 or col < 0 or not np.isfinite(permeability) or permeability <= 0.0:
-            raise ValueError("GRF observations require non-negative cells and positive finite K")
-        observations.append((row, col, permeability))
-    if not observations:
-        raise ValueError(
-            "RQ1 requires at least one GRF observation because conditional GRF/KL MC "
-            "is the primary experiment variant"
-        )
-
-    tolerance_raw = grf.get("conditioning_tolerance_log10")
-    tolerance = None if tolerance_raw is None else float(tolerance_raw)
-    if tolerance is not None and (not np.isfinite(tolerance) or tolerance <= 0.0):
-        raise ValueError("conditioning_tolerance_log10 must be positive when supplied")
+    input_model_raw = grf.get("input_model")
+    input_model = (
+        None
+        if input_model_raw in {None, ""}
+        else Path(str(input_model_raw)).expanduser().resolve()
+    )
 
     cell_size_m = float(release25.get("cell_size_m", 5.0))
     background = float(release25.get("background_temperature", 10.6))
@@ -251,20 +234,112 @@ def load_rq1_config(path: str | Path) -> RQ1Config:
     if not np.isfinite(background):
         raise ValueError("release25.background_temperature must be finite")
 
-    std_log10_k = float(grf["std_log10_k"])
-    global_mean_std_log10_k = float(grf.get("global_mean_std_log10_k", 0.0))
-    covariance_model = str(grf.get("covariance_model", "matern32")).strip().lower()
-    if covariance_model not in {"matern32", "exponential"}:
-        raise ValueError(
-            "RQ1 factorized-KL covariance_model must be 'matern32' or 'exponential'; "
-            "use the realistic-permeability generator for radial_exponential MC fields"
+    if input_model is None:
+        n_modes_raw = grf.get("n_modes")
+        energy_raw = grf.get("energy_threshold")
+        if (n_modes_raw is None) == (energy_raw is None):
+            raise ValueError(
+                "manual grf configuration must define exactly one of n_modes or "
+                "energy_threshold"
+            )
+        n_modes = None if n_modes_raw is None else int(n_modes_raw)
+        energy = None if energy_raw is None else float(energy_raw)
+
+        observations: list[tuple[int, int, float]] = []
+        for item in grf.get("observations", []):
+            if not isinstance(item, (list, tuple)) or len(item) != 3:
+                raise ValueError("each grf.observations entry must be [row, col, K_m2]")
+            row, col, permeability = int(item[0]), int(item[1]), float(item[2])
+            if (
+                row < 0
+                or col < 0
+                or not np.isfinite(permeability)
+                or permeability <= 0.0
+            ):
+                raise ValueError(
+                    "GRF observations require non-negative cells and positive finite K"
+                )
+            observations.append((row, col, permeability))
+        if not observations:
+            raise ValueError(
+                "manual RQ1 GRF configuration requires at least one observation because "
+                "conditional GRF/KL MC is the primary experiment variant"
+            )
+
+        tolerance_raw = grf.get("conditioning_tolerance_log10")
+        tolerance = None if tolerance_raw is None else float(tolerance_raw)
+        if tolerance is not None and (
+            not np.isfinite(tolerance) or tolerance <= 0.0
+        ):
+            raise ValueError(
+                "conditioning_tolerance_log10 must be positive when supplied"
+            )
+
+        mean_log10_k = float(grf["mean_log10_k"])
+        std_log10_k = float(grf["std_log10_k"])
+        global_mean_std_log10_k = float(
+            grf.get("global_mean_std_log10_k", 0.0)
         )
-    ly = float(grf["length_scale_y_m"])
-    lx = float(grf["length_scale_x_m"])
-    if std_log10_k <= 0.0 or ly <= 0.0 or lx <= 0.0:
-        raise ValueError("GRF standard deviation and length scales must be positive")
-    if not np.isfinite(global_mean_std_log10_k) or global_mean_std_log10_k < 0.0:
-        raise ValueError("grf.global_mean_std_log10_k must be finite and non-negative")
+        covariance_model = str(
+            grf.get("covariance_model", "matern32")
+        ).strip().lower()
+        if covariance_model not in {"matern32", "exponential"}:
+            raise ValueError(
+                "RQ1 factorized-KL covariance_model must be 'matern32' or "
+                "'exponential'"
+            )
+        ly = float(grf["length_scale_y_m"])
+        lx = float(grf["length_scale_x_m"])
+        if (
+            not np.isfinite(mean_log10_k)
+            or std_log10_k <= 0.0
+            or ly <= 0.0
+            or lx <= 0.0
+        ):
+            raise ValueError(
+                "GRF mean must be finite and standard deviation/length scales positive"
+            )
+        if (
+            not np.isfinite(global_mean_std_log10_k)
+            or global_mean_std_log10_k < 0.0
+        ):
+            raise ValueError(
+                "grf.global_mean_std_log10_k must be finite and non-negative"
+            )
+        observation_std_log10_k = float(
+            grf.get("observation_std_log10_k", 0.0)
+        )
+    else:
+        stochastic_keys = {
+            "mean_log10_k",
+            "std_log10_k",
+            "global_mean_std_log10_k",
+            "covariance_model",
+            "length_scale_y_m",
+            "length_scale_x_m",
+            "n_modes",
+            "energy_threshold",
+            "observations",
+            "observation_std_log10_k",
+            "conditioning_tolerance_log10",
+        }
+        duplicated = sorted(key for key in stochastic_keys if key in grf)
+        if duplicated:
+            raise ValueError(
+                "grf.input_model is the single source of stochastic-input parameters; "
+                f"remove duplicated manual keys: {duplicated}"
+            )
+        n_modes = None
+        energy = None
+        observations = []
+        tolerance = None
+        mean_log10_k = None
+        std_log10_k = None
+        global_mean_std_log10_k = 0.0
+        covariance_model = None
+        ly = None
+        lx = None
+        observation_std_log10_k = 0.0
 
     mode = str(streamlines.get("mode", "bounded"))
     method = str(streamlines.get("method", "RK45"))
@@ -295,7 +370,8 @@ def load_rq1_config(path: str | Path) -> RQ1Config:
         mean_anomaly_roi=roi,
         quantile_chunk_rows=int(sampling.get("quantile_chunk_rows", 16)),
         input_preview_count=int(sampling.get("input_preview_count", 3)),
-        mean_log10_k=float(grf["mean_log10_k"]),
+        input_model=input_model,
+        mean_log10_k=mean_log10_k,
         std_log10_k=std_log10_k,
         global_mean_std_log10_k=global_mean_std_log10_k,
         covariance_model=covariance_model,
@@ -304,7 +380,7 @@ def load_rq1_config(path: str | Path) -> RQ1Config:
         n_modes=n_modes,
         energy_threshold=energy,
         observations=tuple(observations),
-        observation_std_log10_k=float(grf.get("observation_std_log10_k", 0.0)),
+        observation_std_log10_k=observation_std_log10_k,
         conditioning_tolerance_log10=tolerance,
         streamline_mode=mode,
         streamline_method=method,

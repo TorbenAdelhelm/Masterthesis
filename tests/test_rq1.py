@@ -319,3 +319,42 @@ streamlines:
     )
     assert completed.returncode == 0, completed.stderr
     assert "--config" in completed.stdout
+
+
+
+def test_rq1_config_accepts_stochastic_input_model_without_manual_grf_parameters(tmp_path):
+    config_path = tmp_path / "rq1_input_model.yaml"
+    input_model = tmp_path / "stochastic_input_model.yaml"
+    config_path.write_text(
+        f"""
+experiment:
+  id: input_model
+  output_root: {tmp_path / 'out_input_model'}
+release25:
+  repo: release25
+  cnn1_dir: cnn1
+  cnn2_dir: cnn3
+  prepared_pki_dir: prepared
+  fixed_run_id: RUN_1
+sampling:
+  budgets: [2, 4]
+  comparison_budgets: [2]
+  repetitions: 1
+  main_seed: 10
+  repetition_seeds: [20]
+qoi:
+  receptors: [[0, 0]]
+  mean_anomaly_roi: null
+grf:
+  input_model: {input_model}
+""",
+        encoding="utf-8",
+    )
+
+    config = load_rq1_config(config_path)
+
+    assert config.input_model == input_model.resolve()
+    assert config.mean_log10_k is None
+    assert config.std_log10_k is None
+    assert config.covariance_model is None
+    assert config.observations == ()
