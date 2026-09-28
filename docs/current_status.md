@@ -151,6 +151,18 @@ defaults. In particular, the Matérn length scales and log-permeability moments
 still need to be estimated or selected before scientific LGCNN-UQ experiments
 are run.
 
+### Exact Munich-to-LGCNN geospatial mapping
+
+The realistic-permeability branch now contains a georeferencing step for the
+release25/DaRUS real-permeability domains. The public raw dataset defines the
+standard 12.8 km x 12.8 km, 2560 x 2560, 5 m geometry but does not expose the
+projected Munich crop origin in the PFLOTRAN HDF5 arrays. The
+`georeference-domain` experiment therefore matches a run's raw permeability
+fingerprint to the Munich 100 m reference field, searches raw-array axis/flip
+conventions, refines the crop at 5 m resolution, and stores an explicit projected
+cell-centre/domain-edge manifest with match diagnostics. Weak matches are rejected
+by default instead of being silently accepted.
+
 ### Real Munich measurement calibration
 
 The realistic-permeability branch now contains a second, preferred calibration
