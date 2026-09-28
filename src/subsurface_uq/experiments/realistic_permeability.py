@@ -31,6 +31,7 @@ from ..visualization.realistic_permeability import (
     plot_heldout_metric_comparison,
     plot_heldout_reconstruction,
     plot_length_scale_comparison,
+    plot_measurement_cv_comparison,
     plot_variogram_fits,
 )
 
@@ -557,6 +558,9 @@ def _measurement_evaluate(args: argparse.Namespace) -> int:
     )
     _write_rows_csv(root / "measurement_cv_summary.csv", list(cv.summary_rows))
     _write_rows_csv(root / "measurement_cv_folds.csv", list(cv.fold_rows))
+    plot_measurement_cv_comparison(
+        cv.summary_rows, figures / "measurement_cv_comparison.png"
+    )
 
     full_by_model = {item.covariance_model: item for item in calibration}
     cv_by_model = {str(row["covariance_model"]): row for row in cv.summary_rows}
