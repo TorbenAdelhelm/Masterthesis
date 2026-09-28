@@ -625,6 +625,7 @@ def _measurement_evaluate(args: argparse.Namespace) -> int:
                 observation_std_log10_k=args.observation_std_log10_k,
                 fit_nugget=not args.disable_nugget,
                 pair_count_weighted_fit=not args.disable_pair_count_weighting,
+                fold_assignment=cv.fold_assignment[keep],
             )
             robust_cal_by_model = {
                 item.covariance_model: item for item in robust_calibration
