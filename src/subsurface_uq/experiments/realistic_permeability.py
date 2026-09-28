@@ -10,11 +10,13 @@ import yaml
 
 from ..sampling import (
     ConditionalKLLogGaussianPermeabilityMap,
+    ContinuousPointConditionalKLLogGaussianPermeabilityMap,
     GEOREFERENCE_SWEEP_REPRESENTATIONS,
     GaussianCoordinatePermeabilitySampler,
     KLLogGaussianPermeabilityMap,
     RadialExponentialPermeabilitySampler,
     calibrate_covariance_candidates,
+    correlation_for_offsets,
     exact_simple_kriging_posterior,
     estimate_directional_variograms,
     load_empirical_fields,
@@ -31,6 +33,7 @@ from ..sampling import (
     hydraulic_conductivity_to_intrinsic_permeability,
     calibrate_point_covariance_candidates,
     sample_borehole_observations,
+    select_new_lgcnn_domain,
 )
 from ..validation.measurements import spatial_block_cross_validate_measurements
 from ..visualization.realistic_permeability import (
@@ -1273,6 +1276,305 @@ def _georeference_sweep(args: argparse.Namespace) -> int:
     return 0
 
 
+def _new_domain_generate(args: argparse.Namespace) -> int:
+    calibration_path = Path(args.calibration).expanduser().resolve()
+    with calibration_path.open("r", encoding="utf-8") as handle:
+        calibration_payload = yaml.safe_load(handle)
+    candidates = {
+        str(item["covariance_model"]): item
+        for item in calibration_payload["candidates_full_data"]
+    }
+    model = args.model
+    if model is None:
+        model = str(calibration_payload["selected_by_spatial_cv_rmse"]["covariance_model"])
+    if model not in {"matern32", "exponential"}:
+        raise ValueError(
+            "new-domain KL generation currently supports the separable matern32 or "
+            "exponential covariance; select --model exponential for the current Munich fit"
+        )
+    if model not in candidates:
+        raise ValueError(f"model {model!r} is not present in measurement calibration")
+    selected = candidates[model]
+
+    reference_grid = load_reference_horizontal_grid(
+        args.reference_grid, expected_cell_size_m=args.expected_reference_cell_size_m
+    )
+    measurements, measurement_qc = load_munich_hydraulic_conductivity_measurements(
+        args.measurements,
+        sheet_name=args.sheet_name,
+        stratigraphy=args.stratigraphy,
+        groundwater_state=args.groundwater_state,
+        reference_grid=reference_grid,
+    )
+    domain, inside = select_new_lgcnn_domain(
+        measurements.coordinates_xy_m,
+        domain_size_m=args.domain_size_m,
+        cell_size_m=args.cell_size_m,
+        west_edge_m=args.domain_origin_x_m,
+        south_edge_m=args.domain_origin_y_m,
+    )
+    selected_measurements = measurements.subset(inside)
+    if len(selected_measurements) < int(args.min_conditioning_measurements):
+        raise ValueError(
+            f"selected domain contains only {len(selected_measurements)} measurements; "
+            f"minimum requested is {args.min_conditioning_measurements}"
+        )
+
+    conversion_factor = float(
+        hydraulic_conductivity_to_intrinsic_permeability(
+            np.asarray([1.0]),
+            dynamic_viscosity_pa_s=args.dynamic_viscosity_pa_s,
+            density_kg_m3=args.density_kg_m3,
+            gravity_m_s2=args.gravity_m_s2,
+        )[0]
+    )
+    log10_shift = float(np.log10(conversion_factor))
+    structured_std = float(
+        selected.get("structured_std_log10_k") or selected["std_log10_k"]
+    )
+    nugget_std = float(selected.get("nugget_std_log10_k", 0.0))
+    extra_std = float(args.observation_std_log10_k)
+    if extra_std < 0.0:
+        raise ValueError("observation-std-log10-k must be non-negative")
+    effective_observation_std = float(np.sqrt(nugget_std**2 + extra_std**2))
+    if effective_observation_std <= 0.0:
+        raise ValueError(
+            "continuous new-domain conditioning needs positive nugget/measurement noise"
+        )
+
+    prior = KLLogGaussianPermeabilityMap(
+        shape=domain.shape,
+        domain_size_m=domain.size_m,
+        mean_log10_k=float(selected["mean_log10_k"]) + log10_shift,
+        std_log10_k=structured_std,
+        length_scale_m=(
+            float(selected["length_scale_y_m"]),
+            float(selected["length_scale_x_m"]),
+        ),
+        covariance_model=model,
+        n_modes=args.n_modes,
+        energy_threshold=args.energy_threshold,
+    )
+
+    observation_local_yx = domain.projected_xy_to_local_yx(
+        selected_measurements.x_m, selected_measurements.y_m
+    )
+    observation_log10_intrinsic = (
+        selected_measurements.log10_hydraulic_conductivity + log10_shift
+    )
+    conditional = ContinuousPointConditionalKLLogGaussianPermeabilityMap(
+        prior=prior,
+        observation_coordinates_yx_m=observation_local_yx,
+        observation_log10_k=observation_log10_intrinsic,
+        observation_std_log10_k=effective_observation_std,
+    )
+    sampler = GaussianCoordinatePermeabilitySampler(
+        field_map=conditional,
+        n_samples=args.n_samples,
+        batch_size=args.batch_size,
+        seed=args.seed,
+    )
+
+    # Quantify covariance loss from finite KL truncation at the actual conditioning points.
+    A = prior.mode_matrix_at_coordinates(observation_local_yx)
+    approximate_covariance = A @ A.T
+    delta_y = observation_local_yx[:, 0, None] - observation_local_yx[None, :, 0]
+    delta_x = observation_local_yx[:, 1, None] - observation_local_yx[None, :, 1]
+    exact_covariance = structured_std**2 * correlation_for_offsets(
+        model,
+        delta_y_m=delta_y,
+        delta_x_m=delta_x,
+        length_scale_y_m=float(selected["length_scale_y_m"]),
+        length_scale_x_m=float(selected["length_scale_x_m"]),
+    )
+    covariance_denominator = max(float(np.linalg.norm(exact_covariance)), np.finfo(float).eps)
+    conditioning_covariance_relative_error = float(
+        np.linalg.norm(approximate_covariance - exact_covariance)
+        / covariance_denominator
+    )
+
+    latent_mean_obs, latent_std_obs = conditional.posterior_moments_at_points(
+        observation_local_yx
+    )
+    predictive_std_obs = np.sqrt(latent_std_obs**2 + effective_observation_std**2)
+    standardized = (observation_log10_intrinsic - latent_mean_obs) / predictive_std_obs
+    z90 = 1.6448536269514722
+    observation_coverage90 = float(np.mean(np.abs(standardized) <= z90))
+
+    diagnostic_stride = int(args.diagnostic_grid_stride)
+    if diagnostic_stride <= 0:
+        raise ValueError("diagnostic-grid-stride must be positive")
+    rows = np.arange(0, domain.ny, diagnostic_stride, dtype=np.int64)
+    cols = np.arange(0, domain.nx, diagnostic_stride, dtype=np.int64)
+    gy, gx = np.meshgrid(rows, cols, indexing="ij")
+    diagnostic_rows = gy.reshape(-1)
+    diagnostic_cols = gx.reshape(-1)
+    diagnostic_local_yx = np.column_stack(
+        (
+            (diagnostic_rows.astype(np.float64) + 0.5) * domain.cell_size_m,
+            (diagnostic_cols.astype(np.float64) + 0.5) * domain.cell_size_m,
+        )
+    )
+    analytic_mean_diag, analytic_std_diag = conditional.posterior_moments_at_points(
+        diagnostic_local_yx
+    )
+
+    root = Path(args.output_dir).expanduser().resolve()
+    samples_dir = root / "samples"
+    root.mkdir(parents=True, exist_ok=True)
+    if args.save_samples:
+        samples_dir.mkdir(parents=True, exist_ok=True)
+
+    mean_log = np.zeros(domain.shape, dtype=np.float64)
+    m2_log = np.zeros(domain.shape, dtype=np.float64)
+    diag_mean = np.zeros(analytic_mean_diag.shape, dtype=np.float64)
+    diag_m2 = np.zeros(analytic_mean_diag.shape, dtype=np.float64)
+    sample_count = 0
+    global_min_k = np.inf
+    global_max_k = -np.inf
+    outside_total = 0
+    total_cells = 0
+    outside_by_sample: list[float] = []
+    training_min = float(args.training_k_min_m2)
+    training_max = float(args.training_k_max_m2)
+    if not (0.0 < training_min < training_max):
+        raise ValueError("training permeability bounds must satisfy 0 < min < max")
+
+    for batch in sampler:
+        for field in np.asarray(batch):
+            sample_count += 1
+            physical = np.asarray(field, dtype=np.float64)
+            log_field = np.log10(physical)
+            delta = log_field - mean_log
+            mean_log += delta / sample_count
+            m2_log += delta * (log_field - mean_log)
+
+            diag_values = log_field[diagnostic_rows, diagnostic_cols]
+            diag_delta = diag_values - diag_mean
+            diag_mean += diag_delta / sample_count
+            diag_m2 += diag_delta * (diag_values - diag_mean)
+
+            global_min_k = min(global_min_k, float(np.min(physical)))
+            global_max_k = max(global_max_k, float(np.max(physical)))
+            outside = (physical < training_min) | (physical > training_max)
+            outside_count = int(np.count_nonzero(outside))
+            outside_total += outside_count
+            total_cells += int(physical.size)
+            outside_by_sample.append(outside_count / physical.size)
+            if args.save_samples:
+                np.save(
+                    samples_dir / f"sample_{sample_count:04d}_permeability_m2.npy",
+                    np.asarray(field, dtype=np.float32),
+                )
+
+    if sample_count != int(args.n_samples):
+        raise RuntimeError(
+            f"sampler produced {sample_count} fields, expected {args.n_samples}"
+        )
+    if sample_count > 1:
+        std_log = np.sqrt(m2_log / (sample_count - 1))
+        diag_std = np.sqrt(diag_m2 / (sample_count - 1))
+    else:
+        std_log = np.zeros_like(mean_log)
+        diag_std = np.zeros_like(diag_mean)
+
+    np.save(root / "empirical_mean_log10_permeability_m2.npy", mean_log.astype(np.float32))
+    np.save(root / "empirical_std_log10_permeability_m2.npy", std_log.astype(np.float32))
+    _write_rows_csv(root / "conditioning_measurements.csv", selected_measurements.to_rows())
+
+    posterior_reproduction = {
+        "diagnostic_point_count": int(analytic_mean_diag.size),
+        "diagnostic_grid_stride_cells": diagnostic_stride,
+        "empirical_mean_rmse_log10": float(
+            np.sqrt(np.mean((diag_mean - analytic_mean_diag) ** 2))
+        ),
+        "empirical_std_rmse_log10": (
+            None
+            if sample_count < 2
+            else float(np.sqrt(np.mean((diag_std - analytic_std_diag) ** 2)))
+        ),
+        "analytic_mean_log10_range": [
+            float(np.min(analytic_mean_diag)),
+            float(np.max(analytic_mean_diag)),
+        ],
+        "analytic_std_log10_range": [
+            float(np.min(analytic_std_diag)),
+            float(np.max(analytic_std_diag)),
+        ],
+    }
+    diagnostics = {
+        "schema_version": 1,
+        "domain": domain.to_dict(),
+        "measurement_qc": measurement_qc,
+        "conditioning": {
+            "measurement_count": len(selected_measurements),
+            "measurement_fraction_of_filtered_total": float(len(selected_measurements) / len(measurements)),
+            "fitted_nugget_std_log10_k": nugget_std,
+            "additional_observation_std_log10_k": extra_std,
+            "effective_observation_std_log10_k": effective_observation_std,
+            "posterior_predictive_90pct_coverage_at_measurements": observation_coverage90,
+            "standardized_residual_mean": float(np.mean(standardized)),
+            "standardized_residual_std": float(np.std(standardized, ddof=1)) if standardized.size > 1 else 0.0,
+        },
+        "kl": {
+            "dimension": prior.dimension,
+            "retained_energy_fraction": prior.retained_energy_fraction,
+            "requested_n_modes": args.n_modes,
+            "requested_energy_threshold": float(args.energy_threshold),
+            "conditioning_point_covariance_relative_frobenius_error": conditioning_covariance_relative_error,
+        },
+        "posterior_reproduction": posterior_reproduction,
+        "generated_ensemble": {
+            "n_samples": sample_count,
+            "seed": int(args.seed),
+            "minimum_intrinsic_permeability_m2": float(global_min_k),
+            "maximum_intrinsic_permeability_m2": float(global_max_k),
+            "training_k_min_m2": training_min,
+            "training_k_max_m2": training_max,
+            "outside_training_fraction": float(outside_total / total_cells),
+            "outside_training_fraction_by_sample": outside_by_sample,
+        },
+        "calibration": selected,
+        "hydraulic_to_intrinsic_conversion": {
+            "factor": conversion_factor,
+            "log10_shift": log10_shift,
+            "dynamic_viscosity_pa_s": float(args.dynamic_viscosity_pa_s),
+            "density_kg_m3": float(args.density_kg_m3),
+            "gravity_m_s2": float(args.gravity_m_s2),
+        },
+        "array_convention": {
+            "stored_samples": "[y,x] projected geographic grid, south-to-north then west-to-east",
+            "lgcnn_shape_compatible": list(domain.shape),
+            "note": (
+                "This new domain does not claim correspondence to a historical DaRUS RUN_n. "
+                "Absolute projected coordinates describe the new measurement-conditioned field only."
+            ),
+        },
+        "sampler": sampler.metadata,
+    }
+    with (root / "new_domain_generator.yaml").open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(diagnostics, handle, sort_keys=False)
+    with (root / "new_domain_generator.json").open("w", encoding="utf-8") as handle:
+        json.dump(diagnostics, handle, indent=2, sort_keys=True)
+
+    print("Measurement-conditioned new LGCNN domain")
+    print(
+        f"  domain: W={domain.west_edge_m:.1f}, S={domain.south_edge_m:.1f}, "
+        f"E={domain.east_edge_m:.1f}, N={domain.north_edge_m:.1f} m"
+    )
+    print(f"  grid: {domain.ny} x {domain.nx} at {domain.cell_size_m:g} m")
+    print(f"  conditioning measurements: {len(selected_measurements)} / {len(measurements)}")
+    print(
+        f"  KL modes: {prior.dimension}, retained energy={prior.retained_energy_fraction:.5f}, "
+        f"conditioning covariance error={conditioning_covariance_relative_error:.4g}"
+    )
+    print(
+        f"  generated samples: {sample_count}, outside release25 K range="
+        f"{diagnostics['generated_ensemble']['outside_training_fraction']:.4%}"
+    )
+    print(f"Saved new-domain generator outputs to {root}")
+    return 0
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Calibrate and generate realistic log-Gaussian permeability fields."
@@ -1460,6 +1762,48 @@ def build_parser() -> argparse.ArgumentParser:
     measurement_condition.add_argument("--gravity-m-s2", type=float, default=9.80665)
     measurement_condition.add_argument("--output", required=True)
     measurement_condition.set_defaults(func=_measurement_condition)
+
+    new_domain = sub.add_parser(
+        "new-domain-generate",
+        help=(
+            "define a new 12.8 km projected Munich domain, condition the calibrated "
+            "structured KL field on the real measurements inside it, and generate "
+            "5 m intrinsic-permeability realizations for LGCNN input"
+        ),
+    )
+    new_domain.add_argument("--measurements", required=True)
+    new_domain.add_argument("--reference-grid", required=True)
+    new_domain.add_argument("--calibration", required=True)
+    new_domain.add_argument("--model", choices=["matern32", "exponential"], default="exponential")
+    new_domain.add_argument("--sheet-name", default="kf_werte_180223")
+    new_domain.add_argument("--stratigraphy", default="q")
+    new_domain.add_argument("--groundwater-state", default="ungespannt")
+    new_domain.add_argument("--expected-reference-cell-size-m", type=float, default=100.0)
+    new_domain.add_argument("--domain-size-m", type=float, default=12800.0)
+    new_domain.add_argument("--cell-size-m", type=float, default=5.0)
+    new_domain.add_argument("--domain-origin-x-m", type=float)
+    new_domain.add_argument("--domain-origin-y-m", type=float)
+    new_domain.add_argument("--min-conditioning-measurements", type=int, default=10)
+    new_domain.add_argument("--n-modes", type=int)
+    new_domain.add_argument("--energy-threshold", type=float, default=0.95)
+    new_domain.add_argument("--n-samples", type=int, default=8)
+    new_domain.add_argument("--batch-size", type=int, default=1)
+    new_domain.add_argument("--seed", type=int, default=4901)
+    new_domain.add_argument("--observation-std-log10-k", type=float, default=0.0)
+    new_domain.add_argument("--diagnostic-grid-stride", type=int, default=128)
+    new_domain.add_argument("--training-k-min-m2", type=float, default=1.02e-11)
+    new_domain.add_argument("--training-k-max-m2", type=float, default=5.10e-9)
+    new_domain.add_argument("--dynamic-viscosity-pa-s", type=float, default=1.002e-3)
+    new_domain.add_argument("--density-kg-m3", type=float, default=998.2)
+    new_domain.add_argument("--gravity-m-s2", type=float, default=9.80665)
+    new_domain.add_argument(
+        "--save-samples",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Write each generated 2560x2560 intrinsic-permeability field as .npy.",
+    )
+    new_domain.add_argument("--output-dir", required=True)
+    new_domain.set_defaults(func=_new_domain_generate)
 
     georeference = sub.add_parser(
         "georeference-domain",
