@@ -328,8 +328,10 @@ samples/
 ```
 
 The metadata records the exact projected domain edges/cell centres, number of
-conditioning measurements, fitted nugget and effective observation uncertainty,
-KL retained-energy fraction, covariance approximation error at the actual
+conditioning measurements, the fraction of the new domain supported by active
+100 m cells of the Munich reference footprint (used only as a spatial-support
+diagnostic), fitted nugget and effective observation uncertainty, KL
+retained-energy fraction, covariance approximation error at the actual
 measurement locations, posterior-predictive measurement coverage, empirical
 versus analytical posterior mean/std errors on a diagnostic grid, and the
 fraction of generated cells outside the release25 permeability training range.
