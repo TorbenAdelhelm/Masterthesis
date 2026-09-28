@@ -86,6 +86,117 @@ subsurface-uq-realistic-permeability calibrate \
   --output run_output/realistic_k/calibration.yaml
 ```
 
+## Real Munich measurement workflow
+
+The preferred calibration path now uses the actual hydraulic-conductivity
+measurements rather than treating high values in a derived raster as measurement
+locations.
+
+Expected source files:
+
+- Excel workbook `kf_werte_190201.xlsx`, sheet `kf_werte_180223`;
+- headerless, whitespace-delimited 3-D Munich reference grid
+  `3D_K_Field_Munich_K_P10_P50_P90.csv`.
+
+The Excel loader retains finite positive `KF Wert` observations with
+`Strategrap == "q"` and `GW_Zustand == "ungespannt"`, normalizes text
+fields, generates stable identifiers for missing object IDs, and intersects the
+continuous point coordinates with the active XY footprint of the 3-D reference
+grid. The original coordinates are retained for kriging. Nearest 100 m grid
+indices are recorded only for diagnostics / downstream methods that explicitly
+require one grid cell per observation.
+
+The coordinate reference system is recorded as the working assumption
+`DHDN / Gauss-Krüger zone 4 (EPSG:31468)`; the workbook itself does not encode
+a CRS, so this remains an assumption until externally confirmed.
+
+### Irregular-point variogram calibration
+
+The command `measurement-evaluate` estimates directional empirical
+semivariograms directly from the real measurement pairs in
+`log10(K_h)`, where hydraulic conductivity `K_h` is measured in m/s.
+The x, y, and combined diagonal directions use configurable angular and lag-bin
+tolerances. Matérn-3/2, separable exponential, and radial anisotropic
+exponential candidates are then fit to those point variograms.
+
+Because the raw observations are used directly, the covariance fit no longer
+inherits the smoothing properties of an already interpolated P50 raster.
+
+### Spatial block cross-validation
+
+Kernel comparison uses spatial block cross-validation rather than a random
+point split. All measurements within the same rectangular block are held out
+together, and each fold recalibrates the variogram parameters on the remaining
+measurements before predicting the held-out real observations by exact
+full-covariance simple kriging.
+
+Reported diagnostics include:
+
+- RMSE and MAE in `log10(K_h)`;
+- nominal 90% Gaussian posterior coverage;
+- standardized residual mean and standard deviation;
+- Gaussian negative log predictive density (NLPD);
+- fold-wise fitted length scales and variogram RMSE.
+
+The workflow records the lowest spatial-CV RMSE candidate as a diagnostic
+selection, but the output explicitly notes that this is not proof of a unique
+geological covariance law.
+
+Example:
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability measurement-evaluate \
+  --measurements "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf_werte_190201.xlsx" \
+  --reference-grid "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf-Werte-3D Modell/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --models matern32 exponential radial_exponential \
+  --lag-bin-m 250 \
+  --max-lag-m 3000 \
+  --angle-tolerance-deg 22.5 \
+  --min-pairs-per-bin 8 \
+  --cv-folds 5 \
+  --cv-block-size-m 2000 \
+  --cv-seed 2907 \
+  --observation-std-log10-k 0 \
+  --output-dir run_output/realistic_k/measurements
+```
+
+The output includes filtered continuous measurements, a one-value-per-cell
+geometric-mean diagnostic table, empirical point variograms, fitted covariance
+parameters, spatial-CV summaries, and per-fold diagnostics.
+
+### Conditioning on all real measurements
+
+After inspecting the spatial-CV results, the selected covariance family can be
+conditioned on all accepted real measurements:
+
+```bash
+python -m subsurface_uq.experiments.realistic_permeability measurement-condition \
+  --measurements "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf_werte_190201.xlsx" \
+  --reference-grid "C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf-Werte-3D Modell/3D_K_Field_Munich_K_P10_P50_P90.csv" \
+  --calibration run_output/realistic_k/measurements/measurement_calibration.yaml \
+  --observation-std-log10-k 0 \
+  --output run_output/realistic_k/measurements/conditioned_real_measurements.npz
+```
+
+If `--model` is omitted, the covariance family with the lowest spatial-CV
+RMSE from the calibration file is used. The analytical posterior is evaluated
+on the active 100 m XY reference grid from the original continuous measurement
+coordinates.
+
+The measurement quantity is hydraulic conductivity `K_h [m/s]`, not intrinsic
+permeability `k [m^2]`. The conditioning output therefore stores the posterior
+in `log10(K_h)` and additionally converts physical posterior median/mean maps
+to intrinsic permeability using
+
+```text
+k = K_h * mu / (rho * g).
+```
+
+Default conversion constants are documented in the JSON metadata and correspond
+approximately to liquid water near 20 degC. For constant fluid properties this
+conversion is a constant shift in log space and therefore does not change the
+variogram shape or fitted correlation length scales.
+
 ## Leave-one-out DaRUS calibration inspection
 
 The `evaluate` subcommand is the recommended model-selection experiment before
