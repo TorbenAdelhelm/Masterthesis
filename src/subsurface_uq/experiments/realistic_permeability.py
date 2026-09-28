@@ -1321,6 +1321,28 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             f"minimum requested is {args.min_conditioning_measurements}"
         )
 
+    reference_rows, reference_cols = np.indices(reference_grid.shape)
+    reference_x = (
+        reference_grid.x_min_m
+        + reference_cols.astype(np.float64) * reference_grid.cell_size_x_m
+    )
+    reference_y = (
+        reference_grid.y_min_m
+        + reference_rows.astype(np.float64) * reference_grid.cell_size_y_m
+    )
+    reference_in_domain = domain.contains_xy(reference_x, reference_y)
+    active_reference_in_domain = reference_in_domain & reference_grid.active_mask
+    expected_reference_cells = max(
+        domain.size_m[0]
+        * domain.size_m[1]
+        / (reference_grid.cell_size_x_m * reference_grid.cell_size_y_m),
+        1.0,
+    )
+    active_reference_coverage = min(
+        1.0,
+        float(np.count_nonzero(active_reference_in_domain) / expected_reference_cells),
+    )
+
     conversion_factor = float(
         hydraulic_conductivity_to_intrinsic_permeability(
             np.asarray([1.0]),
@@ -1523,7 +1545,18 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     }
     diagnostics = {
         "schema_version": 1,
-        "domain": domain.to_dict(),
+        "domain": {
+            **domain.to_dict(),
+            "active_reference_100m_coverage_fraction": active_reference_coverage,
+            "active_reference_cells_inside": int(
+                np.count_nonzero(active_reference_in_domain)
+            ),
+            "interpretation": (
+                "Reference-grid coverage is a support diagnostic only; the stochastic "
+                "field is generated from real-measurement covariance/conditioning, not "
+                "from the failed historical DaRUS georeference."
+            ),
+        },
         "measurement_qc": measurement_qc,
         "conditioning": {
             "measurement_count": len(selected_measurements),
@@ -1583,6 +1616,7 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     )
     print(f"  grid: {domain.ny} x {domain.nx} at {domain.cell_size_m:g} m")
     print(f"  conditioning measurements: {len(selected_measurements)} / {len(measurements)}")
+    print(f"  active 100 m reference coverage: {active_reference_coverage:.2%}")
     print(
         f"  KL modes: {prior.dimension}, retained energy={prior.retained_energy_fraction:.5f}, "
         f"conditioning covariance error={conditioning_covariance_relative_error:.4g}"
