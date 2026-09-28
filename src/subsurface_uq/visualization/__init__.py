@@ -3,6 +3,7 @@
 from .pce import plot_pce_archive
 from .permeability import plot_permeability_diagnostics
 from .realistic_permeability import (
+    plot_georeference_alignment,
     plot_heldout_metric_comparison,
     plot_heldout_reconstruction,
     plot_length_scale_comparison,
@@ -19,6 +20,7 @@ from .uq import (
 )
 
 __all__ = [
+    "plot_georeference_alignment",
     "MonteCarloPlotData",
     "load_monte_carlo_plot_data",
     "plot_monte_carlo_archive",
