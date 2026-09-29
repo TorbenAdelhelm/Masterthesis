@@ -197,9 +197,10 @@ class TrainingDistributionProfile:
                 for name, summary in self.metric_reference.items()
             },
             "interpretation": (
-                "Full-field descriptors are secondary geostatistical/support diagnostics. "
-                "The pretrained real-K LGCNN was optimized on overlapping cutouts, so "
-                "patch-level compatibility is the primary surrogate-support diagnostic."
+                "Full-field descriptors are secondary geostatistical/support diagnostics "
+                "and are not used to reject generated fields. The pretrained real-K LGCNN "
+                "was optimized on overlapping cutouts, so patch-level compatibility is the "
+                "primary surrogate-support diagnostic."
             ),
         }
 
