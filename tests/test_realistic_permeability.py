@@ -240,6 +240,8 @@ def test_realistic_permeability_cli_has_calibrate_and_generate_subcommands():
     )
 
     assert calibrate.command == "calibrate"
+    assert calibrate.normal_score_fit_stride == 4
+    assert calibrate.normal_score_quantiles == 1025
     assert generate.command == "generate"
 
 
@@ -332,6 +334,9 @@ def test_new_domain_cli_uses_published_realk_patch_geometry_and_disables_global_
     assert args.training_patch_box_size == 1280
     assert args.training_patch_skip == 8
     assert args.include_between_field_mean_mode is False
+    assert args.input_law == "normal-score-copula"
+    assert args.fidelity_spatial_stride == 16
+    assert args.fidelity_max_lag_cells == 32
     assert args.training_runs == ["RUN_1", "RUN_2", "RUN_3"]
 
 

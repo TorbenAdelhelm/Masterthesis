@@ -6,6 +6,7 @@ from subsurface_uq.sampling import (
     TrainingPatchCompatibilityDiagnostics,
     characterize_training_distribution,
     characterize_training_patch_distribution,
+    permeability_ensemble_fidelity,
     release25_patch_positions,
 )
 
@@ -133,3 +134,21 @@ def test_patch_compatibility_is_primary_diagnostic_and_never_filters_samples():
     assert result["generated_patch_count"] == 4
     assert result["decision_rule"] is None
     assert "No generated field or patch is rejected" in result["interpretation"]
+
+
+
+def test_ensemble_fidelity_reports_marginal_and_variogram_mismatch_without_filtering():
+    training = _fields()
+    generated = training * np.float32(1.05)
+
+    result = permeability_ensemble_fidelity(
+        training,
+        generated,
+        cell_size_m=5.0,
+        spatial_stride=1,
+        max_lag_cells=3,
+    )
+
+    assert result["marginal"]["wasserstein_distance_log10"] > 0.0
+    assert set(result["directional_variograms"]) == {"x", "y", "diag"}
+    assert result["decision_rule"] is None
