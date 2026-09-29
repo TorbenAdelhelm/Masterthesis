@@ -1609,8 +1609,8 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     extra_std = float(args.observation_std_log10_k)
     if extra_std < 0.0:
         raise ValueError("observation-std-log10-k must be non-negative")
-    effective_observation_std = float(np.sqrt(nugget_std**2 + extra_std**2))
-    if effective_observation_std <= 0.0:
+    effective_observation_std_log10 = float(np.sqrt(nugget_std**2 + extra_std**2))
+    if effective_observation_std_log10 <= 0.0:
         raise ValueError(
             "continuous new-domain conditioning needs positive nugget/measurement noise"
         )
@@ -1636,14 +1636,48 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     observation_log10_intrinsic = (
         selected_measurements.log10_hydraulic_conductivity + log10_shift
     )
+    if normal_score_transform is not None:
+        conditioning_space = "empirical_normal_score"
+        observation_latent = normal_score_transform.to_score(
+            observation_log10_intrinsic
+        )
+        observation_std_latent = normal_score_transform.local_score_std(
+            observation_log10_intrinsic,
+            effective_observation_std_log10,
+        )
+        measurement_outside_training_marginal = (
+            (observation_log10_intrinsic < normal_score_transform.lower_log10)
+            | (observation_log10_intrinsic > normal_score_transform.upper_log10)
+        )
+    else:
+        conditioning_space = "log10_intrinsic_permeability"
+        observation_latent = observation_log10_intrinsic
+        observation_std_latent = np.full(
+            observation_log10_intrinsic.shape,
+            effective_observation_std_log10,
+            dtype=np.float64,
+        )
+        measurement_outside_training_marginal = np.zeros(
+            observation_log10_intrinsic.shape,
+            dtype=bool,
+        )
+
     conditional = ContinuousPointConditionalKLLogGaussianPermeabilityMap(
         prior=prior,
         observation_coordinates_yx_m=observation_local_yx,
-        observation_log10_k=observation_log10_intrinsic,
-        observation_std_log10_k=effective_observation_std,
+        observation_log10_k=observation_latent,
+        observation_std_log10_k=observation_std_latent,
+    )
+    field_map = (
+        NormalScoreConditionalPermeabilityMap(
+            transform=normal_score_transform,
+            gaussian_map=conditional,
+        )
+        if normal_score_transform is not None
+        else conditional
     )
     sampler = GaussianCoordinatePermeabilitySampler(
-        field_map=conditional,
+        field_map=field_map,
         n_samples=args.n_samples,
         batch_size=args.batch_size,
         seed=args.seed,
