@@ -334,7 +334,7 @@ def test_new_domain_cli_uses_published_realk_patch_geometry_and_disables_global_
     assert args.training_patch_box_size == 1280
     assert args.training_patch_skip == 8
     assert args.include_between_field_mean_mode is False
-    assert args.input_law == "normal-score-copula"
+    assert args.input_law == "measurement-kriging"
     assert args.fidelity_spatial_stride == 16
     assert args.fidelity_max_lag_cells == 32
     assert args.training_runs == ["RUN_1", "RUN_2", "RUN_3"]
@@ -362,3 +362,35 @@ def test_permeability_field_png_is_written_at_field_resolution(tmp_path):
     assert destination.is_file()
     image = mpimg.imread(destination)
     assert image.shape[:2] == field.shape
+
+
+
+def test_new_domain_cli_keeps_training_laws_as_explicit_sensitivity_options():
+    parser = build_parser()
+    common = [
+        "new-domain-generate",
+        "--measurements",
+        "measurements.xlsx",
+        "--reference-grid",
+        "reference.csv",
+        "--training-fields",
+        "raw_dataset",
+        "--training-runs",
+        "RUN_1",
+        "RUN_2",
+        "RUN_3",
+        "--training-calibration",
+        "training.yaml",
+        "--measurement-calibration",
+        "measurements.yaml",
+        "--output-dir",
+        "out",
+    ]
+
+    normal_score = parser.parse_args(
+        common + ["--input-law", "normal-score-copula"]
+    )
+    legacy = parser.parse_args(common + ["--input-law", "legacy-lognormal"])
+
+    assert normal_score.input_law == "normal-score-copula"
+    assert legacy.input_law == "legacy-lognormal"
