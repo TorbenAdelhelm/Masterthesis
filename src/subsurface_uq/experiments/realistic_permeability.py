@@ -1710,6 +1710,29 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     standardized = (observation_latent - latent_mean_obs) / predictive_std_obs
     z90 = 1.6448536269514722
     observation_coverage90 = float(np.mean(np.abs(standardized) <= z90))
+    if normal_score_transform is not None:
+        physical_reference_at_observations = normal_score_transform.from_score(
+            latent_mean_obs
+        )
+        physical_interval_low = normal_score_transform.from_score(
+            latent_mean_obs - z90 * predictive_std_obs
+        )
+        physical_interval_high = normal_score_transform.from_score(
+            latent_mean_obs + z90 * predictive_std_obs
+        )
+    else:
+        physical_reference_at_observations = latent_mean_obs
+        physical_interval_low = latent_mean_obs - z90 * predictive_std_obs
+        physical_interval_high = latent_mean_obs + z90 * predictive_std_obs
+    physical_observation_residual = (
+        physical_reference_at_observations - observation_log10_intrinsic
+    )
+    physical_observation_coverage90 = float(
+        np.mean(
+            (observation_log10_intrinsic >= physical_interval_low)
+            & (observation_log10_intrinsic <= physical_interval_high)
+        )
+    )
 
     diagnostic_stride = int(args.diagnostic_grid_stride)
     if diagnostic_stride <= 0:
@@ -1859,6 +1882,7 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
                     domain=domain,
                     measurement_x_m=selected_measurements.x_m,
                     measurement_y_m=selected_measurements.y_m,
+                    measurement_log10_k=observation_log10_intrinsic,
                     shared_log10_limits=robust_log10_limits,
                     destination=comparison_path,
                 )
@@ -1999,6 +2023,15 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             ),
             "prior_predictive_under_training_prior": conditional.prior_predictive_diagnostics,
             "posterior_predictive_90pct_coverage_at_measurements_latent": observation_coverage90,
+            "conditioned_reference_rmse_log10_at_measurements": float(
+                np.sqrt(np.mean(physical_observation_residual**2))
+            ),
+            "conditioned_reference_mae_log10_at_measurements": float(
+                np.mean(np.abs(physical_observation_residual))
+            ),
+            "posterior_predictive_90pct_coverage_at_measurements_physical": (
+                physical_observation_coverage90
+            ),
             "standardized_residual_mean_latent": float(np.mean(standardized)),
             "standardized_residual_std_latent": (
                 float(np.std(standardized, ddof=1))

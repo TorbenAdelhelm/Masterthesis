@@ -427,6 +427,7 @@ def plot_generated_permeability_comparison(
     domain: NewLGCNNDomain,
     measurement_x_m: Array,
     measurement_y_m: Array,
+    measurement_log10_k: Array,
     shared_log10_limits: tuple[float, float],
     destination: str | Path,
 ) -> Path:
@@ -452,6 +453,16 @@ def plot_generated_permeability_comparison(
         raise ValueError("training permeability must be finite and positive")
     if not np.all(np.isfinite(reference)):
         raise ValueError("conditioned reference must be finite")
+    measurement_x = np.asarray(measurement_x_m, dtype=np.float64).reshape(-1)
+    measurement_y = np.asarray(measurement_y_m, dtype=np.float64).reshape(-1)
+    measurement_log = np.asarray(measurement_log10_k, dtype=np.float64).reshape(-1)
+    if not (
+        measurement_x.shape == measurement_y.shape == measurement_log.shape
+        and np.all(np.isfinite(measurement_x))
+        and np.all(np.isfinite(measurement_y))
+        and np.all(np.isfinite(measurement_log))
+    ):
+        raise ValueError("measurement x/y/log10(K) arrays must be finite and aligned")
 
     lower, upper = (float(shared_log10_limits[0]), float(shared_log10_limits[1]))
     if not (np.isfinite(lower) and np.isfinite(upper) and lower < upper):
@@ -490,12 +501,17 @@ def plot_generated_permeability_comparison(
         cmap="viridis",
     )
     axes[0, 0].scatter(
-        measurement_x_m,
-        measurement_y_m,
-        marker="x",
-        s=16,
-        linewidths=0.8,
-        label="conditioning measurement",
+        measurement_x,
+        measurement_y,
+        c=measurement_log,
+        marker="o",
+        s=24,
+        edgecolors="black",
+        linewidths=0.35,
+        cmap="viridis",
+        vmin=lower,
+        vmax=upper,
+        label="conditioning measurement value",
     )
     axes[0, 0].set_title("Generated realization")
     axes[0, 0].set_xlabel("projected x [m]")
@@ -512,11 +528,16 @@ def plot_generated_permeability_comparison(
         cmap="viridis",
     )
     axes[0, 1].scatter(
-        measurement_x_m,
-        measurement_y_m,
-        marker="x",
-        s=16,
-        linewidths=0.8,
+        measurement_x,
+        measurement_y,
+        c=measurement_log,
+        marker="o",
+        s=24,
+        edgecolors="black",
+        linewidths=0.35,
+        cmap="viridis",
+        vmin=lower,
+        vmax=upper,
     )
     axes[0, 1].set_title("Measurement-conditioned reference")
     axes[0, 1].set_xlabel("projected x [m]")
@@ -561,7 +582,7 @@ def plot_generated_permeability_comparison(
     )
     figure.suptitle(
         "Permeability realization fidelity comparison\n"
-        "common physical scale from training q01-q99"
+        "training q01-q99 scale; measurement markers use observed intrinsic k"
     )
     figure.savefig(path, dpi=180, bbox_inches="tight")
     plt.close(figure)
