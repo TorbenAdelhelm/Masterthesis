@@ -102,6 +102,7 @@ from .training_compatibility import (
     closest_training_field_by_features,
     characterize_training_patch_distribution,
     load_release25_permeability_normalization,
+    permeability_ensemble_fidelity,
     permeability_field_features,
     release25_patch_positions,
 )
@@ -192,6 +193,7 @@ __all__ = [
     "closest_training_field_by_features",
     "characterize_training_patch_distribution",
     "load_release25_permeability_normalization",
+    "permeability_ensemble_fidelity",
     "permeability_field_features",
     "release25_patch_positions",
 ]

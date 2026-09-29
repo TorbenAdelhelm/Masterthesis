@@ -166,6 +166,114 @@ def _comparison_payload(
     return metrics
 
 
+
+def permeability_ensemble_fidelity(
+    training_fields: Array,
+    generated_fields: Array,
+    *,
+    cell_size_m: float,
+    spatial_stride: int = 16,
+    max_lag_cells: int = 32,
+) -> dict[str, object]:
+    """Compare generated/training marginal distributions and spatial correlation.
+
+    The diagnostic is deliberately descriptive: it never filters realizations,
+    preserving the declared Gaussian latent-coordinate law used by MC/RQMC/PCE.
+    """
+
+    from scipy.stats import wasserstein_distance
+
+    from .calibration import estimate_directional_variograms
+
+    training = _positive_fields(training_fields)
+    generated = _positive_fields(generated_fields)
+    if tuple(training.shape[1:]) != tuple(generated.shape[1:]):
+        raise ValueError("training and generated fields must share one spatial shape")
+    spatial_stride = int(spatial_stride)
+    max_lag_cells = int(max_lag_cells)
+    if spatial_stride <= 0 or max_lag_cells <= 0:
+        raise ValueError("spatial_stride and max_lag_cells must be positive")
+
+    train_log = np.log10(
+        np.asarray(training[:, ::spatial_stride, ::spatial_stride], dtype=np.float64)
+    ).reshape(-1)
+    generated_log = np.log10(
+        np.asarray(generated[:, ::spatial_stride, ::spatial_stride], dtype=np.float64)
+    ).reshape(-1)
+    probabilities = np.asarray([0.01, 0.05, 0.50, 0.95, 0.99], dtype=np.float64)
+    train_quantiles = np.quantile(train_log, probabilities)
+    generated_quantiles = np.quantile(generated_log, probabilities)
+
+    train_variograms = estimate_directional_variograms(
+        training,
+        cell_size_m=cell_size_m,
+        max_lag_cells=max_lag_cells,
+        spatial_stride=spatial_stride,
+    )
+    generated_variograms = estimate_directional_variograms(
+        generated,
+        cell_size_m=cell_size_m,
+        max_lag_cells=max_lag_cells,
+        spatial_stride=spatial_stride,
+    )
+    variogram_payload: dict[str, object] = {}
+    for direction in ("x", "y", "diag"):
+        train_distance, train_gamma = train_variograms[direction]
+        generated_distance, generated_gamma = generated_variograms[direction]
+        if not np.allclose(train_distance, generated_distance):
+            raise RuntimeError("training/generated variogram lag grids differ")
+        difference = generated_gamma - train_gamma
+        rmse = float(np.sqrt(np.mean(difference * difference)))
+        scale = max(
+            float(np.sqrt(np.mean(train_gamma * train_gamma))),
+            np.finfo(float).eps,
+        )
+        correlation = None
+        if (
+            train_gamma.size > 1
+            and float(np.std(train_gamma)) > 0.0
+            and float(np.std(generated_gamma)) > 0.0
+        ):
+            correlation = float(np.corrcoef(train_gamma, generated_gamma)[0, 1])
+        variogram_payload[direction] = {
+            "lag_distance_m": train_distance.tolist(),
+            "training_semivariance": train_gamma.tolist(),
+            "generated_semivariance": generated_gamma.tolist(),
+            "rmse": rmse,
+            "relative_rmse": float(rmse / scale),
+            "curve_correlation": correlation,
+        }
+
+    return {
+        "space": "log10_intrinsic_permeability_m2",
+        "training_field_count": int(training.shape[0]),
+        "generated_field_count": int(generated.shape[0]),
+        "spatial_stride_cells": spatial_stride,
+        "marginal": {
+            "wasserstein_distance_log10": float(
+                wasserstein_distance(train_log, generated_log)
+            ),
+            "training_mean": float(np.mean(train_log)),
+            "generated_mean": float(np.mean(generated_log)),
+            "training_std": float(np.std(train_log, ddof=1)),
+            "generated_std": float(np.std(generated_log, ddof=1)),
+            "probabilities": probabilities.tolist(),
+            "training_quantiles": train_quantiles.tolist(),
+            "generated_quantiles": generated_quantiles.tolist(),
+            "quantile_absolute_errors": np.abs(
+                generated_quantiles - train_quantiles
+            ).tolist(),
+        },
+        "directional_variograms": variogram_payload,
+        "decision_rule": None,
+        "interpretation": (
+            "Marginal Wasserstein/quantile errors and directional variogram mismatch "
+            "measure fidelity to the training permeability fields without rejecting "
+            "samples or changing the iid Gaussian coordinate distribution."
+        ),
+    }
+
+
 def closest_training_field_by_features(
     generated_field: Array,
     training_fields: Array,

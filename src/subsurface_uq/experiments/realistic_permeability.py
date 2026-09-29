@@ -12,8 +12,10 @@ from ..sampling import (
     ConditionalKLLogGaussianPermeabilityMap,
     ContinuousPointConditionalKLLogGaussianPermeabilityMap,
     GEOREFERENCE_SWEEP_REPRESENTATIONS,
+    EmpiricalNormalScoreTransform,
     GaussianCoordinatePermeabilitySampler,
     KLLogGaussianPermeabilityMap,
+    NormalScoreConditionalPermeabilityMap,
     RadialExponentialPermeabilitySampler,
     RELEASE25_REALK_PATCH_BOX_SIZE,
     RELEASE25_REALK_PATCH_SKIP,
@@ -22,6 +24,8 @@ from ..sampling import (
     TrainingPatchCompatibilityDiagnostics,
     characterize_training_distribution,
     characterize_training_patch_distribution,
+    closest_training_field_by_features,
+    permeability_ensemble_fidelity,
     load_release25_permeability_normalization,
     calibrate_covariance_candidates,
     correlation_for_offsets,
@@ -47,6 +51,7 @@ from ..sampling import (
 from ..validation.measurements import spatial_block_cross_validate_measurements
 from ..visualization.realistic_permeability import (
     plot_georeference_alignment,
+    plot_generated_permeability_comparison,
     plot_heldout_metric_comparison,
     plot_heldout_reconstruction,
     plot_length_scale_comparison,
@@ -144,6 +149,30 @@ def _calibrate(args: argparse.Namespace) -> int:
         max_lag_cells=args.max_lag_cells,
         spatial_stride=args.spatial_stride,
     )
+
+    normal_score_transform = EmpiricalNormalScoreTransform.fit(
+        fields,
+        spatial_stride=args.normal_score_fit_stride,
+        n_quantiles=args.normal_score_quantiles,
+        tail_probability=args.normal_score_tail_probability,
+    )
+    normal_score_pseudo_fields = np.empty_like(fields, dtype=np.float32)
+    for index, field in enumerate(np.asarray(fields)):
+        score = normal_score_transform.to_score(
+            np.log10(np.asarray(field, dtype=np.float64))
+        )
+        normal_score_pseudo_fields[index] = np.power(10.0, score).astype(
+            np.float32,
+            copy=False,
+        )
+    normal_score_results = calibrate_covariance_candidates(
+        normal_score_pseudo_fields,
+        cell_size_m=args.cell_size_m,
+        models=args.models,
+        max_lag_cells=args.max_lag_cells,
+        spatial_stride=args.spatial_stride,
+    )
+
     payload = {
         "schema_version": 2,
         "source": {
@@ -153,6 +182,18 @@ def _calibrate(args: argparse.Namespace) -> int:
         },
         "selected": results[0].to_dict(),
         "candidates": [item.to_dict() for item in results],
+        "normal_score": {
+            "calibration_variable": "gaussianized_empirical_log10_permeability",
+            "transform": normal_score_transform.to_dict(),
+            "transform_diagnostics": normal_score_transform.diagnostics(fields),
+            "selected": normal_score_results[0].to_dict(),
+            "candidates": [item.to_dict() for item in normal_score_results],
+            "note": (
+                "Production generation uses this Gaussian-score covariance together "
+                "with the empirical inverse marginal. Raw-log10 candidates are retained "
+                "for diagnostics/backward-compatible sensitivity runs."
+            ),
+        },
         "selection_note": (
             "Candidates are ordered by joint x/y/diagonal empirical-variogram RMSE. "
             "The ranking is a calibration diagnostic and requires geological/held-out validation."
@@ -173,6 +214,21 @@ def _calibrate(args: argparse.Namespace) -> int:
         root.mkdir(parents=True, exist_ok=True)
         plot_variogram_fits(variograms, results, root / "variogram_fits.png")
         plot_length_scale_comparison(results, root / "length_scales.png")
+        score_variograms = estimate_directional_variograms(
+            normal_score_pseudo_fields,
+            cell_size_m=args.cell_size_m,
+            max_lag_cells=args.max_lag_cells,
+            spatial_stride=args.spatial_stride,
+        )
+        plot_variogram_fits(
+            score_variograms,
+            normal_score_results,
+            root / "normal_score_variogram_fits.png",
+        )
+        plot_length_scale_comparison(
+            normal_score_results,
+            root / "normal_score_length_scales.png",
+        )
     return 0
 
 
@@ -1949,6 +2005,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     calibrate.add_argument("--max-lag-cells", type=int, default=64)
     calibrate.add_argument("--spatial-stride", type=int, default=1)
+    calibrate.add_argument(
+        "--normal-score-fit-stride",
+        type=int,
+        default=4,
+        help=(
+            "Spatial subsampling used to fit the empirical training marginal. "
+            "The default uses about 1.2M values for three 2560x2560 fields."
+        ),
+    )
+    calibrate.add_argument(
+        "--normal-score-quantiles",
+        type=int,
+        default=1025,
+        help="Number of empirical quantile knots for the normal-score transform.",
+    )
+    calibrate.add_argument(
+        "--normal-score-tail-probability",
+        type=float,
+        default=1.0e-4,
+        help="Finite empirical tail probability used by the normal-score map.",
+    )
     calibrate.add_argument("--plots-dir")
     calibrate.add_argument("--output", required=True)
     calibrate.set_defaults(func=_calibrate)
