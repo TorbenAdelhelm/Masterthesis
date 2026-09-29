@@ -1932,6 +1932,13 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         )
     _write_rows_csv(root / "conditioning_measurements.csv", conditioning_rows)
 
+    training_physical_mean_log10 = float(
+        training_profile.metric_reference["mean_log10_k"]["mean"]
+    )
+    training_physical_std_log10 = float(
+        training_profile.metric_reference["std_log10_k"]["mean"]
+    )
+
     posterior_reproduction = {
         "space": conditioning_space,
         "diagnostic_point_count": int(analytic_mean_diag.size),
@@ -2119,15 +2126,17 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             ),
             "mean_difference_measurement_minus_training_log10": (
                 float(measurement_fit["mean_log10_k"]) + log10_shift
-                - float(training_prior["mean_log10_k"])
+                - training_physical_mean_log10
             ),
             "structured_std_ratio_measurement_to_training": (
                 float(
                     measurement_fit.get("structured_std_log10_k")
                     or measurement_fit["std_log10_k"]
                 )
-                / structured_std
+                / max(training_physical_std_log10, np.finfo(float).eps)
             ),
+            "training_physical_mean_log10": training_physical_mean_log10,
+            "training_physical_std_log10": training_physical_std_log10,
             "length_scale_y_ratio_measurement_to_training": (
                 float(measurement_fit["length_scale_y_m"])
                 / float(training_prior["length_scale_y_m"])
@@ -2155,23 +2164,43 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         "sampler": sampler.metadata,
     }
     stochastic_input_model = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "input_law": input_law,
         "coordinate_distribution": "iid_standard_normal",
         "coordinate_dimension": int(conditional.dimension),
         "field_shape": list(domain.shape),
         "domain": domain.to_dict(),
         "prior": prior.metadata,
+        "normal_score_transform": (
+            None
+            if normal_score_transform is None
+            else normal_score_transform.to_dict()
+        ),
         "training_reference": training_profile.to_dict(),
         "training_patch_reference": training_patch_profile.to_dict(),
+        "training_data_fidelity": training_data_fidelity,
         "release25_input_normalization": training_normalization,
         "conditioning": {
+            "space": conditioning_space,
             "observation_coordinates_yx_m": observation_local_yx.tolist(),
             "observation_log10_intrinsic_permeability": observation_log10_intrinsic.tolist(),
-            "observation_std_log10_k": conditional.observation_std_array.tolist(),
+            "observation_latent_values": observation_latent.tolist(),
+            "observation_std_log10_k": (
+                np.full(
+                    observation_log10_intrinsic.shape,
+                    effective_observation_std_log10,
+                    dtype=np.float64,
+                ).tolist()
+            ),
+            "observation_std_latent": observation_std_latent.tolist(),
         },
         "source_policy": {
-            "prior": "actual_lgcnn_training_permeability_fields",
-            "conditioning": "real_munich_measurements",
+            "prior": (
+                "darus_5065_empirical_normal_score_gaussian_copula"
+                if normal_score_transform is not None
+                else "darus_5065_legacy_lognormal"
+            ),
+            "conditioning": "real_munich_measurements_transformed_to_prior_space",
             "sample_filtering": None,
             "surrogate_support_diagnostic": "release25_training_patch_distribution",
             "between_field_mean_mode": (
