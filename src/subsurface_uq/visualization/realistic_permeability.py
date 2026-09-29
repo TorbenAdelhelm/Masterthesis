@@ -417,6 +417,157 @@ def plot_georeference_alignment(
     return path
 
 
+
+def plot_generated_permeability_comparison(
+    *,
+    generated_permeability_m2: Array,
+    conditioned_reference_log10_k: Array,
+    training_reference_permeability_m2: Array,
+    training_reference_label: str,
+    domain: NewLGCNNDomain,
+    measurement_x_m: Array,
+    measurement_y_m: Array,
+    shared_log10_limits: tuple[float, float],
+    destination: str | Path,
+) -> Path:
+    """Save a four-panel visual comparison for one generated realization.
+
+    Panels use one robust physical log10(K) color scale for the generated,
+    conditioned-reference and selected training field. The final panel shows the
+    generated minus conditioned-reference residual in log10 units. Training
+    fields are compared in their local array coordinates because they are not
+    assumed to be pixelwise registered to the newly selected Munich domain.
+    """
+
+    generated = np.asarray(generated_permeability_m2, dtype=np.float64)
+    reference = np.asarray(conditioned_reference_log10_k, dtype=np.float64)
+    training = np.asarray(training_reference_permeability_m2, dtype=np.float64)
+    if generated.ndim != 2 or reference.ndim != 2 or training.ndim != 2:
+        raise ValueError("generated/reference/training comparison fields must be 2-D")
+    if generated.shape != reference.shape or generated.shape != training.shape:
+        raise ValueError("comparison fields must share one spatial shape")
+    if not np.all(np.isfinite(generated)) or np.any(generated <= 0.0):
+        raise ValueError("generated permeability must be finite and positive")
+    if not np.all(np.isfinite(training)) or np.any(training <= 0.0):
+        raise ValueError("training permeability must be finite and positive")
+    if not np.all(np.isfinite(reference)):
+        raise ValueError("conditioned reference must be finite")
+
+    lower, upper = (float(shared_log10_limits[0]), float(shared_log10_limits[1]))
+    if not (np.isfinite(lower) and np.isfinite(upper) and lower < upper):
+        raise ValueError("shared_log10_limits must contain finite lower < upper")
+
+    generated_log = np.log10(generated)
+    training_log = np.log10(training)
+    residual = generated_log - reference
+    residual_limit = float(np.quantile(np.abs(residual), 0.99))
+    residual_limit = max(residual_limit, np.finfo(float).eps)
+
+    projected_extent = (
+        domain.west_edge_m,
+        domain.east_edge_m,
+        domain.south_edge_m,
+        domain.north_edge_m,
+    )
+    local_extent = (
+        0.0,
+        domain.size_m[1],
+        0.0,
+        domain.size_m[0],
+    )
+
+    path = Path(destination).expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    figure, axes = plt.subplots(2, 2, figsize=(15, 12), constrained_layout=True)
+
+    image0 = axes[0, 0].imshow(
+        generated_log,
+        origin="lower",
+        extent=projected_extent,
+        aspect="equal",
+        vmin=lower,
+        vmax=upper,
+        cmap="viridis",
+    )
+    axes[0, 0].scatter(
+        measurement_x_m,
+        measurement_y_m,
+        marker="x",
+        s=16,
+        linewidths=0.8,
+        label="conditioning measurement",
+    )
+    axes[0, 0].set_title("Generated realization")
+    axes[0, 0].set_xlabel("projected x [m]")
+    axes[0, 0].set_ylabel("projected y [m]")
+    axes[0, 0].legend(loc="best")
+
+    image1 = axes[0, 1].imshow(
+        reference,
+        origin="lower",
+        extent=projected_extent,
+        aspect="equal",
+        vmin=lower,
+        vmax=upper,
+        cmap="viridis",
+    )
+    axes[0, 1].scatter(
+        measurement_x_m,
+        measurement_y_m,
+        marker="x",
+        s=16,
+        linewidths=0.8,
+    )
+    axes[0, 1].set_title("Measurement-conditioned reference")
+    axes[0, 1].set_xlabel("projected x [m]")
+    axes[0, 1].set_ylabel("projected y [m]")
+
+    image2 = axes[1, 0].imshow(
+        training_log,
+        origin="lower",
+        extent=local_extent,
+        aspect="equal",
+        vmin=lower,
+        vmax=upper,
+        cmap="viridis",
+    )
+    axes[1, 0].set_title(f"Closest training reference: {training_reference_label}")
+    axes[1, 0].set_xlabel("local x [m]")
+    axes[1, 0].set_ylabel("local y [m]")
+
+    image3 = axes[1, 1].imshow(
+        residual,
+        origin="lower",
+        extent=projected_extent,
+        aspect="equal",
+        vmin=-residual_limit,
+        vmax=residual_limit,
+        cmap="coolwarm",
+    )
+    axes[1, 1].set_title("Generated - conditioned reference")
+    axes[1, 1].set_xlabel("projected x [m]")
+    axes[1, 1].set_ylabel("projected y [m]")
+
+    figure.colorbar(
+        image0,
+        ax=[axes[0, 0], axes[0, 1], axes[1, 0]],
+        label="log10(k / m²)",
+        shrink=0.88,
+    )
+    figure.colorbar(
+        image3,
+        ax=axes[1, 1],
+        label="difference in log10(k / m²)",
+    )
+    figure.suptitle(
+        "Permeability realization fidelity comparison\n"
+        "common physical scale from training q01-q99"
+    )
+    figure.savefig(path, dpi=180, bbox_inches="tight")
+    plt.close(figure)
+    return path
+
+
 def plot_new_domain_summary(
     *,
     mean_log10_k: Array,

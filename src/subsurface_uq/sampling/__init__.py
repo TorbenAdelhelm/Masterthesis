@@ -65,6 +65,10 @@ from .kriging import (
 )
 from .input_model import ConditionalKLInputModel, load_conditional_kl_input_model
 from .new_domain import NewLGCNNDomain, select_new_lgcnn_domain
+from .normal_score import (
+    EmpiricalNormalScoreTransform,
+    NormalScoreConditionalPermeabilityMap,
+)
 from .perlin import (
     RELEASE25_PERLIN_DEFAULT_SEED,
     RELEASE25_PERLIN_DOMAIN_SIZE_M,
@@ -95,6 +99,7 @@ from .training_compatibility import (
     TrainingPatchCompatibilityDiagnostics,
     TrainingPatchDistributionProfile,
     characterize_training_distribution,
+    closest_training_field_by_features,
     characterize_training_patch_distribution,
     load_release25_permeability_normalization,
     permeability_field_features,
@@ -105,6 +110,8 @@ from .radial_exponential import RadialExponentialPermeabilitySampler
 __all__ = [
     "select_new_lgcnn_domain",
     "NewLGCNNDomain",
+    "EmpiricalNormalScoreTransform",
+    "NormalScoreConditionalPermeabilityMap",
     "ContinuousPointConditionalKLLogGaussianPermeabilityMap",
     "load_reference_permeability_sweep_surfaces",
     "summarize_georeference_sweep",
@@ -182,6 +189,7 @@ __all__ = [
     "matern32_correlation_matrix",
     "sample_borehole_observations",
     "characterize_training_distribution",
+    "closest_training_field_by_features",
     "characterize_training_patch_distribution",
     "load_release25_permeability_normalization",
     "permeability_field_features",

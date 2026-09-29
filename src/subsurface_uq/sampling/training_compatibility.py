@@ -166,6 +166,61 @@ def _comparison_payload(
     return metrics
 
 
+def closest_training_field_by_features(
+    generated_field: Array,
+    training_fields: Array,
+    *,
+    cell_size_m: float,
+    spatial_stride: int = 4,
+) -> tuple[int, float, dict[str, float]]:
+    """Find the training field with the closest standardized descriptor vector.
+
+    The comparison is intentionally descriptor-based rather than cellwise: the
+    DaRUS training fields are distinct spatial cutouts/realizations and are not
+    registered pixel-for-pixel to a newly generated Munich domain.
+    """
+
+    training = _positive_fields(training_fields)
+    generated = np.asarray(generated_field)
+    if generated.ndim != 2:
+        raise ValueError("generated_field must be two-dimensional")
+    if tuple(generated.shape) != tuple(training.shape[1:]):
+        raise ValueError("generated and training fields must have the same shape")
+
+    generated_features = permeability_field_features(
+        generated,
+        cell_size_m=cell_size_m,
+        spatial_stride=spatial_stride,
+    )
+    training_rows = [
+        permeability_field_features(
+            field,
+            cell_size_m=cell_size_m,
+            spatial_stride=spatial_stride,
+        )
+        for field in training
+    ]
+
+    scales: dict[str, float] = {}
+    for name in FEATURE_NAMES:
+        values = np.asarray([item[name] for item in training_rows], dtype=np.float64)
+        scale = float(np.std(values, ddof=1)) if values.size > 1 else 0.0
+        if scale <= np.finfo(float).eps:
+            scale = max(float(np.ptp(values)), 1.0)
+        scales[name] = scale
+
+    distances: list[float] = []
+    for row in training_rows:
+        squared = [
+            ((generated_features[name] - row[name]) / scales[name]) ** 2
+            for name in FEATURE_NAMES
+        ]
+        distances.append(float(np.sqrt(np.mean(squared))))
+
+    index = int(np.argmin(np.asarray(distances, dtype=np.float64)))
+    return index, float(distances[index]), generated_features
+
+
 @dataclass(frozen=True)
 class TrainingDistributionProfile:
     """Secondary full-field descriptors of LGCNN training permeability inputs."""
