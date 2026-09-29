@@ -1,8 +1,10 @@
 import json
 import h5py
+import matplotlib.image as mpimg
 import numpy as np
 
 from subsurface_uq.experiments.realistic_permeability import build_parser
+from subsurface_uq.visualization.realistic_permeability import save_permeability_field_png
 from subsurface_uq.sampling import (
     RadialExponentialPermeabilitySampler,
     calibrate_covariance_candidates,
@@ -331,3 +333,27 @@ def test_new_domain_cli_uses_published_realk_patch_geometry_and_disables_global_
     assert args.training_patch_skip == 8
     assert args.include_between_field_mean_mode is False
     assert args.training_runs == ["RUN_1", "RUN_2", "RUN_3"]
+
+
+
+def test_permeability_field_png_is_written_at_field_resolution(tmp_path):
+    field = np.asarray(
+        [
+            [1.0e-11, 2.0e-11, 4.0e-11],
+            [8.0e-11, 1.6e-10, 3.2e-10],
+        ],
+        dtype=np.float64,
+    )
+    destination = tmp_path / "sample_0001_permeability_m2.png"
+
+    returned = save_permeability_field_png(
+        field,
+        destination,
+        vmin_log10_k=-11.0,
+        vmax_log10_k=-9.0,
+    )
+
+    assert returned == destination.resolve()
+    assert destination.is_file()
+    image = mpimg.imread(destination)
+    assert image.shape[:2] == field.shape

@@ -148,8 +148,9 @@ independent standard-normal coordinates and adapts the map to the existing
 
 For the production RQ1 path, KL parameters no longer need to be copied into
 the RQ1 configuration manually. The realistic-permeability workflow calibrates
-the prior from exactly the three complete fields used to train the DaRUS-5082
-real-K LGCNN and writes a reusable `stochastic_input_model.yaml` artifact.
+the prior from exactly the three complete fields in the DaRUS-5065
+real-permeability training dataset that were used for the DaRUS-5082 real-K
+LGCNN, and writes a reusable `stochastic_input_model.yaml` artifact.
 The empirical between-field mean variation is recorded, but the corresponding
 field-wide Gaussian mode is disabled by default because only three complete
 training fields support that estimate. It is available only as an explicit
@@ -183,8 +184,10 @@ reference table.
 ### Training-informed, measurement-conditioned new LGCNN domain
 
 The production workflow now distinguishes geostatistical replication from the
-CNN training sample population. DaRUS-5082's real-permeability LGCNN uses three
-of four standard 12.8 km fields for training and one for validation. During
+CNN training sample population. The real-permeability training fields come from
+DaRUS-5065; the pretrained model artifacts are published separately as
+DaRUS-5082. Three of the four standard 12.8 km fields are used for training and
+one for validation. During
 training, release25 `SimulationDatasetCuts` presents overlapping patches to the
 CNN; the published best settings for both Step 1 and Step 3 are a 1280-cell box
 and skip 8.
@@ -208,6 +211,10 @@ MC/RQMC/Hermite PCE. The stochastic-input artifact now records the primary patch
 reference, secondary full-field reference, optional release25 permeability
 normalization metadata, and whether the between-field mean sensitivity mode was
 enabled.
+
+With `--save-samples`, every generated realization is also written as a PNG
+visualization of `log10(K [m^2])` using a common training-range color scale,
+alongside the float32 NPY array used as the numerical source of truth.
 
 ### Real Munich measurement calibration
 

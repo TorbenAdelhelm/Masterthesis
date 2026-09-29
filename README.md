@@ -283,9 +283,12 @@ rule.
 The production permeability workflow now distinguishes the **three complete
 real-permeability fields used to train the frozen LGCNN** from the much larger
 set of overlapping patches that the CNN actually saw during optimization.
-DaRUS-5082 contains the pretrained real-`k` LGCNN models; the corresponding raw
-4+1 simulation dataset is DaRUS-5065. The publication documents that three of
-the four standard 12.8 km fields were used for training and one for validation.
+The real-permeability **training data** are published as
+[DaRUS-5065](https://darus.uni-stuttgart.de/dataset.xhtml?persistentId=doi:10.18419/DARUS-5065).
+The separate DaRUS-5082 dataset contains the pretrained real-`k` LGCNN model
+artifacts. DaRUS-5065 contains the raw 4+1 PFLOTRAN simulations; the publication
+documents that three of the four standard 12.8 km fields were used for training
+and one for validation.
 For both real-`k` LGCNN steps the selected cutout hyperparameters are
 `box_length=1280` cells and `skip_per_dir=8` cells.
 
@@ -349,6 +352,12 @@ artifact. It now stores both the primary patch-support reference and the
 secondary full-field reference, together with the optional release25
 normalization metadata. Point RQ1 at it with `grf.input_model`; do not duplicate
 the GRF parameters manually.
+
+When `--save-samples` is enabled (the default), every generated permeability
+realization is written twice in `samples/`: a lossless float32 `.npy` array
+and a `.png` visualization of `log10(K [m^2])`. All PNGs use the same color
+scale defined by the empirical training-field permeability range, so visual
+comparisons between realizations are meaningful.
 
 ## Real Munich measurement calibration
 

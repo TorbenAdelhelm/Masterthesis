@@ -9,7 +9,8 @@ import yaml
 Array = np.ndarray
 
 RELEASE25_REALK_MODEL_DOI = "10.18419/DARUS-5082"
-RELEASE25_REALK_RAW_DATA_DOI = "10.18419/DARUS-5065"
+RELEASE25_REALK_TRAINING_DATA_DOI = "10.18419/DARUS-5065"
+RELEASE25_REALK_RAW_DATA_DOI = RELEASE25_REALK_TRAINING_DATA_DOI
 RELEASE25_REALK_TRAINING_FIELDS = 3
 RELEASE25_REALK_VALIDATION_FIELDS = 1
 RELEASE25_REALK_SCALING_FIELDS = 1
@@ -315,8 +316,8 @@ class TrainingPatchDistributionProfile:
     def to_dict(self) -> dict[str, object]:
         return {
             "reference_level": "release25_training_patch_primary",
-            "model_dataset_doi": RELEASE25_REALK_MODEL_DOI,
-            "raw_dataset_doi": RELEASE25_REALK_RAW_DATA_DOI,
+            "training_data_doi": RELEASE25_REALK_TRAINING_DATA_DOI,
+            "trained_model_doi": RELEASE25_REALK_MODEL_DOI,
             "documented_split": {
                 "training_full_fields": RELEASE25_REALK_TRAINING_FIELDS,
                 "validation_full_fields": RELEASE25_REALK_VALIDATION_FIELDS,

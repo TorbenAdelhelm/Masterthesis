@@ -23,6 +23,50 @@ from ..sampling.new_domain import NewLGCNNDomain
 Array = np.ndarray
 
 
+
+def save_permeability_field_png(
+    permeability_m2: Array,
+    destination: str | Path,
+    *,
+    vmin_log10_k: float | None = None,
+    vmax_log10_k: float | None = None,
+) -> Path:
+    """Save one permeability realization as a PNG in log10(K [m^2]).
+
+    The PNG is a visualization artifact, not a lossless numerical
+    representation. The production generator therefore keeps the float32 NPY
+    sample alongside this image. Supplying a common vmin/vmax gives all samples
+    the same color scale, which makes visual comparisons meaningful.
+    """
+
+    values = np.asarray(permeability_m2, dtype=np.float64)
+    if values.ndim != 2:
+        raise ValueError("permeability field must be two-dimensional")
+    if not np.all(np.isfinite(values)) or np.any(values <= 0.0):
+        raise ValueError("permeability field must be finite and strictly positive")
+
+    lower = None if vmin_log10_k is None else float(vmin_log10_k)
+    upper = None if vmax_log10_k is None else float(vmax_log10_k)
+    if lower is not None and not np.isfinite(lower):
+        raise ValueError("vmin_log10_k must be finite")
+    if upper is not None and not np.isfinite(upper):
+        raise ValueError("vmax_log10_k must be finite")
+    if lower is not None and upper is not None and lower >= upper:
+        raise ValueError("vmin_log10_k must be smaller than vmax_log10_k")
+
+    path = Path(destination).expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    plt.imsave(
+        path,
+        np.log10(values),
+        origin="lower",
+        cmap="viridis",
+        vmin=lower,
+        vmax=upper,
+    )
+    return path
+
+
 def _model_semivariogram(
     result: CovarianceCalibrationResult,
     direction: str,

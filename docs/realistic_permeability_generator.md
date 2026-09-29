@@ -254,8 +254,10 @@ skip_per_dir = 8 cells
 batch_size = 8
 ```
 
-with 5 m cells. The trained models are published as DaRUS-5082 and the raw 4+1
-real-permeability simulation data as DaRUS-5065.
+with 5 m cells. The real-permeability training data are published as
+[DaRUS-5065](https://darus.uni-stuttgart.de/dataset.xhtml?persistentId=doi:10.18419/DARUS-5065).
+The separate DaRUS-5082 dataset contains the pretrained real-`k` model
+artifacts.
 
 This matters for uncertainty modeling. The three complete training fields are
 still only three geostatistical realizations. Their tens of thousands of
@@ -436,6 +438,7 @@ stochastic_input_model.yaml
 new_domain_mean_std.png
 samples/
   sample_0001_permeability_m2.npy
+  sample_0001_permeability_m2.png
   ...
 ```
 
@@ -455,8 +458,13 @@ grf:
 
 without retyping stochastic parameters.
 
-At 2560 x 2560 resolution a float32 field is about 26 MB. Use
-`--no-save-samples` if individual generated fields are not needed.
+At 2560 x 2560 resolution a float32 field is about 26 MB. With the default
+`--save-samples`, each realization is written as both the lossless float32 NPY
+array and a PNG visualization. The PNG stores `log10(K [m^2])` with a common
+color scale based on the empirical training-field permeability range; values
+outside that range are saturated in the visualization but remain unchanged in
+the NPY file. Use `--no-save-samples` if neither per-realization artifact is
+needed.
 
 The new projected domain defines only the permeability field. Reusing the
 release25 pressure/material-ID/heat-pump inputs still means those quantities are

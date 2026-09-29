@@ -2,6 +2,7 @@ import numpy as np
 
 from subsurface_uq.sampling import (
     TrainingCompatibilityDiagnostics,
+    RELEASE25_REALK_TRAINING_DATA_DOI,
     TrainingPatchCompatibilityDiagnostics,
     characterize_training_distribution,
     characterize_training_patch_distribution,
@@ -103,6 +104,8 @@ def test_patch_profile_treats_overlapping_cutouts_as_correlated_support_not_new_
     assert profile.field_names == ("RUN_1", "RUN_2", "RUN_3")
     payload = profile.to_dict()
     assert payload["reference_level"] == "release25_training_patch_primary"
+    assert payload["training_data_doi"] == RELEASE25_REALK_TRAINING_DATA_DOI
+    assert payload["training_data_doi"] == "10.18419/DARUS-5065"
     assert "not treated as independent geological" in payload["interpretation"]
 
 

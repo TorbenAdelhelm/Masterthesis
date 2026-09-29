@@ -54,6 +54,7 @@ from ..visualization.realistic_permeability import (
     plot_new_domain_summary,
     plot_nugget_fraction_comparison,
     plot_variogram_fits,
+    save_permeability_field_png,
 )
 
 
@@ -1652,9 +1653,16 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             total_cells += int(physical.size)
             outside_by_sample.append(outside_count / physical.size)
             if args.save_samples:
+                sample_stem = f"sample_{sample_count:04d}_permeability_m2"
                 np.save(
-                    samples_dir / f"sample_{sample_count:04d}_permeability_m2.npy",
+                    samples_dir / f"{sample_stem}.npy",
                     np.asarray(field, dtype=np.float32),
+                )
+                save_permeability_field_png(
+                    field,
+                    samples_dir / f"{sample_stem}.png",
+                    vmin_log10_k=float(np.log10(training_min)),
+                    vmax_log10_k=float(np.log10(training_max)),
                 )
 
     if sample_count != int(args.n_samples):
@@ -1757,6 +1765,23 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "training_k_max_m2": training_max,
             "outside_training_fraction": float(outside_total / total_cells),
             "outside_training_fraction_by_sample": outside_by_sample,
+            "saved_sample_formats": (
+                ["float32_npy", "png_log10_intrinsic_permeability"]
+                if args.save_samples
+                else []
+            ),
+            "png_color_scale_log10_k_m2": (
+                [float(np.log10(training_min)), float(np.log10(training_max))]
+                if args.save_samples
+                else None
+            ),
+            "png_note": (
+                "PNG files are visualization artifacts in log10(K [m^2]) with one "
+                "common color scale defined by the empirical training-field range. "
+                "NPY files remain the lossless numerical sample representation."
+                if args.save_samples
+                else None
+            ),
         },
         "prior_definition": {
             "source": "lgcnn_training_permeability_fields",
@@ -2203,7 +2228,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--save-samples",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Write each generated 2560x2560 intrinsic-permeability field as .npy.",
+        help=(
+            "Write each generated 2560x2560 intrinsic-permeability field as both "
+            "float32 .npy and a .png visualization in log10(K [m^2])."
+        ),
     )
     new_domain.add_argument("--output-dir", required=True)
     new_domain.set_defaults(func=_new_domain_generate)
