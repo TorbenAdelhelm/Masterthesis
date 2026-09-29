@@ -90,10 +90,13 @@ to RQ2.
 ## Input law and diagnostics
 
 The preferred thesis run uses the `stochastic_input_model.yaml` artifact
-written by the realistic-permeability workflow. That artifact reconstructs the
-same training-informed KL prior and the same continuous real-measurement
-conditioning map used during input-model validation. RQ1 therefore does not
-retype or refit stochastic parameters.
+written by the realistic-permeability workflow. Its production default is the
+DaRUS-5065 empirical normal-score/Gaussian-copula law: the physical
+`log10(K)` marginal is learned from the exact three training fields, covariance
+and conditioning are represented in Gaussian-score KL space, and the inverse
+empirical marginal maps those scores back to intrinsic permeability. RQ1
+therefore reuses the same validated stochastic map rather than retyping or
+refitting parameters.
 
 Every main variant observes the exact permeability batches passed into the
 frozen LGCNN. Diagnostics are evaluated in `Y = log10(K)`. When an input-model
@@ -103,10 +106,11 @@ for the manual legacy configuration.
 
 Surrogate-support validation itself is performed upstream by the
 realistic-permeability workflow. For the DaRUS-5082 real-K model, the primary
-reference is the exact release25 1280-cell / skip-8 training-patch lattice from
-the three full training fields; full-field descriptors are secondary. The
-artifact stores a tractable deterministic sample of that correlated patch
-population plus optional release25 normalization metadata.
+reference is the exact release25 1280-cell / skip-8 patch lattice from the three
+DaRUS-5065 training fields; full-field descriptors are secondary. The workflow
+also reports generated-vs-training marginal Wasserstein/quantile errors and
+directional semivariogram mismatch. These diagnostics never filter samples, so
+the RQ1 coordinates remain iid standard normal.
 
 For the continuous real-measurement input model, conditioning quality and prior
 compatibility are also recorded upstream, including prior-predictive

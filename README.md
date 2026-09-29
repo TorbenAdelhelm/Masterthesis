@@ -298,7 +298,8 @@ of independent geological realizations. Instead, the exact release25
 `SimulationDatasetCuts` lattice is reproduced only for the primary
 surrogate-support diagnostic.
 
-Calibrate the Gaussian prior on exactly the three training runs:
+Calibrate the physical descriptors **and** the empirical normal-score/Gaussian-copula
+prior on exactly the three training runs:
 
 ```bash
 python -m subsurface_uq.experiments.realistic_permeability calibrate \
@@ -323,6 +324,7 @@ python -m subsurface_uq.experiments.realistic_permeability new-domain-generate \
   --training-calibration run_output/realistic_k/training_calibration.yaml \
   --measurement-calibration run_output/realistic_k/measurements/measurement_calibration.yaml \
   --training-info-yaml <PATH_TO_DARUS_5082_INFO_YAML> \
+  --input-law normal-score-copula \
   --model exponential \
   --energy-threshold 0.95 \
   --n-samples 8 \
@@ -335,17 +337,32 @@ population is used to compute log-permeability marginal, gradient and local
 correlation descriptors for both training and generated fields. Full-field
 statistics remain secondary diagnostics.
 
-No generated field or patch is rejected. The stochastic map therefore remains
+The production input law no longer assumes that `log10(K)` itself is Gaussian.
+It learns the empirical training marginal `F_train` and Gaussianizes the three
+DaRUS-5065 fields,
 
 ```text
-eta ~ N(0,I) -> conditional KL map -> K
+Y = log10(K)
+Z = Phi^-1(F_train(Y))
 ```
 
-for MC, randomized QMC and later Hermite PCE. The empirical between-training-
-field mean standard deviation is recorded, but a separate field-wide Gaussian
-mean coordinate is now **disabled by default** because it is estimated from only
-three complete fields. It can be enabled explicitly only as a sensitivity study
-with `--include-between-field-mean-mode`.
+fits the separable KL covariance in `Z`-space, transforms the real Munich
+measurements through the same map, conditions the Gaussian score field, and then
+maps realizations back with `F_train^-1(Phi(Z))`. Consequently the physical
+marginal is tied to the actual training permeability distribution while the
+finite stochastic coordinates remain
+
+```text
+eta ~ N(0,I)
+  -> conditional Gaussian-score KL field Z
+  -> empirical inverse marginal
+  -> K
+```
+
+for MC, randomized QMC and Hermite PCE. No generated field or patch is rejected.
+The empirical between-training-field latent-mean variation is recorded, but the
+extra field-wide Gaussian coordinate remains disabled by default and is available
+only as a sensitivity study.
 
 The output `stochastic_input_model.yaml` remains the reusable stochastic-law
 artifact. It now stores both the primary patch-support reference and the
@@ -353,11 +370,15 @@ secondary full-field reference, together with the optional release25
 normalization metadata. Point RQ1 at it with `grf.input_model`; do not duplicate
 the GRF parameters manually.
 
-When `--save-samples` is enabled (the default), every generated permeability
-realization is written twice in `samples/`: a lossless float32 `.npy` array
-and a `.png` visualization of `log10(K [m^2])`. All PNGs use the same color
-scale defined by the empirical training-field permeability range, so visual
-comparisons between realizations are meaningful.
+When `--save-samples` is enabled (the default), every realization keeps a
+lossless float32 `.npy` file and two visual products. The simple field PNG uses
+the common **training q01--q99** `log10(K [m^2])` scale instead of min/max.
+More importantly, `samples/comparisons/sample_XXXX_comparison.png` shows the
+generated realization, the deterministic measurement-conditioned reference,
+the closest DaRUS-5065 training field by standardized spatial/marginal
+descriptors, and the generated-minus-conditioned-reference residual. The
+generator also reports marginal Wasserstein/quantile errors and directional
+variogram mismatch against the training ensemble.
 
 ## Real Munich measurement calibration
 

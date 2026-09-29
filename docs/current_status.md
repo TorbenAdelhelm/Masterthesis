@@ -192,12 +192,19 @@ training, release25 `SimulationDatasetCuts` presents overlapping patches to the
 CNN; the published best settings for both Step 1 and Step 3 are a 1280-cell box
 and skip 8.
 
-The three complete training fields define the geostatistical prior. Their
-overlapping patches are not counted as independent geological realizations.
-Instead, the workflow reproduces the exact release25 patch lattice as the
-**primary surrogate-support diagnostic** and retains complete-field statistics
-as secondary diagnostics. A deterministic patch subsample is used only to make
-the descriptor computation tractable.
+The three complete training fields define the empirical physical marginal and
+the spatial prior. The production default is now an **empirical normal-score /
+Gaussian-copula** model: `log10(K)` is mapped through the training empirical CDF
+to Gaussian scores, the covariance/KL model is fitted in score space, real
+measurements are transformed through the same map and condition that latent
+field, and generated scores are mapped back through the empirical inverse CDF.
+This keeps iid Gaussian coordinates for MC/RQMC/Hermite PCE without forcing the
+physical training marginal to be lognormal.
+
+Their overlapping patches are not counted as independent geological
+realizations. Instead, the workflow reproduces the exact release25 patch lattice
+as the **primary surrogate-support diagnostic** and retains complete-field
+statistics as secondary diagnostics.
 
 The production command requires the exact three `RUN_*` training names when a
 raw release25 dataset directory is used. It verifies that the field-based prior
@@ -212,9 +219,12 @@ reference, secondary full-field reference, optional release25 permeability
 normalization metadata, and whether the between-field mean sensitivity mode was
 enabled.
 
-With `--save-samples`, every generated realization is also written as a PNG
-visualization of `log10(K [m^2])` using a common training-range color scale,
-alongside the float32 NPY array used as the numerical source of truth.
+With `--save-samples`, every generated realization keeps its float32 NPY
+source plus a robust q01--q99 field PNG and a four-panel comparison PNG. The
+comparison places the generated field beside the measurement-conditioned
+reference and the closest DaRUS-5065 training field, and includes a
+generated-minus-reference residual. Ensemble fidelity now also reports
+log-marginal Wasserstein/quantile errors and directional variogram mismatch.
 
 ### Real Munich measurement calibration
 
