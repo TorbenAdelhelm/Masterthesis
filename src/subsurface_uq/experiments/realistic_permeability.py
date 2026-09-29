@@ -1746,9 +1746,11 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             effective_observation_std_log10,
             dtype=np.float64,
         )
-        measurement_outside_training_marginal = np.zeros(
-            observation_log10_intrinsic.shape,
-            dtype=bool,
+        training_log10_min = float(np.log10(training_profile.minimum_k))
+        training_log10_max = float(np.log10(training_profile.maximum_k))
+        measurement_outside_training_marginal = (
+            (observation_log10_intrinsic < training_log10_min)
+            | (observation_log10_intrinsic > training_log10_max)
         )
 
     conditional = ContinuousPointConditionalKLLogGaussianPermeabilityMap(
@@ -2133,6 +2135,11 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             ),
             "measurements_outside_training_marginal_fraction": float(
                 np.mean(measurement_outside_training_marginal)
+            ),
+            "training_marginal_support_definition": (
+                "normal_score_quantile_support"
+                if normal_score_transform is not None
+                else "empirical_training_min_max"
             ),
             "prior_predictive_under_production_prior": conditional.prior_predictive_diagnostics,
             "posterior_predictive_90pct_coverage_at_measurements_latent": observation_coverage90,
