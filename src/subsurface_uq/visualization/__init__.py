@@ -4,6 +4,7 @@ from .pce import plot_pce_archive
 from .permeability import plot_permeability_diagnostics
 from .realistic_permeability import (
     plot_georeference_alignment,
+    plot_generated_measurement_overlay,
     plot_generated_permeability_comparison,
     plot_heldout_metric_comparison,
     plot_heldout_reconstruction,
@@ -25,6 +26,7 @@ from .uq import (
 __all__ = [
     "plot_new_domain_summary",
     "plot_georeference_alignment",
+    "plot_generated_measurement_overlay",
     "plot_generated_permeability_comparison",
     "MonteCarloPlotData",
     "load_monte_carlo_plot_data",

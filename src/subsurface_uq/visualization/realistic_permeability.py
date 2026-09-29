@@ -418,6 +418,89 @@ def plot_georeference_alignment(
 
 
 
+
+def plot_generated_measurement_overlay(
+    *,
+    generated_permeability_m2: Array,
+    domain: NewLGCNNDomain,
+    measurement_x_m: Array,
+    measurement_y_m: Array,
+    measurement_log10_k: Array,
+    shared_log10_limits: tuple[float, float],
+    destination: str | Path,
+) -> Path:
+    """Overlay measured intrinsic permeability values on one generated field.
+
+    Raster and measurement markers use exactly the same log10(K) normalization,
+    making local agreement/disagreement directly visible.
+    """
+
+    generated = np.asarray(generated_permeability_m2, dtype=np.float64)
+    if generated.ndim != 2 or generated.shape != domain.shape:
+        raise ValueError("generated field must match domain shape")
+    if not np.all(np.isfinite(generated)) or np.any(generated <= 0.0):
+        raise ValueError("generated permeability must be finite and positive")
+    measurement_x = np.asarray(measurement_x_m, dtype=np.float64).reshape(-1)
+    measurement_y = np.asarray(measurement_y_m, dtype=np.float64).reshape(-1)
+    measurement_log = np.asarray(measurement_log10_k, dtype=np.float64).reshape(-1)
+    if not (
+        measurement_x.shape == measurement_y.shape == measurement_log.shape
+        and np.all(np.isfinite(measurement_x))
+        and np.all(np.isfinite(measurement_y))
+        and np.all(np.isfinite(measurement_log))
+    ):
+        raise ValueError("measurement x/y/log10(K) arrays must be finite and aligned")
+
+    lower, upper = (float(shared_log10_limits[0]), float(shared_log10_limits[1]))
+    if not (np.isfinite(lower) and np.isfinite(upper) and lower < upper):
+        raise ValueError("shared_log10_limits must contain finite lower < upper")
+
+    path = Path(destination).expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    extent = (
+        domain.west_edge_m,
+        domain.east_edge_m,
+        domain.south_edge_m,
+        domain.north_edge_m,
+    )
+    figure, ax = plt.subplots(figsize=(10, 9), constrained_layout=True)
+    image = ax.imshow(
+        np.log10(generated),
+        origin="lower",
+        extent=extent,
+        aspect="equal",
+        vmin=lower,
+        vmax=upper,
+        cmap="viridis",
+    )
+    scatter = ax.scatter(
+        measurement_x,
+        measurement_y,
+        c=measurement_log,
+        marker="o",
+        s=42,
+        edgecolors="white",
+        linewidths=0.8,
+        cmap="viridis",
+        vmin=lower,
+        vmax=upper,
+        label="measured intrinsic permeability",
+    )
+    ax.set_title(
+        "Generated permeability with measured values overlaid\n"
+        "raster and markers share one log10(k) color scale"
+    )
+    ax.set_xlabel("projected x [m]")
+    ax.set_ylabel("projected y [m]")
+    ax.legend(loc="best")
+    figure.colorbar(image, ax=ax, label="log10(k / m²)")
+    # Keep the scatter object alive explicitly for backends that lazily resolve mappables.
+    _ = scatter
+    figure.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close(figure)
+    return path
+
+
 def plot_generated_permeability_comparison(
     *,
     generated_permeability_m2: Array,

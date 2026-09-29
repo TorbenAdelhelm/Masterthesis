@@ -51,6 +51,7 @@ from ..sampling import (
 from ..validation.measurements import spatial_block_cross_validate_measurements
 from ..visualization.realistic_permeability import (
     plot_georeference_alignment,
+    plot_generated_measurement_overlay,
     plot_generated_permeability_comparison,
     plot_heldout_metric_comparison,
     plot_heldout_reconstruction,
@@ -1403,68 +1404,116 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         measurement_calibration_payload = yaml.safe_load(handle)
 
     input_law = str(args.input_law)
-    normal_score_payload = training_calibration_payload.get("normal_score")
-    if input_law == "normal-score-copula":
-        if not isinstance(normal_score_payload, dict):
-            raise ValueError(
-                "normal-score-copula generation requires a calibration produced by "
-                "the updated 'calibrate' command. Re-run training calibration so the "
-                "normal_score transform/covariance block is present."
-            )
-        training_candidates = [
-            dict(item) for item in normal_score_payload.get("candidates", [])
-        ]
-        selected_payload = normal_score_payload.get("selected", {})
-    else:
-        training_candidates = [
-            dict(item) for item in training_calibration_payload.get("candidates", [])
-        ]
-        selected_payload = training_calibration_payload.get("selected", {})
-
-    if not training_candidates:
-        raise ValueError(
-            "training calibration must contain covariance candidates for the "
-            f"requested input law {input_law!r}"
-        )
     supported = {"matern32", "exponential"}
-    model = args.model
-    if model is None:
-        selected_name = str(selected_payload.get("covariance_model", ""))
-        if selected_name not in supported:
-            raise ValueError(
-                "the best training-field covariance calibration is not available in "
-                "the explicit Gaussian-coordinate KL path; choose --model matern32 "
-                "or --model exponential explicitly and document that approximation"
-            )
-        model = selected_name
-    if model not in supported:
+
+    raw_training_candidates = [
+        dict(item) for item in training_calibration_payload.get("candidates", [])
+    ]
+    if not raw_training_candidates:
         raise ValueError(
-            "training-informed Gaussian-coordinate generation requires a separable "
-            "matern32 or exponential training-prior covariance"
+            "training calibration must come from the field-based 'calibrate' command "
+            "and contain covariance candidates for LGCNN-support comparison"
         )
-    training_prior = next(
-        (
-            item
-            for item in training_candidates
-            if str(item.get("covariance_model")) == model
-        ),
-        None,
-    )
-    if training_prior is None:
-        raise ValueError(
-            f"model {model!r} is not present in the {input_law} training calibration"
-        )
+    normal_score_payload = training_calibration_payload.get("normal_score")
 
     measurement_candidates = {
         str(item["covariance_model"]): dict(item)
         for item in measurement_calibration_payload.get("candidates_full_data", [])
     }
+    if not measurement_candidates:
+        raise ValueError(
+            "measurement calibration must come from 'measurement-evaluate' and "
+            "contain candidates_full_data"
+        )
+
+    model = args.model
+    if model is None:
+        if input_law == "measurement-kriging":
+            selected_measurement = measurement_calibration_payload.get(
+                "selected_by_spatial_cv_rmse", {}
+            )
+            selected_name = str(selected_measurement.get("covariance_model", ""))
+            if selected_name not in supported:
+                raise ValueError(
+                    "the measurement model selected by spatial block CV is not "
+                    "available in the factorized KL path. Choose --model matern32 "
+                    "or --model exponential explicitly and document the approximation."
+                )
+            model = selected_name
+        elif input_law == "normal-score-copula":
+            if not isinstance(normal_score_payload, dict):
+                raise ValueError(
+                    "normal-score-copula generation requires a calibration produced "
+                    "by the updated 'calibrate' command"
+                )
+            selected_name = str(
+                normal_score_payload.get("selected", {}).get("covariance_model", "")
+            )
+            if selected_name not in supported:
+                raise ValueError(
+                    "the selected normal-score training covariance is unavailable in "
+                    "the factorized KL path; choose --model matern32 or exponential"
+                )
+            model = selected_name
+        else:
+            selected_name = str(
+                training_calibration_payload.get("selected", {}).get(
+                    "covariance_model", ""
+                )
+            )
+            if selected_name not in supported:
+                raise ValueError(
+                    "the selected training covariance is unavailable in the "
+                    "factorized KL path; choose --model matern32 or exponential"
+                )
+            model = selected_name
+
+    if model not in supported:
+        raise ValueError(
+            "new-domain Gaussian-coordinate generation currently supports only "
+            "separable matern32 or exponential covariance"
+        )
     if model not in measurement_candidates:
         raise ValueError(
-            f"model {model!r} is not present in measurement calibration; "
-            "the same family is required to obtain its fitted nugget diagnostic"
+            f"model {model!r} is not present in measurement calibration"
         )
     measurement_fit = measurement_candidates[model]
+
+    training_comparison_fit = next(
+        (
+            item
+            for item in raw_training_candidates
+            if str(item.get("covariance_model")) == model
+        ),
+        None,
+    )
+    if training_comparison_fit is None:
+        raise ValueError(
+            f"model {model!r} is not present in the training-field calibration"
+        )
+
+    if input_law == "normal-score-copula":
+        if not isinstance(normal_score_payload, dict):
+            raise ValueError(
+                "normal-score-copula generation requires normal_score calibration"
+            )
+        training_candidates = [
+            dict(item) for item in normal_score_payload.get("candidates", [])
+        ]
+        training_prior = next(
+            (
+                item
+                for item in training_candidates
+                if str(item.get("covariance_model")) == model
+            ),
+            None,
+        )
+        if training_prior is None:
+            raise ValueError(
+                f"model {model!r} is absent from normal-score training calibration"
+            )
+    else:
+        training_prior = training_comparison_fit
 
     reference_grid = load_reference_horizontal_grid(
         args.reference_grid, expected_cell_size_m=args.expected_reference_cell_size_m
@@ -1596,15 +1645,6 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         )[0]
     )
     log10_shift = float(np.log10(conversion_factor))
-    structured_std = float(training_prior["std_log10_k"])
-    estimated_between_field_mean_std = float(
-        training_prior.get("between_field_mean_std_log10_k", 0.0) or 0.0
-    )
-    global_mean_std = (
-        estimated_between_field_mean_std
-        if args.include_between_field_mean_mode
-        else 0.0
-    )
     nugget_std = float(measurement_fit.get("nugget_std_log10_k", 0.0))
     extra_std = float(args.observation_std_log10_k)
     if extra_std < 0.0:
@@ -1615,16 +1655,48 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "continuous new-domain conditioning needs positive nugget/measurement noise"
         )
 
+    if input_law == "measurement-kriging":
+        if args.include_between_field_mean_mode:
+            raise ValueError(
+                "--include-between-field-mean-mode is a training-field sensitivity "
+                "assumption and is not valid for the measurement-kriging baseline"
+            )
+        prior_source = "real_munich_measurement_variogram_spatial_cv"
+        prior_mean = float(measurement_fit["mean_log10_k"]) + log10_shift
+        structured_std = float(
+            measurement_fit.get("structured_std_log10_k")
+            or measurement_fit["std_log10_k"]
+        )
+        prior_length_scale_y = float(measurement_fit["length_scale_y_m"])
+        prior_length_scale_x = float(measurement_fit["length_scale_x_m"])
+        estimated_between_field_mean_std = 0.0
+        global_mean_std = 0.0
+    else:
+        prior_source = (
+            "darus_5065_training_normal_score_covariance"
+            if input_law == "normal-score-copula"
+            else "darus_5065_training_log10_covariance"
+        )
+        prior_mean = float(training_prior["mean_log10_k"])
+        structured_std = float(training_prior["std_log10_k"])
+        prior_length_scale_y = float(training_prior["length_scale_y_m"])
+        prior_length_scale_x = float(training_prior["length_scale_x_m"])
+        estimated_between_field_mean_std = float(
+            training_prior.get("between_field_mean_std_log10_k", 0.0) or 0.0
+        )
+        global_mean_std = (
+            estimated_between_field_mean_std
+            if args.include_between_field_mean_mode
+            else 0.0
+        )
+
     prior = KLLogGaussianPermeabilityMap(
         shape=domain.shape,
         domain_size_m=domain.size_m,
-        mean_log10_k=float(training_prior["mean_log10_k"]),
+        mean_log10_k=prior_mean,
         std_log10_k=structured_std,
         global_mean_std_log10_k=global_mean_std,
-        length_scale_m=(
-            float(training_prior["length_scale_y_m"]),
-            float(training_prior["length_scale_x_m"]),
-        ),
+        length_scale_m=(prior_length_scale_y, prior_length_scale_x),
         covariance_model=model,
         n_modes=args.n_modes,
         energy_threshold=args.energy_threshold,
@@ -1692,8 +1764,8 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         model,
         delta_y_m=delta_y,
         delta_x_m=delta_x,
-        length_scale_y_m=float(training_prior["length_scale_y_m"]),
-        length_scale_x_m=float(training_prior["length_scale_x_m"]),
+        length_scale_y_m=prior_length_scale_y,
+        length_scale_x_m=prior_length_scale_x,
     )
     if global_mean_std > 0.0:
         exact_covariance = exact_covariance + global_mean_std**2
@@ -1798,6 +1870,15 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             vmin_log10_k=robust_log10_limits[0],
             vmax_log10_k=robust_log10_limits[1],
         )
+        plot_generated_measurement_overlay(
+            generated_permeability_m2=conditioned_reference_k,
+            domain=domain,
+            measurement_x_m=selected_measurements.x_m,
+            measurement_y_m=selected_measurements.y_m,
+            measurement_log10_k=observation_log10_intrinsic,
+            shared_log10_limits=robust_log10_limits,
+            destination=root / "conditioned_reference_measurement_overlay.png",
+        )
 
     mean_log = np.zeros(domain.shape, dtype=np.float64)
     m2_log = np.zeros(domain.shape, dtype=np.float64)
@@ -1871,6 +1952,19 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
                     if training_names
                     else f"training_field_{closest_index}"
                 )
+                overlay_path = (
+                    comparisons_dir
+                    / f"sample_{sample_count:04d}_measurement_overlay.png"
+                )
+                plot_generated_measurement_overlay(
+                    generated_permeability_m2=field,
+                    domain=domain,
+                    measurement_x_m=selected_measurements.x_m,
+                    measurement_y_m=selected_measurements.y_m,
+                    measurement_log10_k=observation_log10_intrinsic,
+                    shared_log10_limits=robust_log10_limits,
+                    destination=overlay_path,
+                )
                 comparison_path = (
                     comparisons_dir / f"sample_{sample_count:04d}_comparison.png"
                 )
@@ -1889,6 +1983,7 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
                 visual_comparisons.append(
                     {
                         "sample_index": sample_count,
+                        "measurement_overlay_png": str(overlay_path),
                         "comparison_png": str(comparison_path),
                         "closest_training_field_index": closest_index,
                         "closest_training_field_name": training_label,
