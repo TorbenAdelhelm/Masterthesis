@@ -1402,22 +1402,34 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     with measurement_calibration_path.open("r", encoding="utf-8") as handle:
         measurement_calibration_payload = yaml.safe_load(handle)
 
-    training_candidates = [
-        dict(item) for item in training_calibration_payload.get("candidates", [])
-    ]
+    input_law = str(args.input_law)
+    normal_score_payload = training_calibration_payload.get("normal_score")
+    if input_law == "normal-score-copula":
+        if not isinstance(normal_score_payload, dict):
+            raise ValueError(
+                "normal-score-copula generation requires a calibration produced by "
+                "the updated 'calibrate' command. Re-run training calibration so the "
+                "normal_score transform/covariance block is present."
+            )
+        training_candidates = [
+            dict(item) for item in normal_score_payload.get("candidates", [])
+        ]
+        selected_payload = normal_score_payload.get("selected", {})
+    else:
+        training_candidates = [
+            dict(item) for item in training_calibration_payload.get("candidates", [])
+        ]
+        selected_payload = training_calibration_payload.get("selected", {})
+
     if not training_candidates:
         raise ValueError(
-            "training calibration must come from the field-based 'calibrate' command "
-            "and contain covariance candidates"
+            "training calibration must contain covariance candidates for the "
+            f"requested input law {input_law!r}"
         )
     supported = {"matern32", "exponential"}
     model = args.model
     if model is None:
-        selected_name = str(
-            training_calibration_payload.get("selected", {}).get(
-                "covariance_model", ""
-            )
-        )
+        selected_name = str(selected_payload.get("covariance_model", ""))
         if selected_name not in supported:
             raise ValueError(
                 "the best training-field covariance calibration is not available in "
@@ -1439,7 +1451,9 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         None,
     )
     if training_prior is None:
-        raise ValueError(f"model {model!r} is not present in training calibration")
+        raise ValueError(
+            f"model {model!r} is not present in the {input_law} training calibration"
+        )
 
     measurement_candidates = {
         str(item["covariance_model"]): dict(item)
@@ -1489,8 +1503,9 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         )
     if int(training_fields.shape[0]) != RELEASE25_REALK_TRAINING_FIELDS:
         raise ValueError(
-            "DARUS-5082 real-K LGCNN support must be characterized from exactly "
-            f"{RELEASE25_REALK_TRAINING_FIELDS} full training fields; got "
+            "DaRUS-5065 real-permeability support must be characterized from exactly "
+            f"{RELEASE25_REALK_TRAINING_FIELDS} full training fields used by the "
+            "pretrained real-K LGCNN; got "
             f"{training_fields.shape[0]}. The paper documents three of four standard "
             "fields for training and one for validation."
         )
@@ -1536,6 +1551,19 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         if args.training_info_yaml is None
         else load_release25_permeability_normalization(args.training_info_yaml)
     )
+    normal_score_transform = None
+    normal_score_training_diagnostics = None
+    if input_law == "normal-score-copula":
+        assert isinstance(normal_score_payload, dict)
+        transform_payload = normal_score_payload.get("transform")
+        if not isinstance(transform_payload, dict):
+            raise ValueError("normal_score calibration block has no transform mapping")
+        normal_score_transform = EmpiricalNormalScoreTransform.from_dict(
+            transform_payload
+        )
+        normal_score_training_diagnostics = normal_score_transform.diagnostics(
+            training_fields
+        )
 
     reference_rows, reference_cols = np.indices(reference_grid.shape)
     reference_x = (
