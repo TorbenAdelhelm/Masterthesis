@@ -1883,6 +1883,23 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         std_log = np.zeros_like(mean_log)
         diag_std = np.zeros_like(diag_mean)
 
+    training_fidelity_fields = np.asarray(
+        training_fields[:, ::fidelity_stride, ::fidelity_stride],
+        dtype=np.float32,
+    )
+    generated_fidelity_array = np.stack(generated_fidelity_fields, axis=0)
+    training_data_fidelity = permeability_ensemble_fidelity(
+        training_fidelity_fields,
+        generated_fidelity_array,
+        cell_size_m=args.cell_size_m * fidelity_stride,
+        spatial_stride=1,
+        max_lag_cells=args.fidelity_max_lag_cells,
+    )
+    training_data_fidelity["source_spatial_stride_cells"] = fidelity_stride
+    training_data_fidelity["effective_cell_size_m"] = (
+        args.cell_size_m * fidelity_stride
+    )
+
     np.save(root / "empirical_mean_log10_permeability_m2.npy", mean_log.astype(np.float32))
     np.save(root / "empirical_std_log10_permeability_m2.npy", std_log.astype(np.float32))
     plot_new_domain_summary(
@@ -1894,8 +1911,18 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         destination=root / "new_domain_mean_std.png",
     )
     conditioning_rows = selected_measurements.to_rows()
-    for row_payload, local_yx in zip(conditioning_rows, observation_local_yx):
+    for index, (row_payload, local_yx) in enumerate(
+        zip(conditioning_rows, observation_local_yx)
+    ):
         row_payload["new_domain_local_y_m"] = float(local_yx[0])
+        row_payload["intrinsic_permeability_m2"] = float(
+            10.0 ** observation_log10_intrinsic[index]
+        )
+        row_payload["log10_intrinsic_permeability"] = float(
+            observation_log10_intrinsic[index]
+        )
+        row_payload["conditioning_latent_value"] = float(observation_latent[index])
+        row_payload["conditioning_latent_std"] = float(observation_std_latent[index])
         row_payload["new_domain_local_x_m"] = float(local_yx[1])
         row_payload["new_domain_fractional_row"] = float(
             local_yx[0] / domain.cell_size_m - 0.5
@@ -1906,27 +1933,29 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     _write_rows_csv(root / "conditioning_measurements.csv", conditioning_rows)
 
     posterior_reproduction = {
+        "space": conditioning_space,
         "diagnostic_point_count": int(analytic_mean_diag.size),
         "diagnostic_grid_stride_cells": diagnostic_stride,
-        "empirical_mean_rmse_log10": float(
+        "empirical_mean_rmse_latent": float(
             np.sqrt(np.mean((diag_mean - analytic_mean_diag) ** 2))
         ),
-        "empirical_std_rmse_log10": (
+        "empirical_std_rmse_latent": (
             None
             if sample_count < 2
             else float(np.sqrt(np.mean((diag_std - analytic_std_diag) ** 2)))
         ),
-        "analytic_mean_log10_range": [
+        "analytic_mean_latent_range": [
             float(np.min(analytic_mean_diag)),
             float(np.max(analytic_mean_diag)),
         ],
-        "analytic_std_log10_range": [
+        "analytic_std_latent_range": [
             float(np.min(analytic_std_diag)),
             float(np.max(analytic_std_diag)),
         ],
     }
     diagnostics = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "input_law": input_law,
         "domain": {
             **domain.to_dict(),
             "active_reference_100m_coverage_fraction": active_reference_coverage,
@@ -1941,15 +1970,34 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         },
         "measurement_qc": measurement_qc,
         "conditioning": {
+            "space": conditioning_space,
             "measurement_count": len(selected_measurements),
-            "measurement_fraction_of_filtered_total": float(len(selected_measurements) / len(measurements)),
+            "measurement_fraction_of_filtered_total": float(
+                len(selected_measurements) / len(measurements)
+            ),
             "fitted_nugget_std_log10_k": nugget_std,
             "additional_observation_std_log10_k": extra_std,
-            "effective_observation_std_log10_k": effective_observation_std,
+            "effective_observation_std_log10_k": effective_observation_std_log10,
+            "effective_observation_std_latent_min": float(
+                np.min(observation_std_latent)
+            ),
+            "effective_observation_std_latent_max": float(
+                np.max(observation_std_latent)
+            ),
+            "measurements_outside_training_marginal_count": int(
+                np.count_nonzero(measurement_outside_training_marginal)
+            ),
+            "measurements_outside_training_marginal_fraction": float(
+                np.mean(measurement_outside_training_marginal)
+            ),
             "prior_predictive_under_training_prior": conditional.prior_predictive_diagnostics,
-            "posterior_predictive_90pct_coverage_at_measurements": observation_coverage90,
-            "standardized_residual_mean": float(np.mean(standardized)),
-            "standardized_residual_std": float(np.std(standardized, ddof=1)) if standardized.size > 1 else 0.0,
+            "posterior_predictive_90pct_coverage_at_measurements_latent": observation_coverage90,
+            "standardized_residual_mean_latent": float(np.mean(standardized)),
+            "standardized_residual_std_latent": (
+                float(np.std(standardized, ddof=1))
+                if standardized.size > 1
+                else 0.0
+            ),
         },
         "kl": {
             "dimension": prior.dimension,
@@ -1961,6 +2009,15 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "conditioning_point_covariance_relative_frobenius_error": conditioning_covariance_relative_error,
         },
         "posterior_reproduction": posterior_reproduction,
+        "normal_score": (
+            None
+            if normal_score_transform is None
+            else {
+                "transform": normal_score_transform.to_dict(),
+                "training_transform_diagnostics": normal_score_training_diagnostics,
+            }
+        ),
+        "training_data_fidelity": training_data_fidelity,
         "training_patch_compatibility": training_patch_compatibility.finalize(),
         "training_full_field_compatibility": training_compatibility.finalize(),
         "generated_ensemble": {
@@ -1973,37 +2030,68 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "outside_training_fraction": float(outside_total / total_cells),
             "outside_training_fraction_by_sample": outside_by_sample,
             "saved_sample_formats": (
-                ["float32_npy", "png_log10_intrinsic_permeability"]
+                [
+                    "float32_npy",
+                    "png_log10_intrinsic_permeability",
+                    "comparison_png",
+                ]
                 if args.save_samples
                 else []
             ),
             "png_color_scale_log10_k_m2": (
-                [float(np.log10(training_min)), float(np.log10(training_max))]
+                [robust_log10_limits[0], robust_log10_limits[1]]
                 if args.save_samples
                 else None
             ),
+            "png_color_scale_source": "training_log10_q01_q99",
+            "conditioned_reference": {
+                "log10_npy": str(
+                    root / "conditioned_reference_log10_permeability_m2.npy"
+                ),
+                "permeability_npy": str(
+                    root / "conditioned_reference_permeability_m2.npy"
+                ),
+                "png": (
+                    str(root / "conditioned_reference_permeability_m2.png")
+                    if args.save_samples
+                    else None
+                ),
+                "interpretation": (
+                    "Inverse-transformed latent posterior mean. This is a deterministic "
+                    "measurement-conditioned comparison field, not the exact nonlinear "
+                    "physical-space posterior expectation."
+                ),
+            },
+            "visual_comparisons": visual_comparisons,
             "png_note": (
-                "PNG files are visualization artifacts in log10(K [m^2]) with one "
-                "common color scale defined by the empirical training-field range. "
-                "NPY files remain the lossless numerical sample representation."
+                "Per-sample comparison figures show generated field, the common "
+                "measurement-conditioned reference, the closest training field by "
+                "standardized descriptors, and generated-minus-reference residual. "
+                "Physical panels share the training q01-q99 log10(K) scale."
                 if args.save_samples
                 else None
             ),
         },
         "prior_definition": {
-            "source": "lgcnn_training_permeability_fields",
+            "source": "darus_5065_lgcnn_training_permeability_fields",
+            "input_law": input_law,
             "training_fields": training_source,
             "training_calibration_path": str(training_calibration_path),
-            "selected_covariance": training_prior,
-            "between_field_mean_std_log10_k_estimate": estimated_between_field_mean_std,
+            "selected_latent_covariance": training_prior,
+            "normal_score_transform": (
+                None
+                if normal_score_transform is None
+                else normal_score_transform.to_dict()
+            ),
+            "between_field_mean_std_latent_estimate": estimated_between_field_mean_std,
             "global_mean_mode_enabled": bool(args.include_between_field_mean_mode),
-            "global_mean_std_log10_k_used": global_mean_std,
+            "global_mean_std_latent_used": global_mean_std,
             "policy": (
-                "Prior mean, structured variance and correlation lengths come from "
-                "the three full fields used to train the real-K LGCNN. The between-field "
-                "mean standard deviation is recorded but disabled as an independent "
-                "Gaussian mode by default because it is estimated from only three fields. "
-                "Real measurements condition the prior but do not replace it."
+                "For the production normal-score copula, the empirical log10(K) marginal "
+                "comes from the three DaRUS-5065 training fields and spatial covariance "
+                "is fitted after Gaussianization. Real measurements are transformed "
+                "through the same marginal map and condition the Gaussian-score field. "
+                "No generated field is accepted/rejected post hoc."
             ),
         },
         "lgcnn_training_support": {
@@ -2013,7 +2101,8 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "release25_input_normalization": training_normalization,
             "sample_rejection": None,
             "note": (
-                "Patch-level descriptors are primary because DARUS-5082 real-K LGCNN "
+                "Patch-level descriptors are primary because the real-K LGCNN was "
+                "trained on cutouts from the DaRUS-5065 permeability inputs; "
                 "training used overlapping cutouts. Patch samples are correlated and are "
                 "not interpreted as independent geological realizations."
             ),
