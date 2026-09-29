@@ -292,14 +292,15 @@ and one for validation.
 For both real-`k` LGCNN steps the selected cutout hyperparameters are
 `box_length=1280` cells and `skip_per_dir=8` cells.
 
-The three complete training fields remain the geostatistical calibration
-replicates. Their overlapping cutouts are **not** treated as tens of thousands
-of independent geological realizations. Instead, the exact release25
-`SimulationDatasetCuts` lattice is reproduced only for the primary
-surrogate-support diagnostic.
+The three complete training fields are **not** the production geological prior.
+Their overlapping cutouts are also not treated as tens of thousands of
+independent geological realizations. In the production workflow, the real Munich
+measurements define the geostatistical mean/covariance model; DaRUS-5065 is used
+to test whether those generated inputs remain inside the spatial/statistical
+support seen by the frozen LGCNN.
 
-Calibrate the physical descriptors **and** the empirical normal-score/Gaussian-copula
-prior on exactly the three training runs:
+Calibrate the DaRUS-5065 training-field support descriptors on exactly the three
+training runs:
 
 ```bash
 python -m subsurface_uq.experiments.realistic_permeability calibrate \
@@ -313,7 +314,9 @@ python -m subsurface_uq.experiments.realistic_permeability calibrate \
 The exact three `RUN_*` names must come from the pretrained-model metadata /
 training command. They are intentionally not inferred from directory order.
 
-Then combine this prior with the independent Munich measurement calibration:
+First run `measurement-evaluate` so the real Munich observations define
+directional variograms, structured variance, nugget and covariance length scales.
+Then generate the conditional field ensemble:
 
 ```bash
 python -m subsurface_uq.experiments.realistic_permeability new-domain-generate \
@@ -324,12 +327,15 @@ python -m subsurface_uq.experiments.realistic_permeability new-domain-generate \
   --training-calibration run_output/realistic_k/training_calibration.yaml \
   --measurement-calibration run_output/realistic_k/measurements/measurement_calibration.yaml \
   --training-info-yaml <PATH_TO_DARUS_5082_INFO_YAML> \
-  --input-law normal-score-copula \
-  --model exponential \
+  --input-law measurement-kriging \
   --energy-threshold 0.95 \
   --n-samples 8 \
   --output-dir run_output/realistic_k/new_domain
 ```
+
+When `--model` is omitted, the best Matérn-3/2 or exponential candidate by
+measurement spatial-block-CV RMSE is used. A CLI model choice is only needed for
+an explicit sensitivity comparison.
 
 Patch support is evaluated at the published `1280 x 1280` / skip-8 geometry.
 For tractability, a deterministic subset of that highly correlated patch
@@ -337,32 +343,27 @@ population is used to compute log-permeability marginal, gradient and local
 correlation descriptors for both training and generated fields. Full-field
 statistics remain secondary diagnostics.
 
-The production input law no longer assumes that `log10(K)` itself is Gaussian.
-It learns the empirical training marginal `F_train` and Gaussianizes the three
-DaRUS-5065 fields,
+The production law is now measurement-derived simple kriging represented in a
+finite KL basis. The measurement workflow estimates the mean, structured
+variance, nugget and directional correlation lengths in `log10(K_h)`; conversion
+to intrinsic permeability adds a constant log shift and therefore leaves the
+covariance structure unchanged. The production map is
 
 ```text
-Y = log10(K)
-Z = Phi^-1(F_train(Y))
-```
-
-fits the separable KL covariance in `Z`-space, transforms the real Munich
-measurements through the same map, conditions the Gaussian score field, and then
-maps realizations back with `F_train^-1(Phi(Z))`. Consequently the physical
-marginal is tied to the actual training permeability distribution while the
-finite stochastic coordinates remain
-
-```text
-eta ~ N(0,I)
-  -> conditional Gaussian-score KL field Z
-  -> empirical inverse marginal
+real Munich measurements
+  -> measurement variogram + spatial block CV
+  -> log10(k) Gaussian/KL prior
+  -> continuous-point conditioning on the same measurements
+  -> eta ~ N(0,I)
+  -> conditional log10(k) field
   -> K
 ```
 
-for MC, randomized QMC and Hermite PCE. No generated field or patch is rejected.
-The empirical between-training-field latent-mean variation is recorded, but the
-extra field-wide Gaussian coordinate remains disabled by default and is available
-only as a sensitivity study.
+Thus MC, randomized QMC and Hermite PCE still use explicit iid Gaussian
+coordinates. DaRUS-5065 fields are used as **surrogate-support/fidelity
+references**, not to override the site-specific measurement covariance. The
+previous `normal-score-copula` and `legacy-lognormal` laws remain available as
+explicit training-derived sensitivity alternatives.
 
 The output `stochastic_input_model.yaml` remains the reusable stochastic-law
 artifact. It now stores both the primary patch-support reference and the
@@ -373,12 +374,14 @@ the GRF parameters manually.
 When `--save-samples` is enabled (the default), every realization keeps a
 lossless float32 `.npy` file and two visual products. The simple field PNG uses
 the common **training q01--q99** `log10(K [m^2])` scale instead of min/max.
-More importantly, `samples/comparisons/sample_XXXX_comparison.png` shows the
-generated realization, the deterministic measurement-conditioned reference,
-the closest DaRUS-5065 training field by standardized spatial/marginal
-descriptors, and the generated-minus-conditioned-reference residual. The
-generator also reports marginal Wasserstein/quantile errors and directional
-variogram mismatch against the training ensemble.
+Each `samples/comparisons/sample_XXXX_measurement_overlay.png` overlays the
+original measured intrinsic-permeability values directly on the generated
+raster using **exactly the same log10(k) color scale**. The companion
+`sample_XXXX_comparison.png` shows the generated realization, the
+measurement-derived kriging reference, the closest DaRUS-5065 training field and
+the generated-minus-reference residual. The generator also reports conditioning
+errors at the measurements plus marginal Wasserstein/quantile errors and
+directional variogram mismatch against the training ensemble.
 
 ## Real Munich measurement calibration
 

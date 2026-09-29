@@ -91,12 +91,12 @@ to RQ2.
 
 The preferred thesis run uses the `stochastic_input_model.yaml` artifact
 written by the realistic-permeability workflow. Its production default is the
-DaRUS-5065 empirical normal-score/Gaussian-copula law: the physical
-`log10(K)` marginal is learned from the exact three training fields, covariance
-and conditioning are represented in Gaussian-score KL space, and the inverse
-empirical marginal maps those scores back to intrinsic permeability. RQ1
-therefore reuses the same validated stochastic map rather than retyping or
-refitting parameters.
+**measurement-derived kriging/KL law**: real Munich measurements determine the
+supported Matérn-3/2 or exponential covariance candidate by spatial block
+cross-validation, define the `log10(k)` mean/structured variance/length scales,
+and condition the same finite KL prior at continuous locations. RQ1 therefore
+reuses the exact site-specific posterior map rather than retyping or refitting
+stochastic parameters.
 
 Every main variant observes the exact permeability batches passed into the
 frozen LGCNN. Diagnostics are evaluated in `Y = log10(K)`. When an input-model
@@ -105,12 +105,13 @@ range reference; the historical release25 Perlin bounds are only the fallback
 for the manual legacy configuration.
 
 Surrogate-support validation itself is performed upstream by the
-realistic-permeability workflow. For the DaRUS-5082 real-K model, the primary
-reference is the exact release25 1280-cell / skip-8 patch lattice from the three
-DaRUS-5065 training fields; full-field descriptors are secondary. The workflow
-also reports generated-vs-training marginal Wasserstein/quantile errors and
-directional semivariogram mismatch. These diagnostics never filter samples, so
-the RQ1 coordinates remain iid standard normal.
+realistic-permeability workflow. DaRUS-5065 does not define the production
+geological prior; instead, the exact release25 1280-cell / skip-8 patch lattice
+from the three training fields is the LGCNN-support reference. The workflow
+reports patch/full-field descriptors, generated-vs-training marginal
+Wasserstein/quantile errors and directional semivariogram mismatch. These
+diagnostics never filter samples, so the RQ1 coordinates remain iid standard
+normal.
 
 For the continuous real-measurement input model, conditioning quality and prior
 compatibility are also recorded upstream, including prior-predictive

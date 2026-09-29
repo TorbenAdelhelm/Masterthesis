@@ -269,32 +269,30 @@ falls inside the spatial support seen by the convolutional surrogate.
 The production architecture is therefore
 
 ```text
-three complete DaRUS-5065 training fields
-    -> empirical marginal F_train(log10 K)
-    -> normal-score transform Z = Phi^-1(F_train(log10 K))
-    -> covariance/KL calibration in Z-space
-
-same three fields + exact release25 cutout lattice
-    -> primary LGCNN support diagnostics
-
 real Munich measurements
-    -> K_h -> intrinsic k -> log10(k)
-    -> same training normal-score transform
-    -> conditioning observations + transformed nugget/noise
+    -> directional irregular-point variograms
+    -> spatial block CV across covariance families
+    -> selected mean / structured variance / nugget / ell_x / ell_y
+    -> K_h -> intrinsic k (constant log shift)
+    -> 5 m KL prior in log10(k)
+    -> continuous-point conditioning on the same measurements
 
 eta ~ N(0,I)
-    -> conditional Gaussian-score KL map
-    -> F_train^-1(Phi(Z))
-    -> generated K field
-    -> fidelity/support diagnostics only
-    -> frozen LGCNN
+    -> conditional measurement-derived KL field
+    -> generated intrinsic-permeability field
+
+three complete DaRUS-5065 training fields
+    -> exact release25 cutout lattice
+    -> LGCNN support/fidelity diagnostics only
 ```
 
-No generated field or patch is rejected. The posterior coordinate law therefore
-remains iid standard Gaussian for MC, randomized QMC and Hermite PCE even though
-the physical permeability marginal is no longer forced to be lognormal.
+Thus the site-specific geological law is measurement-derived, while the
+DaRUS-5065 fields answer the separate question of whether the generated inputs
+remain compatible with what the frozen LGCNN saw during training. No generated
+field or patch is rejected, so the posterior coordinates remain iid standard
+Gaussian for MC, randomized QMC and Hermite PCE.
 
-### Step 1: identify and calibrate exactly the three training runs
+### Step 1: identify the three LGCNN training runs
 
 The public paper establishes the 3/1 training-validation split but does not
 identify the exact `RUN_*` names in the text. The implementation therefore
@@ -302,7 +300,8 @@ requires the three training run names to be supplied explicitly rather than
 assuming that the first three directory entries are the training split. Obtain
 those names from the DaRUS-5082 model package / command-line training metadata.
 
-Then calibrate the prior only on those three fields:
+Calibrate these fields for **surrogate-support/fidelity comparison and
+sensitivity alternatives**:
 
 ```bash
 python -m subsurface_uq.experiments.realistic_permeability calibrate \
@@ -318,26 +317,12 @@ The loader accepts the unpacked release25 dataset root and reads each
 inspection/debugging, but it is not sufficient to calibrate the production
 training prior.
 
-The calibration still stores the ordinary physical-`log10(K)` covariance fit for
-diagnostics and backward-compatible sensitivity runs. The production default,
-however, also fits an empirical normal-score model. A deterministic spatial
-subsample of the three training fields defines quantile knots for
-
-```text
-Y = log10(K)
-Z = Phi^-1(F_train(Y)).
-```
-
-The covariance candidates are then fitted to `Z`, not directly to `Y`.
-Generation later applies the inverse empirical marginal
-`Y = F_train^-1(Phi(Z))`. This preserves the observed one-point permeability
-distribution much more faithfully than assuming a lognormal marginal while
-retaining finite Gaussian coordinates.
-
-The field-wide Gaussian latent-mean coordinate is still **disabled by default**.
-Its estimate is based on only three complete fields, so
-`--include-between-field-mean-mode` remains an explicit sensitivity assumption,
-not part of the baseline law.
+The training calibration stores ordinary physical-`log10(K)` covariance fits,
+the empirical normal-score sensitivity model and the patch/full-field support
+statistics. None of those training-derived covariance fits defines the
+production geological prior anymore. The field-wide training-mean coordinate is
+also unavailable in the measurement-kriging baseline; it remains an explicit
+sensitivity assumption only for training-derived laws.
 
 ### Step 2: reproduce the network's patch support
 
@@ -383,13 +368,18 @@ also stored. release25 normalizes the prepared full inputs before patch
 extraction, so this records the network-input context without pretending that
 the patch population is statistically independent.
 
-### Step 3: calibrate the measurement model
+### Step 3: calibrate the production measurement-kriging model
 
-Run `measurement-evaluate` independently on the Munich hydraulic-conductivity
-measurements. Its covariance fit remains a geological validation diagnostic.
-For production generation, the real observations provide conditioning values
-and the same-family fitted nugget provides observation-scale uncertainty. They
-do not silently replace the prior learned from the three LGCNN training fields.
+Run `measurement-evaluate` on the Munich hydraulic-conductivity observations.
+This is now the **production geological calibration**. The workflow estimates
+directional point variograms, structured variance, nugget and x/y correlation
+lengths, and compares covariance families with spatial block cross-validation.
+
+When `new-domain-generate` is called without `--model`, it chooses the
+lowest-CV-RMSE candidate among the KL-supported Matérn-3/2 and exponential
+families. Hydraulic-conductivity-to-intrinsic-permeability conversion adds only
+a constant in log space, so the fitted variogram shape, variance and length
+scales remain valid for `log10(k)`; only the mean is shifted.
 
 ### Step 4: generate the conditional law
 
@@ -404,8 +394,7 @@ python -m subsurface_uq.experiments.realistic_permeability new-domain-generate \
   --training-calibration run_output/realistic_k/training_calibration.yaml \
   --measurement-calibration run_output/realistic_k/measurements/measurement_calibration.yaml \
   --training-info-yaml <PATH_TO_DARUS_5082_INFO_YAML> \
-  --input-law normal-score-copula \
-  --model exponential \
+  --input-law measurement-kriging \
   --domain-size-m 12800 \
   --cell-size-m 5 \
   --energy-threshold 0.95 \
@@ -421,16 +410,15 @@ the DaRUS-5082 production profile.
 
 For each real measurement inside the selected domain, hydraulic conductivity is
 converted to intrinsic permeability with the documented constant fluid-property
-factor. Under the production normal-score law the resulting `log10(k)` value is
-then transformed through the **same empirical marginal learned from the training
-fields**. The fitted log-space nugget/additional measurement error is converted
-to a local Gaussian-score standard deviation using the slope of that transform.
+factor. The selected measurement-derived covariance defines the 5 m
+`log10(k)` KL prior. The fitted nugget plus optional additional measurement
+error defines observation uncertainty, and the KL basis is evaluated at the
+original continuous measurement coordinates.
 
-The conditional KL basis is evaluated at the original continuous measurement
-coordinates. Conditioning is therefore Gaussian in score space while the saved
-field is in physical intrinsic-permeability units. Measurements outside the
-empirical training marginal are explicitly counted because the finite empirical
-normal-score map clips those tail values rather than silently extrapolating them.
+The deterministic zero-coordinate field is therefore the truncated-KL
+representation of the measurement-derived simple-kriging posterior mean. The
+generator reports its RMSE/MAE and predictive coverage at the measurement
+locations, together with the KL covariance-approximation error.
 
 ### Outputs and reuse in RQ1/PCE
 
@@ -447,10 +435,12 @@ new_domain_mean_std.png
 conditioned_reference_log10_permeability_m2.npy
 conditioned_reference_permeability_m2.npy
 conditioned_reference_permeability_m2.png
+conditioned_reference_measurement_overlay.png
 samples/
   sample_0001_permeability_m2.npy
   sample_0001_permeability_m2.png
   comparisons/
+    sample_0001_measurement_overlay.png
     sample_0001_comparison.png
   ...
 ```
@@ -473,18 +463,18 @@ without retyping stochastic parameters.
 
 At 2560 x 2560 resolution a float32 field is about 26 MB. With the default
 `--save-samples`, the NPY remains the numerical source of truth. The simple PNG
-uses one robust training q01--q99 `log10(K)` color scale. Each comparison PNG is
-more informative: it displays the generated field, an inverse-normal-score
-transform of the latent posterior mean (the deterministic
-measurement-conditioned reference), the closest full DaRUS-5065 training field
-according to standardized marginal/gradient/correlation descriptors, and the
-generated-minus-conditioned-reference residual.
+uses one robust training q01--q99 `log10(k)` scale. More importantly, every
+`*_measurement_overlay.png` draws the original measured intrinsic-permeability
+values on the generated raster using **the identical color normalization**.
+This is the direct visual check requested for local measurement consistency.
 
-The generator additionally stores `training_data_fidelity`: log-space
-Wasserstein distance, q01/q05/q50/q95/q99 errors and x/y/diagonal semivariogram
-curve RMSE/correlation. These are diagnostics only; they never reject samples.
-Use `--no-save-samples` to suppress the per-realization NPY/PNG products while
-retaining ensemble diagnostics.
+The companion comparison PNG displays the generated field, the
+measurement-derived kriging reference, the closest full DaRUS-5065 training
+field according to standardized marginal/gradient/correlation descriptors, and
+the generated-minus-reference residual. The generator additionally stores
+measurement conditioning RMSE/MAE/coverage and `training_data_fidelity`
+(log-space Wasserstein distance, quantile errors and x/y/diagonal semivariogram
+curve mismatch). These diagnostics never reject samples.
 
 The new projected domain defines only the permeability field. Reusing the
 release25 pressure/material-ID/heat-pump inputs still means those quantities are
