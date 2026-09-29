@@ -148,10 +148,13 @@ independent standard-normal coordinates and adapts the map to the existing
 
 For the production RQ1 path, KL parameters no longer need to be copied into
 the RQ1 configuration manually. The realistic-permeability workflow calibrates
-the prior from the actual LGCNN training permeability fields, retains empirical
-between-field mean variation as an optional field-wide Gaussian coordinate, and
-writes a reusable `stochastic_input_model.yaml` artifact. Manual KL parameters
-remain available only as a synthetic/debug fallback.
+the prior from exactly the three complete fields used to train the DaRUS-5082
+real-K LGCNN and writes a reusable `stochastic_input_model.yaml` artifact.
+The empirical between-field mean variation is recorded, but the corresponding
+field-wide Gaussian mode is disabled by default because only three complete
+training fields support that estimate. It is available only as an explicit
+sensitivity option. Manual KL parameters remain available as a synthetic/debug
+fallback.
 
 ### Exact Munich-to-LGCNN geospatial mapping
 
@@ -179,27 +182,32 @@ reference table.
 
 ### Training-informed, measurement-conditioned new LGCNN domain
 
-The production `new-domain-generate` workflow now separates the two evidence
-sources required by the frozen surrogate. The **actual permeability fields used
-to train the pretrained LGCNN** define the separable Gaussian KL prior: log-space
-mean, within-field structured variance, correlation lengths and covariance
-family. Their between-field mean variation is represented by a field-wide
-Gaussian coordinate. The real Munich measurements supply continuous
-conditioning values and the fitted nugget used as observation-scale noise.
+The production workflow now distinguishes geostatistical replication from the
+CNN training sample population. DaRUS-5082's real-permeability LGCNN uses three
+of four standard 12.8 km fields for training and one for validation. During
+training, release25 `SimulationDatasetCuts` presents overlapping patches to the
+CNN; the published best settings for both Step 1 and Step 3 are a 1280-cell box
+and skip 8.
 
-Generated realizations are compared with the actual training fields using
-marginal quantiles, log-space gradient RMS and lag-one correlations in addition
-to the empirical physical permeability range. These are descriptive
-training-support diagnostics only; samples are not rejected, so the posterior
-coordinates remain iid standard normal for MC/RQMC/Hermite-PCE use. The workflow
-also reports prior-predictive compatibility of the real observations with the
-training-informed prior.
+The three complete training fields define the geostatistical prior. Their
+overlapping patches are not counted as independent geological realizations.
+Instead, the workflow reproduces the exact release25 patch lattice as the
+**primary surrogate-support diagnostic** and retains complete-field statistics
+as secondary diagnostics. A deterministic patch subsample is used only to make
+the descriptor computation tractable.
 
-The workflow writes `stochastic_input_model.yaml`, which can be loaded directly
-by RQ1. This removes duplicated stochastic parameters between input-model
-calibration and propagation and records a single reusable probability law.
-Automatic projected-domain selection and the domain-relative interpretation of
-the fixed release25 pressure/heat-pump templates remain unchanged.
+The production command requires the exact three `RUN_*` training names when a
+raw release25 dataset directory is used. It verifies that the field-based prior
+calibration was fitted to the same run subset. The public paper establishes the
+3/1 split but not the run names in its text, so directory order is deliberately
+not used as an implicit split.
+
+Generated fields and patches are never filtered by the support diagnostics.
+Thus the conditional map retains iid Gaussian posterior coordinates for
+MC/RQMC/Hermite PCE. The stochastic-input artifact now records the primary patch
+reference, secondary full-field reference, optional release25 permeability
+normalization metadata, and whether the between-field mean sensitivity mode was
+enabled.
 
 ### Real Munich measurement calibration
 

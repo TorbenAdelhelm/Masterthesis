@@ -82,10 +82,22 @@ from .perlin_coordinates import (
 )
 from .qmc import ScrambledSobolGaussianPermeabilitySampler
 from .training_compatibility import (
+    RELEASE25_REALK_MODEL_DOI,
+    RELEASE25_REALK_PATCH_BOX_SIZE,
+    RELEASE25_REALK_PATCH_SKIP,
+    RELEASE25_REALK_RAW_DATA_DOI,
+    RELEASE25_REALK_SCALING_FIELDS,
+    RELEASE25_REALK_TRAINING_FIELDS,
+    RELEASE25_REALK_VALIDATION_FIELDS,
     TrainingCompatibilityDiagnostics,
     TrainingDistributionProfile,
+    TrainingPatchCompatibilityDiagnostics,
+    TrainingPatchDistributionProfile,
     characterize_training_distribution,
+    characterize_training_patch_distribution,
+    load_release25_permeability_normalization,
     permeability_field_features,
+    release25_patch_positions,
 )
 from .radial_exponential import RadialExponentialPermeabilitySampler
 
@@ -144,6 +156,15 @@ __all__ = [
     "ScrambledSobolGaussianPermeabilitySampler",
     "TrainingCompatibilityDiagnostics",
     "TrainingDistributionProfile",
+    "TrainingPatchCompatibilityDiagnostics",
+    "TrainingPatchDistributionProfile",
+    "RELEASE25_REALK_MODEL_DOI",
+    "RELEASE25_REALK_RAW_DATA_DOI",
+    "RELEASE25_REALK_TRAINING_FIELDS",
+    "RELEASE25_REALK_VALIDATION_FIELDS",
+    "RELEASE25_REALK_SCALING_FIELDS",
+    "RELEASE25_REALK_PATCH_BOX_SIZE",
+    "RELEASE25_REALK_PATCH_SKIP",
     "StochasticPermeabilityMap",
     "UniformCoordinatePermeabilitySampler",
     "calibrate_covariance_candidates",
@@ -159,5 +180,8 @@ __all__ = [
     "matern32_correlation_matrix",
     "sample_borehole_observations",
     "characterize_training_distribution",
+    "characterize_training_patch_distribution",
+    "load_release25_permeability_normalization",
     "permeability_field_features",
+    "release25_patch_positions",
 ]

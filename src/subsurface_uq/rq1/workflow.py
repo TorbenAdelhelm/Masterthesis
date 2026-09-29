@@ -900,6 +900,12 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
                 "training_reference": loaded_input_model.payload.get(
                     "training_reference"
                 ),
+                "training_patch_reference": loaded_input_model.payload.get(
+                    "training_patch_reference"
+                ),
+                "release25_input_normalization": loaded_input_model.payload.get(
+                    "release25_input_normalization"
+                ),
             }
         ),
         "streamlines": {

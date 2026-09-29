@@ -2,7 +2,10 @@ import numpy as np
 
 from subsurface_uq.sampling import (
     TrainingCompatibilityDiagnostics,
+    TrainingPatchCompatibilityDiagnostics,
     characterize_training_distribution,
+    characterize_training_patch_distribution,
+    release25_patch_positions,
 )
 
 
@@ -62,3 +65,68 @@ def test_training_compatibility_is_diagnostic_only_and_keeps_every_generated_fie
         >= 0.0
     )
     assert "not used to reject" in result["training_reference"]["interpretation"]
+
+
+
+def test_release25_patch_positions_match_simulation_dataset_cuts_indexing():
+    positions = release25_patch_positions(
+        (12, 12),
+        box_size=4,
+        skip_per_dir=2,
+    )
+
+    # release25 uses (H-B)*(W-B)//skip^2 = 16 patches per full field.
+    assert positions.shape == (16, 2)
+    np.testing.assert_array_equal(
+        positions[:5],
+        np.asarray([[0, 0], [0, 2], [0, 4], [0, 6], [2, 0]]),
+    )
+    np.testing.assert_array_equal(positions[-1], [6, 6])
+
+
+def test_patch_profile_treats_overlapping_cutouts_as_correlated_support_not_new_fields():
+    fields = _fields()
+    profile = characterize_training_patch_distribution(
+        fields,
+        cell_size_m=5.0,
+        box_size=4,
+        skip_per_dir=2,
+        max_patches=9,
+        feature_stride=1,
+        field_names=("RUN_1", "RUN_2", "RUN_3"),
+    )
+
+    assert profile.field_count == 3
+    assert profile.patch_population_per_field == 6
+    assert profile.patch_population_total == 18
+    assert profile.sampled_patch_count == 9
+    assert profile.field_names == ("RUN_1", "RUN_2", "RUN_3")
+    payload = profile.to_dict()
+    assert payload["reference_level"] == "release25_training_patch_primary"
+    assert "not treated as independent geological" in payload["interpretation"]
+
+
+def test_patch_compatibility_is_primary_diagnostic_and_never_filters_samples():
+    fields = _fields()
+    profile = characterize_training_patch_distribution(
+        fields,
+        cell_size_m=5.0,
+        box_size=4,
+        skip_per_dir=2,
+        max_patches=9,
+        feature_stride=1,
+    )
+    diagnostics = TrainingPatchCompatibilityDiagnostics(
+        profile,
+        generated_patches_per_field=2,
+    )
+
+    generated = np.stack([fields[0], fields[1] * np.float32(1.15)])
+    diagnostics.update(generated)
+    result = diagnostics.finalize()
+
+    assert result["reference_level"] == "release25_training_patch_primary"
+    assert result["generated_field_count"] == 2
+    assert result["generated_patch_count"] == 4
+    assert result["decision_rule"] is None
+    assert "No generated field or patch is rejected" in result["interpretation"]

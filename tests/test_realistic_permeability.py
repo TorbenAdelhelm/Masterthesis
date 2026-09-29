@@ -301,3 +301,33 @@ def test_leave_one_out_evaluation_writes_comparison_outputs(tmp_path):
         assert (
             output_dir / "arrays" / model / "posterior_mean_log10_k.npy"
         ).is_file()
+
+
+
+def test_new_domain_cli_uses_published_realk_patch_geometry_and_disables_global_mean_mode():
+    args = build_parser().parse_args(
+        [
+            "new-domain-generate",
+            "--measurements",
+            "measurements.xlsx",
+            "--reference-grid",
+            "reference.csv",
+            "--training-fields",
+            "raw_dataset",
+            "--training-runs",
+            "RUN_1",
+            "RUN_2",
+            "RUN_3",
+            "--training-calibration",
+            "training.yaml",
+            "--measurement-calibration",
+            "measurements.yaml",
+            "--output-dir",
+            "out",
+        ]
+    )
+
+    assert args.training_patch_box_size == 1280
+    assert args.training_patch_skip == 8
+    assert args.include_between_field_mean_mode is False
+    assert args.training_runs == ["RUN_1", "RUN_2", "RUN_3"]

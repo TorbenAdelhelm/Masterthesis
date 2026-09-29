@@ -236,102 +236,156 @@ writing the diagnostic outputs if no defensible mapping exists.
 
 ## Training-informed, measurement-conditioned new LGCNN domain
 
-The historical DaRUS cutouts and the available Munich 3-D reference table need
-not admit a defensible exact georeference. More importantly, a permeability
-model fitted only to the Munich measurements can be statistically plausible for
-the site while being out-of-distribution for the frozen pretrained LGCNN.
-Therefore the production input law deliberately separates two sources of
-information:
+The realistic-`k` LGCNN was not trained on four complete permeability images as
+four independent optimization samples. The publication and release25 code show a
+two-level structure:
 
 ```text
-actual LGCNN training permeability fields -> prior support / covariance
-real Munich measurements                 -> conditioning observations + nugget
+complete permeability fields -> overlapping SimulationDatasetCuts patches -> CNN
 ```
 
-The target stochastic map is
+For the real-permeability experiment, three of the four standard 12.8 km fields
+are used for training and one for validation; a separate larger field is used
+for scaling. The selected hyperparameters for both LGCNN Step 1 and Step 3 are
 
 ```text
-eta ~ N(0,I) -> conditional KL coordinates -> log10(K) -> K
+box_length = 1280 cells
+skip_per_dir = 8 cells
+batch_size = 8
 ```
 
-and no generated realization is accepted/rejected on a post-hoc OOD test. This
-preserves the iid Gaussian latent law needed for ordinary MC, randomized QMC and
-later Hermite PCE.
+with 5 m cells. The trained models are published as DaRUS-5082 and the raw 4+1
+real-permeability simulation data as DaRUS-5065.
 
-### Step 1: calibrate the LGCNN training-input prior
+This matters for uncertainty modeling. The three complete training fields are
+still only three geostatistical realizations. Their tens of thousands of
+overlapping cutouts are strongly dependent and must **not** be interpreted as
+independent samples from the geological random field. Conversely, patch-scale
+statistics are the more relevant reference for whether a new permeability input
+falls inside the spatial support seen by the convolutional surrogate.
 
-Use the actual permeability fields that were inputs to the pretrained random-K
-LGCNN, not newly generated Perlin fields:
+The production architecture is therefore
+
+```text
+three complete training fields
+    -> geostatistical prior calibration
+
+same three fields + exact release25 cutout lattice
+    -> primary LGCNN support diagnostics
+
+real Munich measurements
+    -> conditioning observations + nugget/noise
+
+eta ~ N(0,I)
+    -> conditional KL map
+    -> generated K field
+    -> patch/full-field diagnostics only
+    -> frozen LGCNN
+```
+
+No generated field or patch is rejected. The posterior coordinate law remains
+iid standard Gaussian for MC, randomized QMC and Hermite PCE.
+
+### Step 1: identify and calibrate exactly the three training runs
+
+The public paper establishes the 3/1 training-validation split but does not
+identify the exact `RUN_*` names in the text. The implementation therefore
+requires the three training run names to be supplied explicitly rather than
+assuming that the first three directory entries are the training split. Obtain
+those names from the DaRUS-5082 model package / command-line training metadata.
+
+Then calibrate the prior only on those three fields:
 
 ```bash
 python -m subsurface_uq.experiments.realistic_permeability calibrate \
-  --fields data/lgcnn_training_permeability \
+  --fields data/dataset_100hp_giant_real_fixP0_0025 \
+  --runs <TRAIN_RUN_A> <TRAIN_RUN_B> <TRAIN_RUN_C> \
   --cell-size-m 5 \
   --spatial-stride 4 \
   --output run_output/realistic_k/training_calibration.yaml
 ```
 
-The regular-field calibration supplies the prior mean in `log10(K [m^2])`,
-within-field structured standard deviation, directional correlation lengths and
-covariance-family ranking. It also records
-`between_field_mean_std_log10_k`. For the Gaussian-coordinate path this latter
-quantity is represented explicitly as one field-wide Gaussian coordinate. The
-resulting prior covariance is therefore
+The loader accepts the unpacked release25 dataset root and reads each
+`RUN_*/pflotran.h5`. A single `RUN_n/pflotran.h5` path is also accepted for
+inspection/debugging, but it is not sufficient to calibrate the production
+training prior.
+
+The calibration estimates the mean log10 permeability, within-field structured
+variance, directional correlation lengths and covariance-family fit from the
+three complete fields. It also records
+`between_field_mean_std_log10_k`, but that estimate is based on only three
+full-field means.
+
+Accordingly, the field-wide Gaussian mean coordinate introduced earlier is now
+**disabled by default**. The production prior is
 
 ```text
-Cov[Y(x),Y(x')]
-  = sigma_structured^2 rho(x,x')
-    + sigma_global^2,
+Y(x) = mu + sum_j sqrt(lambda_j) phi_j(x) eta_j
 ```
 
-where `sigma_global` is the empirical standard deviation of the training-field
-means. This avoids discarding a source of variation already present in the
-network's training inputs while keeping the coordinate vector Gaussian.
+unless `--include-between-field-mean-mode` is explicitly requested as a
+sensitivity study. With that opt-in, the additional term is
 
-The production conditional-KL path supports the separable `matern32` and
-`exponential` candidates because they expose explicit finite Gaussian
-coordinates. The radial GSTools path remains useful as a geostatistical
-diagnostic/MC alternative, but it is not the primary PCE-compatible law. If the
-training-field calibration ranks `radial_exponential` first, the generator does
-not silently substitute another family: `--model matern32` or
-`--model exponential` must be chosen explicitly and that approximation must be
-documented.
+```text
+sigma_between * eta_0
+```
 
-### Step 2: calibrate the measurement model
+and the metadata marks it as an explicit sensitivity assumption rather than a
+default part of the inferred probability law.
+
+### Step 2: reproduce the network's patch support
+
+The release25 implementation `SimulationDatasetCuts` defines
+
+```text
+n_patch_per_field = (H-B)(W-B) / skip^2
+```
+
+for the published geometry, with integer indexing equivalent to the original
+`idx_to_pos` implementation. For `H=W=2560`, `B=1280` and `skip=8`, this is
+
+```text
+25,600 overlapping patches per complete training field
+76,800 patches across the three training fields
+```
+
+These 76,800 patches are highly correlated. The diagnostics therefore reproduce
+the exact patch lattice but use a deterministic, configurable subsample for
+feature calculation. The default is 192 training patches total and 32 inspected
+patches per generated field. This controls computational cost without changing
+the stochastic prior.
+
+Patch descriptors are computed in physical `log10(K [m^2])` and include
+
+- mean, standard deviation and q05/q50/q95;
+- x/y RMS gradients per metre;
+- x/y lag-one correlation.
+
+The same descriptor set is retained at full-field scale as a **secondary**
+diagnostic. The output explicitly labels
+
+```text
+training_patch_compatibility      -> primary surrogate-support diagnostic
+training_full_field_compatibility -> secondary field-scale diagnostic
+```
+
+Both have `decision_rule: null`.
+
+If the `info.yaml` from the DaRUS-5082 model/prepared dataset is supplied via
+`--training-info-yaml`, the exact permeability input normalization metadata is
+also stored. release25 normalizes the prepared full inputs before patch
+extraction, so this records the network-input context without pretending that
+the patch population is statistically independent.
+
+### Step 3: calibrate the measurement model
 
 Run `measurement-evaluate` independently on the Munich hydraulic-conductivity
-measurements. Its spatial-CV and variogram outputs remain important geological
-validation. For the production generator, however, the measurement covariance
-fit no longer replaces the LGCNN-training prior. The same-family fitted nugget
-is used as observation-scale uncertainty, together with any explicitly supplied
-additional measurement uncertainty.
+measurements. Its covariance fit remains a geological validation diagnostic.
+For production generation, the real observations provide conditioning values
+and the same-family fitted nugget provides observation-scale uncertainty. They
+do not silently replace the prior learned from the three LGCNN training fields.
 
-This makes the roles explicit:
-
-```text
-training fields: mean, structured variance, correlation lengths, prior family
-measurements:    observed values, spatial location, fitted nugget/noise
-```
-
-The measurement calibration is additionally compared with the training prior
-through mean, structured-standard-deviation and directional-length-scale ratios.
-Large differences are evidence of distribution shift and must be reported; they
-are not hidden by filtering samples.
-
-### Step 3: generate the conditional law
-
-The default geometry remains compatible with the release25 LGCNN:
-
-```text
-12.8 km x 12.8 km
-2560 x 2560 cells
-5 m cell size
-```
-
-The domain can be supplied explicitly with
-`--domain-origin-x-m/--domain-origin-y-m`. If no origin is supplied, a
-cell-aligned square is selected to maximize the number of accepted real
-measurements inside it, with deterministic centroid-based tie breaking.
+### Step 4: generate the conditional law
 
 Example:
 
@@ -339,9 +393,11 @@ Example:
 python -m subsurface_uq.experiments.realistic_permeability new-domain-generate \
   --measurements "C:/path/to/kf_werte_190201.xlsx" \
   --reference-grid "C:/path/to/3D_K_Field_Munich_K_P10_P50_P90.csv" \
-  --training-fields data/lgcnn_training_permeability \
+  --training-fields data/dataset_100hp_giant_real_fixP0_0025 \
+  --training-runs <TRAIN_RUN_A> <TRAIN_RUN_B> <TRAIN_RUN_C> \
   --training-calibration run_output/realistic_k/training_calibration.yaml \
   --measurement-calibration run_output/realistic_k/measurements/measurement_calibration.yaml \
+  --training-info-yaml <PATH_TO_DARUS_5082_INFO_YAML> \
   --model exponential \
   --domain-size-m 12800 \
   --cell-size-m 5 \
@@ -352,50 +408,23 @@ python -m subsurface_uq.experiments.realistic_permeability new-domain-generate \
   --output-dir run_output/realistic_k/new_domain
 ```
 
+The command verifies that the training calibration and support diagnostics use
+the same `RUN_*` subset. It also requires exactly three full training fields for
+the DaRUS-5082 production profile.
+
 For each real measurement inside the selected domain, hydraulic conductivity is
 converted to intrinsic permeability with the documented constant fluid-property
 factor. The training prior itself is already in intrinsic-permeability units and
-is therefore **not** shifted by that conversion.
+is not shifted.
 
-The truncated KL basis is evaluated at the original continuous measurement
-coordinates through its Nyström extension. The fitted nugget plus optional
-measurement-error standard deviation forms the observation noise. Conditioning
-uses a low-rank SVD representation of the posterior coordinate covariance, so
-the posterior remains a deterministic map of iid standard normals.
-
-The nugget is not sampled as independent 5 m pixel noise. It remains
-observation-scale/unresolved uncertainty. Introducing a spatial microscale
-process would require a separate justified model.
-
-### Training-distribution compatibility diagnostics
-
-The old min/max-only check is retained but is no longer the sole support
-diagnostic. The actual training fields define an empirical reference for
-per-field descriptors in `log10(K)`:
-
-- mean, standard deviation and q05/q50/q95;
-- x/y RMS gradients per metre;
-- x/y lag-one correlation.
-
-For each descriptor the output stores the training mean/std/min/max, generated
-mean/std/min/max, the generated-mean z score when defined, and the fraction of
-generated fields outside the empirical training-field envelope.
-
-These diagnostics have `decision_rule: null` by design. They diagnose
-surrogate-support shift; they do not reject individual posterior samples.
-Otherwise the propagated coordinate law would become a truncated
-`p(eta | accepted)` distribution rather than `eta ~ N(0,I)`, invalidating the
-clean Hermite-PCE architecture.
-
-The generator also evaluates the real observations under the *unconditioned
-training prior plus observation noise*. It reports marginal standardized
-residuals, 90% marginal coverage and a covariance-aware Mahalanobis statistic.
-This directly exposes cases where the measured site is hard to reconcile with
-the training-supported prior.
+The conditional KL basis is evaluated at the original continuous measurement
+coordinates. The fitted nugget plus optional additional measurement uncertainty
+forms the observation-noise model. Conditioning retains an explicit iid
+standard-normal posterior-coordinate vector.
 
 ### Outputs and reuse in RQ1/PCE
 
-The output directory contains, among other diagnostics:
+The output directory contains
 
 ```text
 conditioning_measurements.csv
@@ -410,29 +439,28 @@ samples/
   ...
 ```
 
-`stochastic_input_model.yaml` is the authoritative reusable probability-law
-artifact. It stores the prior, the continuous conditioning coordinates/values,
-the observation-noise vector, the iid-Gaussian coordinate dimension, the
-training reference profile and the source policy. RQ1 can consume this artifact
-directly by setting
+`new_domain_generator.yaml/json` stores the primary patch-level support
+comparison, secondary full-field comparison, prior-predictive measurement
+compatibility and whether the optional between-field mean mode was enabled.
+
+`stochastic_input_model.yaml` remains the authoritative reusable probability
+law. It stores the prior/conditioning map plus the patch reference, full-field
+reference and optional release25 normalization context. RQ1 consumes this file
+through
 
 ```yaml
 grf:
   input_model: run_output/realistic_k/new_domain/stochastic_input_model.yaml
 ```
 
-and omitting the manual GRF parameter/observation keys. This prevents a later
-RQ1 or PCE run from silently using a different permeability law.
+without retyping stochastic parameters.
 
 At 2560 x 2560 resolution a float32 field is about 26 MB. Use
-`--no-save-samples` when only the stochastic-law artifact and streaming
-ensemble diagnostics are required.
+`--no-save-samples` if individual generated fields are not needed.
 
-The new projected domain defines the permeability field only. Reusing the
-release25 pressure/material-ID/heat-pump inputs means they remain
-**domain-relative forcing/templates**. It does not make them measured,
-co-located Munich site inputs. A fully site-specific experiment would require
-those fixed inputs to be defined on the same projected domain.
+The new projected domain defines only the permeability field. Reusing the
+release25 pressure/material-ID/heat-pump inputs still means those quantities are
+domain-relative templates rather than measured co-located Munich site inputs.
 
 ## Real Munich measurement workflow
 

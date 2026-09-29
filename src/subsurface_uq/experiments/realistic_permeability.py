@@ -15,13 +15,20 @@ from ..sampling import (
     GaussianCoordinatePermeabilitySampler,
     KLLogGaussianPermeabilityMap,
     RadialExponentialPermeabilitySampler,
+    RELEASE25_REALK_PATCH_BOX_SIZE,
+    RELEASE25_REALK_PATCH_SKIP,
+    RELEASE25_REALK_TRAINING_FIELDS,
     TrainingCompatibilityDiagnostics,
+    TrainingPatchCompatibilityDiagnostics,
     characterize_training_distribution,
+    characterize_training_patch_distribution,
+    load_release25_permeability_normalization,
     calibrate_covariance_candidates,
     correlation_for_offsets,
     exact_simple_kriging_posterior,
     estimate_directional_variograms,
     load_empirical_fields,
+    load_pflotran_permeability_h5,
     load_release25_raw_permeability_dataset,
     load_release25_raw_permeability_run,
     load_reference_permeability_surface,
@@ -55,17 +62,65 @@ def _load_source(
     *,
     key: str | None,
     cell_size_m: float,
+    run_names: tuple[str, ...] | list[str] | None = None,
 ) -> tuple[np.ndarray, dict[str, object]]:
     source = Path(path).expanduser().resolve()
+    requested_runs = tuple(str(run) for run in (run_names or ()))
+    if len(set(requested_runs)) != len(requested_runs):
+        raise ValueError("run_names must not contain duplicates")
+
     if source.is_dir():
         fields, runs = load_release25_raw_permeability_dataset(
             source, cell_size_m=cell_size_m
         )
+        if requested_runs:
+            lookup = {name: index for index, name in enumerate(runs)}
+            missing = [name for name in requested_runs if name not in lookup]
+            if missing:
+                raise ValueError(
+                    f"requested training runs are absent from {source}: {missing}"
+                )
+            fields = np.stack(
+                [fields[lookup[name]] for name in requested_runs],
+                axis=0,
+            )
+            runs = requested_runs
         return fields, {
             "kind": "release25_raw_pflotran_h5",
             "path": str(source),
             "runs": list(runs),
         }
+
+    if requested_runs:
+        raise ValueError(
+            "run_names can only be used when --fields/--training-fields points "
+            "to a release25 raw dataset directory"
+        )
+
+    if source.suffix.lower() in {".h5", ".hdf5"}:
+        if (
+            source.name == "pflotran.h5"
+            and source.parent.name.startswith("RUN_")
+            and (source.parent.parent / "settings.yaml").is_file()
+        ):
+            run = source.parent.name
+            field = load_release25_raw_permeability_run(
+                source.parent.parent,
+                run,
+                cell_size_m=cell_size_m,
+            )
+            return field[None, ...], {
+                "kind": "release25_raw_pflotran_h5_single_run",
+                "path": str(source),
+                "runs": [run],
+            }
+        field = load_pflotran_permeability_h5(source)
+        return field[None, ...], {
+            "kind": "pflotran_h5_single_field",
+            "path": str(source),
+            "runs": [],
+        }
+
     fields = load_empirical_fields(source, key=key)
     return fields, {
         "kind": "empirical_array",
@@ -76,7 +131,10 @@ def _load_source(
 
 def _calibrate(args: argparse.Namespace) -> int:
     fields, source_meta = _load_source(
-        args.fields, key=args.key, cell_size_m=args.cell_size_m
+        args.fields,
+        key=args.key,
+        cell_size_m=args.cell_size_m,
+        run_names=args.runs,
     )
     results = calibrate_covariance_candidates(
         fields,
@@ -1365,18 +1423,62 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         args.training_fields,
         key=args.training_key,
         cell_size_m=args.cell_size_m,
+        run_names=args.training_runs,
     )
     if tuple(training_fields.shape[1:]) != domain.shape:
         raise ValueError(
             "training permeability fields must have the same spatial shape as the "
             f"LGCNN input domain: {tuple(training_fields.shape[1:])} != {domain.shape}"
         )
+    if int(training_fields.shape[0]) != RELEASE25_REALK_TRAINING_FIELDS:
+        raise ValueError(
+            "DARUS-5082 real-K LGCNN support must be characterized from exactly "
+            f"{RELEASE25_REALK_TRAINING_FIELDS} full training fields; got "
+            f"{training_fields.shape[0]}. The paper documents three of four standard "
+            "fields for training and one for validation."
+        )
+    training_names = tuple(str(v) for v in training_source.get("runs", []))
+    if training_source["kind"] == "release25_raw_pflotran_h5" and not args.training_runs:
+        raise ValueError(
+            "explicit --training-runs are required for the release25 real-K dataset "
+            "because the paper documents a 3/1 training-validation split but does not "
+            "identify the RUN_* names in the public text"
+        )
+    calibration_runs = tuple(
+        str(v)
+        for v in training_calibration_payload.get("source", {}).get("runs", [])
+    )
+    if training_names and calibration_runs and training_names != calibration_runs:
+        raise ValueError(
+            "training calibration was fitted to different RUN_* fields than the "
+            "training-support diagnostics; regenerate calibration with the same --runs"
+        )
+
     training_profile = characterize_training_distribution(
         training_fields,
         cell_size_m=args.cell_size_m,
         spatial_stride=args.training_diagnostic_stride,
+        field_names=training_names,
     )
     training_compatibility = TrainingCompatibilityDiagnostics(training_profile)
+    training_patch_profile = characterize_training_patch_distribution(
+        training_fields,
+        cell_size_m=args.cell_size_m,
+        box_size=args.training_patch_box_size,
+        skip_per_dir=args.training_patch_skip,
+        max_patches=args.training_patch_samples,
+        feature_stride=args.training_patch_feature_stride,
+        field_names=training_names,
+    )
+    training_patch_compatibility = TrainingPatchCompatibilityDiagnostics(
+        training_patch_profile,
+        generated_patches_per_field=args.generated_patch_samples_per_field,
+    )
+    training_normalization = (
+        None
+        if args.training_info_yaml is None
+        else load_release25_permeability_normalization(args.training_info_yaml)
+    )
 
     reference_rows, reference_cols = np.indices(reference_grid.shape)
     reference_x = (
@@ -1410,8 +1512,13 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     )
     log10_shift = float(np.log10(conversion_factor))
     structured_std = float(training_prior["std_log10_k"])
-    global_mean_std = float(
+    estimated_between_field_mean_std = float(
         training_prior.get("between_field_mean_std_log10_k", 0.0) or 0.0
+    )
+    global_mean_std = (
+        estimated_between_field_mean_std
+        if args.include_between_field_mean_mode
+        else 0.0
     )
     nugget_std = float(measurement_fit.get("nugget_std_log10_k", 0.0))
     extra_std = float(args.observation_std_log10_k)
@@ -1522,6 +1629,7 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     training_min, training_max = training_profile.training_k_range
 
     for batch in sampler:
+        training_patch_compatibility.update(batch)
         training_compatibility.update(batch)
         for field in np.asarray(batch):
             sample_count += 1
@@ -1638,7 +1746,8 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "conditioning_point_covariance_relative_frobenius_error": conditioning_covariance_relative_error,
         },
         "posterior_reproduction": posterior_reproduction,
-        "training_distribution_compatibility": training_compatibility.finalize(),
+        "training_patch_compatibility": training_patch_compatibility.finalize(),
+        "training_full_field_compatibility": training_compatibility.finalize(),
         "generated_ensemble": {
             "n_samples": sample_count,
             "seed": int(args.seed),
@@ -1654,11 +1763,27 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "training_fields": training_source,
             "training_calibration_path": str(training_calibration_path),
             "selected_covariance": training_prior,
-            "global_mean_std_log10_k": global_mean_std,
+            "between_field_mean_std_log10_k_estimate": estimated_between_field_mean_std,
+            "global_mean_mode_enabled": bool(args.include_between_field_mean_mode),
+            "global_mean_std_log10_k_used": global_mean_std,
             "policy": (
                 "Prior mean, structured variance and correlation lengths come from "
-                "LGCNN training inputs. Real measurements condition this prior but do "
-                "not replace it."
+                "the three full fields used to train the real-K LGCNN. The between-field "
+                "mean standard deviation is recorded but disabled as an independent "
+                "Gaussian mode by default because it is estimated from only three fields. "
+                "Real measurements condition the prior but do not replace it."
+            ),
+        },
+        "lgcnn_training_support": {
+            "primary_reference": "patch_distribution",
+            "training_patch_reference": training_patch_profile.to_dict(),
+            "secondary_full_field_reference": training_profile.to_dict(),
+            "release25_input_normalization": training_normalization,
+            "sample_rejection": None,
+            "note": (
+                "Patch-level descriptors are primary because DARUS-5082 real-K LGCNN "
+                "training used overlapping cutouts. Patch samples are correlated and are "
+                "not interpreted as independent geological realizations."
             ),
         },
         "measurement_model": {
@@ -1716,6 +1841,8 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         "domain": domain.to_dict(),
         "prior": prior.metadata,
         "training_reference": training_profile.to_dict(),
+        "training_patch_reference": training_patch_profile.to_dict(),
+        "release25_input_normalization": training_normalization,
         "conditioning": {
             "observation_coordinates_yx_m": observation_local_yx.tolist(),
             "observation_log10_intrinsic_permeability": observation_log10_intrinsic.tolist(),
@@ -1725,6 +1852,12 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "prior": "actual_lgcnn_training_permeability_fields",
             "conditioning": "real_munich_measurements",
             "sample_filtering": None,
+            "surrogate_support_diagnostic": "release25_training_patch_distribution",
+            "between_field_mean_mode": (
+                "enabled_explicit_sensitivity"
+                if args.include_between_field_mean_mode
+                else "disabled_default"
+            ),
             "covariance_model_selection": (
                 "explicit_cli_choice"
                 if args.model is not None
@@ -1769,11 +1902,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--fields",
         required=True,
         help=(
-            "Empirical .npy/.npz/.pt/.pth ensemble or an unpacked release25 raw "
-            "dataset root containing settings.yaml and RUN_*/pflotran.h5."
+            "Empirical .npy/.npz/.pt/.pth ensemble, a standalone PFLOTRAN .h5, "
+            "or an unpacked release25 raw dataset root containing settings.yaml "
+            "and RUN_*/pflotran.h5."
         ),
     )
     calibrate.add_argument("--key")
+    calibrate.add_argument(
+        "--runs",
+        nargs="+",
+        help=(
+            "Optional RUN_* subset for a release25 raw dataset directory. For the "
+            "DARUS-5082 real-K prior, pass exactly the three runs used for training."
+        ),
+    )
     calibrate.add_argument("--cell-size-m", type=float, required=True)
     calibrate.add_argument(
         "--models",
@@ -1963,6 +2105,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     new_domain.add_argument("--training-key")
     new_domain.add_argument(
+        "--training-runs",
+        nargs="+",
+        help=(
+            "Exact three RUN_* names used to train the DARUS-5082 real-K LGCNN. "
+            "Required when --training-fields is a release25 raw dataset directory."
+        ),
+    )
+    new_domain.add_argument(
+        "--training-info-yaml",
+        help=(
+            "Optional info.yaml from the DARUS-5082 pretrained model/prepared dataset; "
+            "records the exact permeability normalization context."
+        ),
+    )
+    new_domain.add_argument(
         "--training-calibration",
         required=True,
         help="Field-based calibration YAML produced from --training-fields.",
@@ -1996,8 +2153,47 @@ def build_parser() -> argparse.ArgumentParser:
         "--training-diagnostic-stride",
         type=int,
         default=4,
+        help="Spatial stride for secondary full-field compatibility descriptors.",
+    )
+    new_domain.add_argument(
+        "--training-patch-box-size",
+        type=int,
+        default=RELEASE25_REALK_PATCH_BOX_SIZE,
+        help="release25 real-K training cutout size; published best value is 1280.",
+    )
+    new_domain.add_argument(
+        "--training-patch-skip",
+        type=int,
+        default=RELEASE25_REALK_PATCH_SKIP,
+        help="release25 real-K cutout skip per direction; published best value is 8.",
+    )
+    new_domain.add_argument(
+        "--training-patch-samples",
+        type=int,
+        default=192,
         help=(
-            "Spatial stride used for training-vs-generated compatibility descriptors."
+            "Deterministic diagnostic subsample of the correlated training-patch "
+            "population; does not change the stochastic prior."
+        ),
+    )
+    new_domain.add_argument(
+        "--training-patch-feature-stride",
+        type=int,
+        default=8,
+        help="Spatial stride inside each large patch when computing support descriptors.",
+    )
+    new_domain.add_argument(
+        "--generated-patch-samples-per-field",
+        type=int,
+        default=32,
+        help="Number of release25-lattice patches inspected per generated field.",
+    )
+    new_domain.add_argument(
+        "--include-between-field-mean-mode",
+        action="store_true",
+        help=(
+            "Sensitivity option only: activate the field-wide Gaussian mean mode "
+            "estimated from the three training fields. Disabled by default."
         ),
     )
     new_domain.add_argument("--dynamic-viscosity-pa-s", type=float, default=1.002e-3)

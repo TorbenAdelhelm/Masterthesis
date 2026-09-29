@@ -280,58 +280,75 @@ rule.
 
 ## Training-informed, measurement-conditioned LGCNN domain
 
-The primary thesis input law now separates **surrogate support** from
-**measurement conditioning**. The actual permeability fields used to train the
-pretrained random-K LGCNN define the Gaussian KL prior. The real Munich
-measurements condition that prior; their fitted nugget is used as
-observation-scale uncertainty but their covariance fit does not silently replace
-the training-input prior.
+The production permeability workflow now distinguishes the **three complete
+real-permeability fields used to train the frozen LGCNN** from the much larger
+set of overlapping patches that the CNN actually saw during optimization.
+DaRUS-5082 contains the pretrained real-`k` LGCNN models; the corresponding raw
+4+1 simulation dataset is DaRUS-5065. The publication documents that three of
+the four standard 12.8 km fields were used for training and one for validation.
+For both real-`k` LGCNN steps the selected cutout hyperparameters are
+`box_length=1280` cells and `skip_per_dir=8` cells.
 
-First calibrate the actual LGCNN training permeability ensemble:
+The three complete training fields remain the geostatistical calibration
+replicates. Their overlapping cutouts are **not** treated as tens of thousands
+of independent geological realizations. Instead, the exact release25
+`SimulationDatasetCuts` lattice is reproduced only for the primary
+surrogate-support diagnostic.
+
+Calibrate the Gaussian prior on exactly the three training runs:
 
 ```bash
 python -m subsurface_uq.experiments.realistic_permeability calibrate \
-  --fields data/lgcnn_training_permeability \
+  --fields data/dataset_100hp_giant_real_fixP0_0025 \
+  --runs <TRAIN_RUN_A> <TRAIN_RUN_B> <TRAIN_RUN_C> \
   --cell-size-m 5 \
   --spatial-stride 4 \
   --output run_output/realistic_k/training_calibration.yaml
 ```
 
-Then combine this training calibration with the independently produced Munich
-measurement calibration:
+The exact three `RUN_*` names must come from the pretrained-model metadata /
+training command. They are intentionally not inferred from directory order.
+
+Then combine this prior with the independent Munich measurement calibration:
 
 ```bash
 python -m subsurface_uq.experiments.realistic_permeability new-domain-generate \
   --measurements "C:/path/to/kf_werte_190201.xlsx" \
   --reference-grid "C:/path/to/3D_K_Field_Munich_K_P10_P50_P90.csv" \
-  --training-fields data/lgcnn_training_permeability \
+  --training-fields data/dataset_100hp_giant_real_fixP0_0025 \
+  --training-runs <TRAIN_RUN_A> <TRAIN_RUN_B> <TRAIN_RUN_C> \
   --training-calibration run_output/realistic_k/training_calibration.yaml \
   --measurement-calibration run_output/realistic_k/measurements/measurement_calibration.yaml \
+  --training-info-yaml <PATH_TO_DARUS_5082_INFO_YAML> \
   --model exponential \
   --energy-threshold 0.95 \
   --n-samples 8 \
   --output-dir run_output/realistic_k/new_domain
 ```
 
-The generator retains iid standard-normal posterior coordinates. Generated
-fields are compared descriptively with the actual training inputs using marginal
-and short-range spatial descriptors, but are **not rejected** by those
-diagnostics; this preserves the Gaussian coordinate law required by MC/RQMC and
-later Hermite PCE. A field-wide Gaussian mean coordinate represents the
-between-training-field mean variation estimated by the existing field
-calibration.
+Patch support is evaluated at the published `1280 x 1280` / skip-8 geometry.
+For tractability, a deterministic subset of that highly correlated patch
+population is used to compute log-permeability marginal, gradient and local
+correlation descriptors for both training and generated fields. Full-field
+statistics remain secondary diagnostics.
 
-The output `stochastic_input_model.yaml` is the reusable stochastic-law
-artifact. Point RQ1 at it with `grf.input_model` and remove the manual GRF
-parameter/observation keys from the RQ1 config. This makes RQ1 reconstruct the
-same training-informed, real-measurement-conditioned map instead of duplicating
-its parameters.
+No generated field or patch is rejected. The stochastic map therefore remains
 
-Without an explicit projected origin, the 5 m grid is chosen to maximize the
-number of accepted real measurements inside the 12.8 km square. Existing
-release25 pressure/heat-pump fields remain domain-relative templates, not
-claimed co-located site measurements. See
-`docs/realistic_permeability_generator.md` for the diagnostics and assumptions.
+```text
+eta ~ N(0,I) -> conditional KL map -> K
+```
+
+for MC, randomized QMC and later Hermite PCE. The empirical between-training-
+field mean standard deviation is recorded, but a separate field-wide Gaussian
+mean coordinate is now **disabled by default** because it is estimated from only
+three complete fields. It can be enabled explicitly only as a sensitivity study
+with `--include-between-field-mean-mode`.
+
+The output `stochastic_input_model.yaml` remains the reusable stochastic-law
+artifact. It now stores both the primary patch-support reference and the
+secondary full-field reference, together with the optional release25
+normalization metadata. Point RQ1 at it with `grf.input_model`; do not duplicate
+the GRF parameters manually.
 
 ## Real Munich measurement calibration
 

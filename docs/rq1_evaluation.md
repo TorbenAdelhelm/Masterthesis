@@ -101,12 +101,19 @@ artifact is used, its empirical training-field minimum/maximum becomes the
 range reference; the historical release25 Perlin bounds are only the fallback
 for the manual legacy configuration.
 
+Surrogate-support validation itself is performed upstream by the
+realistic-permeability workflow. For the DaRUS-5082 real-K model, the primary
+reference is the exact release25 1280-cell / skip-8 training-patch lattice from
+the three full training fields; full-field descriptors are secondary. The
+artifact stores a tractable deterministic sample of that correlated patch
+population plus optional release25 normalization metadata.
+
 For the continuous real-measurement input model, conditioning quality and prior
-compatibility are recorded in the input-model artifact itself, including
-prior-predictive standardized residuals and the covariance-aware Mahalanobis
-diagnostic. RQ1 does not apply a post-hoc sample acceptance rule. This is
-intentional: all MC/RQMC samples must remain evaluations of the declared iid
-Gaussian posterior-coordinate law.
+compatibility are also recorded upstream, including prior-predictive
+standardized residuals and the covariance-aware Mahalanobis diagnostic. RQ1
+does not apply a post-hoc sample acceptance rule. This is intentional: all
+MC/RQMC samples remain evaluations of the declared iid Gaussian
+posterior-coordinate law.
 
 The older manual grid-cell GRF configuration remains available for synthetic
 experiments. In that mode RQ1 can still compute per-sample conditioning
