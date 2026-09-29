@@ -1,8 +1,25 @@
 from .base import PermeabilitySampler
+from .boreholes import BoreholeObservationSet, sample_borehole_observations
+from .calibration import (
+    SUPPORTED_CALIBRATION_MODELS,
+    CovarianceCalibrationResult,
+    calibrate_covariance_candidates,
+    calibrate_point_covariance_candidates,
+    correlation_for_offsets,
+    estimate_directional_variograms,
+    estimate_point_directional_variograms,
+)
 from .coordinates import (
     GaussianCoordinatePermeabilitySampler,
     StochasticPermeabilityMap,
     UniformCoordinatePermeabilitySampler,
+)
+from .darus_real import (
+    RELEASE25_INITIAL_TIME_GROUP,
+    RELEASE25_PERMEABILITY_DATASET,
+    load_pflotran_permeability_h5,
+    load_release25_raw_permeability_dataset,
+    load_release25_raw_permeability_run,
 )
 from .diagnostics import (
     DiagnosticPermeabilitySampler,
@@ -10,8 +27,48 @@ from .diagnostics import (
     PermeabilityDiagnosticsResult,
 )
 from .empirical import EmpiricalPermeabilitySampler, load_empirical_fields
-from .kl import KLLogGaussianPermeabilityMap, matern32_correlation_matrix
-from .kriging import ConditionalKLLogGaussianPermeabilityMap
+from .exact_kriging import (
+    ExactPointKrigingResult,
+    ExactSimpleKrigingResult,
+    exact_simple_kriging_grid_from_points,
+    exact_simple_kriging_posterior,
+    exact_simple_kriging_predict_points,
+)
+from .munich_measurements import (
+    MunichHydraulicConductivityMeasurements,
+    ReferenceHorizontalGrid,
+    aggregate_measurements_by_reference_cell,
+    hydraulic_conductivity_to_intrinsic_permeability,
+    load_munich_hydraulic_conductivity_measurements,
+    load_reference_horizontal_grid,
+)
+from .geospatial import (
+    GEOREFERENCE_SWEEP_REPRESENTATIONS,
+    LGCNNDomainGeoreference,
+    RAW_TO_GEO_TRANSFORMS,
+    ReferencePermeabilitySurface,
+    infer_lgcnn_domain_georeference,
+    load_reference_permeability_surface,
+    load_reference_permeability_sweep_surfaces,
+    orient_raw_field,
+    geographic_to_raw_field,
+    summarize_georeference_sweep,
+)
+from .kl import (
+    KLLogGaussianPermeabilityMap,
+    exponential_correlation_matrix,
+    matern32_correlation_matrix,
+)
+from .kriging import (
+    ConditionalKLLogGaussianPermeabilityMap,
+    ContinuousPointConditionalKLLogGaussianPermeabilityMap,
+)
+from .input_model import ConditionalKLInputModel, load_conditional_kl_input_model
+from .new_domain import NewLGCNNDomain, select_new_lgcnn_domain
+from .normal_score import (
+    EmpiricalNormalScoreTransform,
+    NormalScoreConditionalPermeabilityMap,
+)
 from .perlin import (
     RELEASE25_PERLIN_DEFAULT_SEED,
     RELEASE25_PERLIN_DOMAIN_SIZE_M,
@@ -27,17 +84,73 @@ from .perlin_coordinates import (
     RELEASE25_PERLIN_OFFSET_SPAN,
     PerlinCoordinatePermeabilityMap,
 )
+from .qmc import ScrambledSobolGaussianPermeabilitySampler
+from .training_compatibility import (
+    RELEASE25_REALK_MODEL_DOI,
+    RELEASE25_REALK_PATCH_BOX_SIZE,
+    RELEASE25_REALK_PATCH_SKIP,
+    RELEASE25_REALK_RAW_DATA_DOI,
+    RELEASE25_REALK_TRAINING_DATA_DOI,
+    RELEASE25_REALK_SCALING_FIELDS,
+    RELEASE25_REALK_TRAINING_FIELDS,
+    RELEASE25_REALK_VALIDATION_FIELDS,
+    TrainingCompatibilityDiagnostics,
+    TrainingDistributionProfile,
+    TrainingPatchCompatibilityDiagnostics,
+    TrainingPatchDistributionProfile,
+    characterize_training_distribution,
+    closest_training_field_by_features,
+    characterize_training_patch_distribution,
+    load_release25_permeability_normalization,
+    permeability_ensemble_fidelity,
+    permeability_field_features,
+    release25_patch_positions,
+)
+from .radial_exponential import RadialExponentialPermeabilitySampler
 
 __all__ = [
+    "select_new_lgcnn_domain",
+    "NewLGCNNDomain",
+    "EmpiricalNormalScoreTransform",
+    "NormalScoreConditionalPermeabilityMap",
+    "ContinuousPointConditionalKLLogGaussianPermeabilityMap",
+    "load_reference_permeability_sweep_surfaces",
+    "summarize_georeference_sweep",
+    "GEOREFERENCE_SWEEP_REPRESENTATIONS",
+    "geographic_to_raw_field",
+    "load_release25_raw_permeability_run",
+    "orient_raw_field",
+    "load_reference_permeability_surface",
+    "infer_lgcnn_domain_georeference",
+    "ReferencePermeabilitySurface",
+    "RAW_TO_GEO_TRANSFORMS",
+    "LGCNNDomainGeoreference",
+    "load_reference_horizontal_grid",
+    "load_munich_hydraulic_conductivity_measurements",
+    "hydraulic_conductivity_to_intrinsic_permeability",
+    "exact_simple_kriging_predict_points",
+    "exact_simple_kriging_grid_from_points",
+    "estimate_point_directional_variograms",
+    "calibrate_point_covariance_candidates",
+    "aggregate_measurements_by_reference_cell",
+    "ReferenceHorizontalGrid",
+    "MunichHydraulicConductivityMeasurements",
+    "ExactPointKrigingResult",
+    "BoreholeObservationSet",
     "ConditionalKLLogGaussianPermeabilityMap",
+    "ConditionalKLInputModel",
+    "CovarianceCalibrationResult",
     "DiagnosticPermeabilitySampler",
     "EmpiricalPermeabilitySampler",
+    "ExactSimpleKrigingResult",
     "GaussianCoordinatePermeabilitySampler",
     "KLLogGaussianPermeabilityMap",
     "PerlinCoordinatePermeabilityMap",
     "PermeabilityDiagnostics",
     "PermeabilityDiagnosticsResult",
     "PermeabilitySampler",
+    "RELEASE25_INITIAL_TIME_GROUP",
+    "RELEASE25_PERMEABILITY_DATASET",
     "RELEASE25_PERLIN_DEFAULT_SEED",
     "RELEASE25_PERLIN_DOMAIN_SIZE_M",
     "RELEASE25_PERLIN_FREQUENCY",
@@ -46,10 +159,41 @@ __all__ = [
     "RELEASE25_PERLIN_OFFSET_SPAN",
     "RELEASE25_PERLIN_SHAPE",
     "RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C",
+    "RadialExponentialPermeabilitySampler",
+    "SUPPORTED_CALIBRATION_MODELS",
     "Release25PerlinPermeabilitySampler",
+    "ScrambledSobolGaussianPermeabilitySampler",
+    "TrainingCompatibilityDiagnostics",
+    "TrainingDistributionProfile",
+    "TrainingPatchCompatibilityDiagnostics",
+    "TrainingPatchDistributionProfile",
+    "RELEASE25_REALK_MODEL_DOI",
+    "RELEASE25_REALK_RAW_DATA_DOI",
+    "RELEASE25_REALK_TRAINING_DATA_DOI",
+    "RELEASE25_REALK_TRAINING_FIELDS",
+    "RELEASE25_REALK_VALIDATION_FIELDS",
+    "RELEASE25_REALK_SCALING_FIELDS",
+    "RELEASE25_REALK_PATCH_BOX_SIZE",
+    "RELEASE25_REALK_PATCH_SKIP",
     "StochasticPermeabilityMap",
     "UniformCoordinatePermeabilitySampler",
+    "calibrate_covariance_candidates",
+    "correlation_for_offsets",
+    "estimate_directional_variograms",
+    "exact_simple_kriging_posterior",
+    "exponential_correlation_matrix",
     "historical_perlin_v2_field",
     "load_empirical_fields",
+    "load_pflotran_permeability_h5",
+    "load_release25_raw_permeability_dataset",
+    "load_conditional_kl_input_model",
     "matern32_correlation_matrix",
+    "sample_borehole_observations",
+    "characterize_training_distribution",
+    "closest_training_field_by_features",
+    "characterize_training_patch_distribution",
+    "load_release25_permeability_normalization",
+    "permeability_ensemble_fidelity",
+    "permeability_field_features",
+    "release25_patch_positions",
 ]
