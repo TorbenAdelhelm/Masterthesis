@@ -1429,15 +1429,32 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     model = args.model
     if model is None:
         if input_law == "measurement-kriging":
-            selected_measurement = measurement_calibration_payload.get(
-                "selected_by_spatial_cv_rmse", {}
+            cv_rows = measurement_calibration_payload.get("spatial_cv", {}).get(
+                "summary", []
             )
-            selected_name = str(selected_measurement.get("covariance_model", ""))
+            supported_cv_rows = [
+                row
+                for row in cv_rows
+                if str(row.get("covariance_model", "")) in supported
+                and np.isfinite(float(row.get("rmse_log10_k", np.nan)))
+            ]
+            if supported_cv_rows:
+                selected_measurement = min(
+                    supported_cv_rows,
+                    key=lambda row: float(row["rmse_log10_k"]),
+                )
+                selected_name = str(selected_measurement["covariance_model"])
+            else:
+                selected_measurement = measurement_calibration_payload.get(
+                    "selected_by_spatial_cv_rmse", {}
+                )
+                selected_name = str(
+                    selected_measurement.get("covariance_model", "")
+                )
             if selected_name not in supported:
                 raise ValueError(
-                    "the measurement model selected by spatial block CV is not "
-                    "available in the factorized KL path. Choose --model matern32 "
-                    "or --model exponential explicitly and document the approximation."
+                    "measurement calibration contains no matern32/exponential "
+                    "candidate that can be represented by the factorized KL path"
                 )
             model = selected_name
         elif input_law == "normal-score-copula":
@@ -2089,9 +2106,10 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
                 np.count_nonzero(active_reference_in_domain)
             ),
             "interpretation": (
-                "Reference-grid coverage is a support diagnostic only. The stochastic "
-                "prior is learned from the actual LGCNN training permeability fields; "
-                "real measurements are used for conditioning, not to redefine that prior."
+                "Reference-grid coverage is a support diagnostic only. In the production "
+                "measurement-kriging law, covariance/mean are fitted to the real Munich "
+                "measurements and those measurements also condition the field. DaRUS-5065 "
+                "training fields are retained as LGCNN-support/fidelity references."
             ),
         },
         "measurement_qc": measurement_qc,
@@ -2116,7 +2134,7 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "measurements_outside_training_marginal_fraction": float(
                 np.mean(measurement_outside_training_marginal)
             ),
-            "prior_predictive_under_training_prior": conditional.prior_predictive_diagnostics,
+            "prior_predictive_under_production_prior": conditional.prior_predictive_diagnostics,
             "posterior_predictive_90pct_coverage_at_measurements_latent": observation_coverage90,
             "conditioned_reference_rmse_log10_at_measurements": float(
                 np.sqrt(np.mean(physical_observation_residual**2))
@@ -2168,6 +2186,7 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
                 [
                     "float32_npy",
                     "png_log10_intrinsic_permeability",
+                    "measurement_overlay_png",
                     "comparison_png",
                 ]
                 if args.save_samples
@@ -2191,10 +2210,16 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
                     if args.save_samples
                     else None
                 ),
+                "measurement_overlay_png": (
+                    str(root / "conditioned_reference_measurement_overlay.png")
+                    if args.save_samples
+                    else None
+                ),
                 "interpretation": (
-                    "Inverse-transformed latent posterior mean. This is a deterministic "
-                    "measurement-conditioned comparison field, not the exact nonlinear "
-                    "physical-space posterior expectation."
+                    "For measurement-kriging this is the truncated-KL representation of "
+                    "the measurement-derived simple-kriging posterior mean in log10(k). "
+                    "For the optional normal-score law it is the inverse-transformed "
+                    "latent posterior mean and is not the exact nonlinear physical mean."
                 ),
             },
             "visual_comparisons": visual_comparisons,
@@ -2208,25 +2233,35 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             ),
         },
         "prior_definition": {
-            "source": "darus_5065_lgcnn_training_permeability_fields",
+            "source": prior_source,
             "input_law": input_law,
             "training_fields": training_source,
             "training_calibration_path": str(training_calibration_path),
-            "selected_latent_covariance": training_prior,
+            "measurement_calibration_path": str(measurement_calibration_path),
+            "selected_prior_covariance": (
+                measurement_fit
+                if input_law == "measurement-kriging"
+                else training_prior
+            ),
             "normal_score_transform": (
                 None
                 if normal_score_transform is None
                 else normal_score_transform.to_dict()
             ),
+            "prior_mean": prior_mean,
+            "prior_structured_std": structured_std,
+            "prior_length_scale_y_m": prior_length_scale_y,
+            "prior_length_scale_x_m": prior_length_scale_x,
             "between_field_mean_std_latent_estimate": estimated_between_field_mean_std,
-            "global_mean_mode_enabled": bool(args.include_between_field_mean_mode),
+            "global_mean_mode_enabled": bool(global_mean_std > 0.0),
             "global_mean_std_latent_used": global_mean_std,
             "policy": (
-                "For the production normal-score copula, the empirical log10(K) marginal "
-                "comes from the three DaRUS-5065 training fields and spatial covariance "
-                "is fitted after Gaussianization. Real measurements are transformed "
-                "through the same marginal map and condition the Gaussian-score field. "
-                "No generated field is accepted/rejected post hoc."
+                "Production default: the real Munich measurement variogram/spatial-CV "
+                "fit defines the log10(k) prior mean, structured variance and correlation "
+                "lengths; the same measurements condition that prior. DaRUS-5065 fields "
+                "do not redefine the baseline probability law and instead quantify "
+                "LGCNN-support/fidelity. Training-based normal-score/lognormal laws remain "
+                "explicit sensitivity alternatives. No post-hoc sample rejection is used."
             ),
         },
         "lgcnn_training_support": {
@@ -2246,8 +2281,11 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "measurement_calibration_path": str(measurement_calibration_path),
             "same_family_fit": measurement_fit,
             "use": (
-                "Real measurements provide conditioning values and the fitted nugget "
-                "used as observation-scale uncertainty."
+                "For measurement-kriging, real measurements determine the selected "
+                "covariance model/parameters by spatial block CV and provide the "
+                "conditioning values; the fitted nugget is observation-scale/unresolved "
+                "short-scale uncertainty. For training-based sensitivity laws, only "
+                "conditioning/nugget are taken from the measurement model."
             ),
             "converted_mean_log10_intrinsic_permeability": (
                 float(measurement_fit["mean_log10_k"]) + log10_shift
@@ -2267,11 +2305,11 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             "training_physical_std_log10": training_physical_std_log10,
             "length_scale_y_ratio_measurement_to_training": (
                 float(measurement_fit["length_scale_y_m"])
-                / float(training_prior["length_scale_y_m"])
+                / float(training_comparison_fit["length_scale_y_m"])
             ),
             "length_scale_x_ratio_measurement_to_training": (
                 float(measurement_fit["length_scale_x_m"])
-                / float(training_prior["length_scale_x_m"])
+                / float(training_comparison_fit["length_scale_x_m"])
             ),
         },
         "hydraulic_to_intrinsic_conversion": {
@@ -2324,22 +2362,31 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
         },
         "source_policy": {
             "prior": (
-                "darus_5065_empirical_normal_score_gaussian_copula"
-                if normal_score_transform is not None
-                else "darus_5065_legacy_lognormal"
+                "real_munich_measurement_variogram_spatial_cv"
+                if input_law == "measurement-kriging"
+                else (
+                    "darus_5065_empirical_normal_score_gaussian_copula"
+                    if normal_score_transform is not None
+                    else "darus_5065_legacy_lognormal"
+                )
             ),
-            "conditioning": "real_munich_measurements_transformed_to_prior_space",
+            "conditioning": "real_munich_measurements_in_prior_space",
+            "training_fields_role": "lgcnn_support_and_fidelity_reference",
             "sample_filtering": None,
             "surrogate_support_diagnostic": "release25_training_patch_distribution",
             "between_field_mean_mode": (
                 "enabled_explicit_sensitivity"
-                if args.include_between_field_mean_mode
-                else "disabled_default"
+                if global_mean_std > 0.0
+                else "disabled"
             ),
             "covariance_model_selection": (
                 "explicit_cli_choice"
                 if args.model is not None
-                else "training_calibration_selected"
+                else (
+                    "measurement_spatial_cv_best_supported"
+                    if input_law == "measurement-kriging"
+                    else "training_calibration_selected"
+                )
             ),
         },
     }
@@ -2350,7 +2397,7 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     with (root / "new_domain_generator.json").open("w", encoding="utf-8") as handle:
         json.dump(diagnostics, handle, indent=2, sort_keys=True)
 
-    print("Training-informed, measurement-conditioned new LGCNN domain")
+    print("Measurement-derived kriging/KL permeability domain")
     print(
         f"  domain: W={domain.west_edge_m:.1f}, S={domain.south_edge_m:.1f}, "
         f"E={domain.east_edge_m:.1f}, N={domain.north_edge_m:.1f} m"
@@ -2593,9 +2640,10 @@ def build_parser() -> argparse.ArgumentParser:
     new_domain = sub.add_parser(
         "new-domain-generate",
         help=(
-            "define a projected Munich domain, build the Gaussian KL prior from actual "
-            "LGCNN training permeability fields, condition it on real measurements, "
-            "and generate intrinsic-permeability realizations for LGCNN input"
+            "define a projected Munich domain, build a measurement-derived kriging/KL "
+            "prior from the real observations, condition on those observations, and "
+            "validate generated intrinsic-permeability fields against DaRUS-5065 "
+            "LGCNN training support"
         ),
     )
     new_domain.add_argument("--measurements", required=True)
@@ -2630,18 +2678,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--measurement-calibration",
         required=True,
         help=(
-            "Real-measurement calibration YAML; used for the fitted nugget "
-            "diagnostic/observation noise."
+            "Real-measurement calibration YAML from measurement-evaluate. In the "
+            "production measurement-kriging law it provides the prior covariance "
+            "selected by spatial CV as well as nugget/conditioning uncertainty."
         ),
     )
     new_domain.add_argument(
         "--input-law",
-        choices=["normal-score-copula", "legacy-lognormal"],
-        default="normal-score-copula",
+        choices=[
+            "measurement-kriging",
+            "normal-score-copula",
+            "legacy-lognormal",
+        ],
+        default="measurement-kriging",
         help=(
-            "Production default is the empirical normal-score/Gaussian-copula law: "
-            "the DaRUS-5065 training marginal is preserved while KL dependence and "
-            "measurement conditioning remain Gaussian in latent space."
+            "Production default derives mean, structured variance and correlation "
+            "lengths from the real Munich measurement variogram/spatial-CV fit and "
+            "conditions that KL prior on the measurements. The two training-derived "
+            "laws remain explicit sensitivity alternatives."
         ),
     )
     new_domain.add_argument("--model", choices=["matern32", "exponential"])
