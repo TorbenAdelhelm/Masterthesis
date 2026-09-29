@@ -1706,8 +1706,8 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     latent_mean_obs, latent_std_obs = conditional.posterior_moments_at_points(
         observation_local_yx
     )
-    predictive_std_obs = np.sqrt(latent_std_obs**2 + effective_observation_std**2)
-    standardized = (observation_log10_intrinsic - latent_mean_obs) / predictive_std_obs
+    predictive_std_obs = np.sqrt(latent_std_obs**2 + observation_std_latent**2)
+    standardized = (observation_latent - latent_mean_obs) / predictive_std_obs
     z90 = 1.6448536269514722
     observation_coverage90 = float(np.mean(np.abs(standardized) <= z90))
 
@@ -1731,9 +1731,50 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
 
     root = Path(args.output_dir).expanduser().resolve()
     samples_dir = root / "samples"
+    comparisons_dir = samples_dir / "comparisons"
     root.mkdir(parents=True, exist_ok=True)
     if args.save_samples:
         samples_dir.mkdir(parents=True, exist_ok=True)
+        comparisons_dir.mkdir(parents=True, exist_ok=True)
+
+    if normal_score_transform is not None:
+        conditioned_reference_log = field_map.posterior_reference_log10()
+    else:
+        conditioned_reference_log = np.asarray(
+            conditional.map_log10_coordinates(
+                np.zeros(conditional.dimension, dtype=np.float64)
+            ),
+            dtype=np.float64,
+        )
+    conditioned_reference_k = np.power(10.0, conditioned_reference_log)
+    np.save(
+        root / "conditioned_reference_log10_permeability_m2.npy",
+        conditioned_reference_log.astype(np.float32),
+    )
+    np.save(
+        root / "conditioned_reference_permeability_m2.npy",
+        conditioned_reference_k.astype(np.float32),
+    )
+
+    fidelity_stride = int(args.fidelity_spatial_stride)
+    if fidelity_stride <= 0:
+        raise ValueError("fidelity-spatial-stride must be positive")
+    training_log_for_limits = np.log10(
+        np.asarray(
+            training_fields[:, ::fidelity_stride, ::fidelity_stride],
+            dtype=np.float64,
+        )
+    )
+    robust_log10_limits = tuple(
+        float(v) for v in np.quantile(training_log_for_limits, [0.01, 0.99])
+    )
+    if args.save_samples:
+        save_permeability_field_png(
+            conditioned_reference_k,
+            root / "conditioned_reference_permeability_m2.png",
+            vmin_log10_k=robust_log10_limits[0],
+            vmax_log10_k=robust_log10_limits[1],
+        )
 
     mean_log = np.zeros(domain.shape, dtype=np.float64)
     m2_log = np.zeros(domain.shape, dtype=np.float64)
@@ -1745,6 +1786,8 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
     outside_total = 0
     total_cells = 0
     outside_by_sample: list[float] = []
+    generated_fidelity_fields: list[np.ndarray] = []
+    visual_comparisons: list[dict[str, object]] = []
     training_min, training_max = training_profile.training_k_range
 
     for batch in sampler:
@@ -1758,10 +1801,22 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             mean_log += delta / sample_count
             m2_log += delta * (log_field - mean_log)
 
-            diag_values = log_field[diagnostic_rows, diagnostic_cols]
+            diag_values_log10 = log_field[diagnostic_rows, diagnostic_cols]
+            diag_values = (
+                normal_score_transform.to_score(diag_values_log10)
+                if normal_score_transform is not None
+                else diag_values_log10
+            )
             diag_delta = diag_values - diag_mean
             diag_mean += diag_delta / sample_count
             diag_m2 += diag_delta * (diag_values - diag_mean)
+
+            generated_fidelity_fields.append(
+                np.asarray(
+                    physical[::fidelity_stride, ::fidelity_stride],
+                    dtype=np.float32,
+                )
+            )
 
             global_min_k = min(global_min_k, float(np.min(physical)))
             global_max_k = max(global_max_k, float(np.max(physical)))
@@ -1779,8 +1834,42 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
                 save_permeability_field_png(
                     field,
                     samples_dir / f"{sample_stem}.png",
-                    vmin_log10_k=float(np.log10(training_min)),
-                    vmax_log10_k=float(np.log10(training_max)),
+                    vmin_log10_k=robust_log10_limits[0],
+                    vmax_log10_k=robust_log10_limits[1],
+                )
+                closest_index, closest_distance, _ = closest_training_field_by_features(
+                    field,
+                    training_fields,
+                    cell_size_m=args.cell_size_m,
+                    spatial_stride=args.training_diagnostic_stride,
+                )
+                training_label = (
+                    training_names[closest_index]
+                    if training_names
+                    else f"training_field_{closest_index}"
+                )
+                comparison_path = (
+                    comparisons_dir / f"sample_{sample_count:04d}_comparison.png"
+                )
+                plot_generated_permeability_comparison(
+                    generated_permeability_m2=field,
+                    conditioned_reference_log10_k=conditioned_reference_log,
+                    training_reference_permeability_m2=training_fields[closest_index],
+                    training_reference_label=training_label,
+                    domain=domain,
+                    measurement_x_m=selected_measurements.x_m,
+                    measurement_y_m=selected_measurements.y_m,
+                    shared_log10_limits=robust_log10_limits,
+                    destination=comparison_path,
+                )
+                visual_comparisons.append(
+                    {
+                        "sample_index": sample_count,
+                        "comparison_png": str(comparison_path),
+                        "closest_training_field_index": closest_index,
+                        "closest_training_field_name": training_label,
+                        "descriptor_distance": closest_distance,
+                    }
                 )
 
     if sample_count != int(args.n_samples):
