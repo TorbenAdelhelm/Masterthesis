@@ -8,6 +8,10 @@ import yaml
 
 from .kl import KLLogGaussianPermeabilityMap
 from .kriging import ContinuousPointConditionalKLLogGaussianPermeabilityMap
+from .normal_score import (
+    EmpiricalNormalScoreTransform,
+    NormalScoreConditionalPermeabilityMap,
+)
 
 
 @dataclass(frozen=True)
@@ -16,7 +20,7 @@ class ConditionalKLInputModel:
 
     source_path: Path
     prior: KLLogGaussianPermeabilityMap
-    conditional: ContinuousPointConditionalKLLogGaussianPermeabilityMap
+    conditional: object
     payload: dict[str, object]
 
     @property
@@ -47,7 +51,8 @@ def load_conditional_kl_input_model(
         raw = yaml.safe_load(handle)
     if not isinstance(raw, dict):
         raise ValueError("stochastic input model must contain a YAML mapping")
-    if int(raw.get("schema_version", -1)) != 1:
+    schema_version = int(raw.get("schema_version", -1))
+    if schema_version not in {1, 2}:
         raise ValueError("unsupported stochastic input model schema_version")
     if raw.get("coordinate_distribution") != "iid_standard_normal":
         raise ValueError(
@@ -81,29 +86,61 @@ def load_conditional_kl_input_model(
         energy_threshold=energy_threshold,
     )
 
-    conditional = ContinuousPointConditionalKLLogGaussianPermeabilityMap(
-        prior=prior,
-        observation_coordinates_yx_m=np.asarray(
-            conditioning_raw["observation_coordinates_yx_m"],
+    input_law = str(raw.get("input_law", "legacy-lognormal"))
+    if schema_version >= 2 and input_law == "normal-score-copula":
+        transform_raw = raw.get("normal_score_transform")
+        if not isinstance(transform_raw, dict):
+            raise ValueError(
+                "normal-score input model must contain normal_score_transform"
+            )
+        transform = EmpiricalNormalScoreTransform.from_dict(transform_raw)
+        latent_values = np.asarray(
+            conditioning_raw["observation_latent_values"],
             dtype=np.float64,
-        ),
-        observation_log10_k=np.asarray(
-            conditioning_raw["observation_log10_intrinsic_permeability"],
+        )
+        latent_std = np.asarray(
+            conditioning_raw["observation_std_latent"],
             dtype=np.float64,
-        ),
-        observation_std_log10_k=np.asarray(
-            conditioning_raw["observation_std_log10_k"],
-            dtype=np.float64,
-        ),
-    )
+        )
+        gaussian_conditional = ContinuousPointConditionalKLLogGaussianPermeabilityMap(
+            prior=prior,
+            observation_coordinates_yx_m=np.asarray(
+                conditioning_raw["observation_coordinates_yx_m"],
+                dtype=np.float64,
+            ),
+            observation_log10_k=latent_values,
+            observation_std_log10_k=latent_std,
+        )
+        conditional: object = NormalScoreConditionalPermeabilityMap(
+            transform=transform,
+            gaussian_map=gaussian_conditional,
+        )
+        reconstructed_dimension = gaussian_conditional.dimension
+    else:
+        conditional = ContinuousPointConditionalKLLogGaussianPermeabilityMap(
+            prior=prior,
+            observation_coordinates_yx_m=np.asarray(
+                conditioning_raw["observation_coordinates_yx_m"],
+                dtype=np.float64,
+            ),
+            observation_log10_k=np.asarray(
+                conditioning_raw["observation_log10_intrinsic_permeability"],
+                dtype=np.float64,
+            ),
+            observation_std_log10_k=np.asarray(
+                conditioning_raw["observation_std_log10_k"],
+                dtype=np.float64,
+            ),
+        )
+        reconstructed_dimension = conditional.dimension
 
     declared_shape = tuple(int(v) for v in raw.get("field_shape", prior.field_shape))
     if declared_shape != prior.field_shape:
         raise ValueError(
             "stochastic input model field_shape does not match reconstructed KL prior"
         )
-    declared_dimension = int(raw.get("coordinate_dimension", conditional.dimension))
-    if declared_dimension != conditional.dimension:
+    declared_dimension = int(raw.get("coordinate_dimension", reconstructed_dimension))
+    if declared_dimension != reconstructed_dimension:
         raise ValueError(
             "stochastic input model coordinate_dimension does not match reconstruction"
         )

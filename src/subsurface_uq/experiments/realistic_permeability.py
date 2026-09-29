@@ -2243,7 +2243,10 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Calibrate and generate realistic log-Gaussian permeability fields."
+        description=(
+            "Calibrate and generate training-faithful, measurement-conditioned "
+            "permeability fields."
+        )
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -2503,6 +2506,16 @@ def build_parser() -> argparse.ArgumentParser:
             "diagnostic/observation noise."
         ),
     )
+    new_domain.add_argument(
+        "--input-law",
+        choices=["normal-score-copula", "legacy-lognormal"],
+        default="normal-score-copula",
+        help=(
+            "Production default is the empirical normal-score/Gaussian-copula law: "
+            "the DaRUS-5065 training marginal is preserved while KL dependence and "
+            "measurement conditioning remain Gaussian in latent space."
+        ),
+    )
     new_domain.add_argument("--model", choices=["matern32", "exponential"])
     new_domain.add_argument("--sheet-name", default="kf_werte_180223")
     new_domain.add_argument("--stratigraphy", default="q")
@@ -2520,6 +2533,24 @@ def build_parser() -> argparse.ArgumentParser:
     new_domain.add_argument("--seed", type=int, default=4901)
     new_domain.add_argument("--observation-std-log10-k", type=float, default=0.0)
     new_domain.add_argument("--diagnostic-grid-stride", type=int, default=128)
+    new_domain.add_argument(
+        "--fidelity-spatial-stride",
+        type=int,
+        default=16,
+        help=(
+            "Spatial stride for generated-vs-training marginal/variogram fidelity "
+            "diagnostics and robust visualization limits."
+        ),
+    )
+    new_domain.add_argument(
+        "--fidelity-max-lag-cells",
+        type=int,
+        default=32,
+        help=(
+            "Maximum lag count on the fidelity-diagnostic grid. With the default "
+            "stride 16 and 5 m cells this evaluates lags to 2.56 km."
+        ),
+    )
     new_domain.add_argument(
         "--training-diagnostic-stride",
         type=int,
@@ -2563,8 +2594,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--include-between-field-mean-mode",
         action="store_true",
         help=(
-            "Sensitivity option only: activate the field-wide Gaussian mean mode "
-            "estimated from the three training fields. Disabled by default."
+            "Sensitivity option only: activate the field-wide Gaussian latent-mean "
+            "mode estimated from the three training fields. Disabled by default."
         ),
     )
     new_domain.add_argument("--dynamic-viscosity-pa-s", type=float, default=1.002e-3)
@@ -2575,8 +2606,9 @@ def build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=True,
         help=(
-            "Write each generated 2560x2560 intrinsic-permeability field as both "
-            "float32 .npy and a .png visualization in log10(K [m^2])."
+            "Write each generated field as lossless float32 NPY, a robust-scale "
+            "log10(K) PNG, and a four-panel comparison PNG against the "
+            "measurement-conditioned reference and closest training field."
         ),
     )
     new_domain.add_argument("--output-dir", required=True)
