@@ -463,7 +463,8 @@ without retyping stochastic parameters.
 
 At 2560 x 2560 resolution a float32 field is about 26 MB. With the default
 `--save-samples`, the NPY remains the numerical source of truth. The simple PNG
-uses one robust training q01--q99 `log10(k)` scale. More importantly, every
+uses one robust shared `log10(k)` scale spanning the training and measurement
+q01--q99 envelopes. More importantly, every
 `*_measurement_overlay.png` draws the original measured intrinsic-permeability
 values on the generated raster using **the identical color normalization**.
 This is the direct visual check requested for local measurement consistency.

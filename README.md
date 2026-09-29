@@ -372,8 +372,8 @@ normalization metadata. Point RQ1 at it with `grf.input_model`; do not duplicate
 the GRF parameters manually.
 
 When `--save-samples` is enabled (the default), every realization keeps a
-lossless float32 `.npy` file and two visual products. The simple field PNG uses
-the common **training q01--q99** `log10(K [m^2])` scale instead of min/max.
+lossless float32 `.npy` file and two visual products. The simple field PNG uses a shared robust `log10(K [m^2])` scale spanning the
+envelope of the training q01--q99 and measurement q01--q99 ranges.
 Each `samples/comparisons/sample_XXXX_measurement_overlay.png` overlays the
 original measured intrinsic-permeability values directly on the generated
 raster using **exactly the same log10(k) color scale**. The companion

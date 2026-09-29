@@ -665,7 +665,7 @@ def plot_generated_permeability_comparison(
     )
     figure.suptitle(
         "Permeability realization fidelity comparison\n"
-        "training q01-q99 scale; measurement markers use observed intrinsic k"
+        "shared robust scale covers training and measured intrinsic k"
     )
     figure.savefig(path, dpi=180, bbox_inches="tight")
     plt.close(figure)

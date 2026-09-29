@@ -221,7 +221,8 @@ normalization metadata, and whether the between-field mean sensitivity mode was
 enabled.
 
 With `--save-samples`, every generated realization keeps its float32 NPY
-source plus a robust q01--q99 field PNG, a dedicated measurement-overlay PNG and
+source plus a robust shared field PNG whose scale spans the training and
+measurement q01--q99 envelopes, a dedicated measurement-overlay PNG and
 a four-panel comparison PNG. The overlay draws the original measured intrinsic
 permeability values on top of the generated raster with the **same color
 normalization**, so local agreement is visually inspectable. The comparison also
