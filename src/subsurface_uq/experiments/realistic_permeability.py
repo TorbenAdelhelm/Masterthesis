@@ -1879,8 +1879,17 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
             dtype=np.float64,
         )
     )
-    robust_log10_limits = tuple(
-        float(v) for v in np.quantile(training_log_for_limits, [0.01, 0.99])
+    training_robust_limits = np.quantile(
+        training_log_for_limits,
+        [0.01, 0.99],
+    )
+    measurement_robust_limits = np.quantile(
+        observation_log10_intrinsic,
+        [0.01, 0.99],
+    )
+    robust_log10_limits = (
+        float(min(training_robust_limits[0], measurement_robust_limits[0])),
+        float(max(training_robust_limits[1], measurement_robust_limits[1])),
     )
     if args.save_samples:
         save_permeability_field_png(
@@ -2204,7 +2213,9 @@ def _new_domain_generate(args: argparse.Namespace) -> int:
                 if args.save_samples
                 else None
             ),
-            "png_color_scale_source": "training_log10_q01_q99",
+            "png_color_scale_source": (
+                "envelope_of_training_q01_q99_and_measurement_q01_q99"
+            ),
             "conditioned_reference": {
                 "log10_npy": str(
                     root / "conditioned_reference_log10_permeability_m2.npy"
