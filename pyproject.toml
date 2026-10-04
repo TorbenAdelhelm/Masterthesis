@@ -32,6 +32,7 @@ subsurface-uq-realistic-permeability = "subsurface_uq.experiments.realistic_perm
 subsurface-uq-release25-streamline-equivalence = "subsurface_uq.experiments.release25_streamline_equivalence:main"
 subsurface-uq-training-provenance = "subsurface_uq.experiments.training_provenance:main"
 subsurface-uq-historical-realistic-reconstruction = "subsurface_uq.experiments.historical_realistic_reconstruction:main"
+subsurface-uq-parent-measurement-audit = "subsurface_uq.experiments.parent_measurement_audit:main"
 subsurface-uq-plot-mc = "subsurface_uq.visualization.cli:main"
 subsurface-uq-plot-pce = "subsurface_uq.visualization.pce_cli:main"
 subsurface-uq-validate-temperature = "subsurface_uq.validation.cli:main"
