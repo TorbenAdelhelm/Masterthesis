@@ -3,10 +3,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterator
 
-import noise
 import numpy as np
 
 Array = np.ndarray
+
+
+def _require_noise():
+    try:
+        import noise
+    except ImportError as exc:
+        raise ImportError(
+            "Historical Perlin permeability generation requires the optional "
+            "'perlin' dependency. Install with: "
+            "python -m pip install -e \".[perlin]\""
+        ) from exc
+    return noise
 
 RELEASE25_PERLIN_SHAPE = (2560, 2560)
 RELEASE25_PERLIN_DOMAIN_SIZE_M = (12800.0, 12800.0)
@@ -65,6 +76,7 @@ def historical_perlin_v2_field(
     scale_x = lx / simulation_area_max
     scale_y = ly / simulation_area_max
 
+    noise = _require_noise()
     values = np.empty((h, w), dtype=np.float64)
     for i in range(h):
         x = (i / h * scale_x + ox) * fx

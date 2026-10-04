@@ -57,6 +57,15 @@ using an external release25 checkout and external model/data assets. The current
 release25 input-UQ experiments vary permeability only; pressure and heat-pump
 locations are fixed by the selected prepared scenario.
 
+The finalized RQ1 experiment is implemented as
+`python -m subsurface_uq.experiments.release25_rq1 --config <yaml>`. It reuses
+the same frozen release25 runtime and propagation interfaces for four variants:
+an iid Perlin-coordinate MC baseline, unconditional GRF/KL MC, conditional
+GRF/KL MC, and repeated scrambled-Sobol randomized QMC for the conditional
+GRF/KL law. RQ1 writes exact empirical temperature quantile fields, nested
+convergence diagnostics, receptor/optional mean-anomaly QoIs, input
+compatibility diagnostics, and MC-vs-RQMC RMSE/gain tables.
+
 The stochastic-coordinate layer and the generic PCE proof-of-concept machinery
 are implemented and independently testable. A release25-specific Perlin-PCE CLI
 is also implemented, but the scientifically meaningful run still requires the
@@ -137,10 +146,161 @@ variance/energy fraction. `GaussianCoordinatePermeabilitySampler` samples
 independent standard-normal coordinates and adapts the map to the existing
 `PermeabilitySampler` interface.
 
-The current KL parameters are configuration inputs, not calibrated scientific
-defaults. In particular, the Matérn length scales and log-permeability moments
-still need to be estimated or selected before scientific LGCNN-UQ experiments
-are run.
+For the production RQ1 path, KL parameters no longer need to be copied into
+the RQ1 configuration manually. The realistic-permeability workflow calibrates
+the prior from exactly the three complete fields in the DaRUS-5065
+real-permeability training dataset that were used for the DaRUS-5082 real-K
+LGCNN, and writes a reusable `stochastic_input_model.yaml` artifact.
+The empirical between-field mean variation is recorded, but the corresponding
+field-wide Gaussian mode is disabled by default because only three complete
+training fields support that estimate. It is available only as an explicit
+sensitivity option. Manual KL parameters remain available as a synthetic/debug
+fallback.
+
+### Exact Munich-to-LGCNN geospatial mapping
+
+The realistic-permeability branch now contains a georeferencing step for the
+release25/DaRUS real-permeability domains. The public raw dataset defines the
+standard 12.8 km x 12.8 km, 2560 x 2560, 5 m geometry but does not expose the
+projected Munich crop origin in the PFLOTRAN HDF5 arrays. The
+`georeference-domain` experiment therefore matches a run's raw permeability
+fingerprint to the Munich 100 m reference field, searches raw-array axis/flip
+conventions, refines the crop at 5 m resolution, and stores an explicit projected
+cell-centre/domain-edge manifest with match diagnostics. Weak matches are rejected
+by default instead of being silently accepted.
+
+### Multi-run georeference sweep
+
+The branch now provides `georeference-sweep`, which evaluates all nine
+`K_P10/K_P50/K_P90 x top/bottom/log_geomean` reference representations across
+multiple DaRUS `RUN_n` fields. It writes a single comparison CSV and a YAML
+decision summary. An exact Munich mapping is flagged as defensible only when one
+representation passes the single-run validation thresholds for every requested
+run, uses one common raw-array transform, has a common unit-shift interpretation
+and a small cross-run log-unit-shift spread. Otherwise the workflow explicitly
+records that no exact geographic mapping is supported by the available
+reference table.
+
+### Training-informed, measurement-conditioned new LGCNN domain
+
+The production workflow now distinguishes geostatistical replication from the
+CNN training sample population. The real-permeability training fields come from
+DaRUS-5065; the pretrained model artifacts are published separately as
+DaRUS-5082. Three of the four standard 12.8 km fields are used for training and
+one for validation. During
+training, release25 `SimulationDatasetCuts` presents overlapping patches to the
+CNN; the published best settings for both Step 1 and Step 3 are a 1280-cell box
+and skip 8.
+
+The production default is now **measurement-derived kriging represented through
+a finite KL basis**. The real Munich observations determine the mean,
+structured variance, nugget and directional correlation lengths through
+irregular-point variograms plus spatial block cross-validation. After converting
+hydraulic conductivity to intrinsic permeability, those parameters define the
+site-specific `log10(k)` prior and the same observations condition it at their
+continuous coordinates. The posterior remains parameterized by iid Gaussian
+coordinates for MC/RQMC/Hermite PCE.
+
+The three DaRUS-5065 training fields no longer define the production geological
+prior. Their overlapping patches are not counted as independent geological
+realizations. Instead, they define the **primary surrogate-support/fidelity
+reference**: patch descriptors, full-field statistics, marginal distances and
+directional variogram mismatch are reported for every generated ensemble.
+
+The production command requires the exact three `RUN_*` training names when a
+raw release25 dataset directory is used. It verifies that the field-based prior
+calibration was fitted to the same run subset. The public paper establishes the
+3/1 split but not the run names in its text, so directory order is deliberately
+not used as an implicit split.
+
+Generated fields and patches are never filtered by the support diagnostics.
+Thus the conditional map retains iid Gaussian posterior coordinates for
+MC/RQMC/Hermite PCE. The stochastic-input artifact now records the primary patch
+reference, secondary full-field reference, optional release25 permeability
+normalization metadata, and whether the between-field mean sensitivity mode was
+enabled.
+
+With `--save-samples`, every generated realization keeps its float32 NPY
+source plus a robust shared field PNG whose scale spans the training and
+measurement q01--q99 envelopes, a dedicated measurement-overlay PNG and
+a four-panel comparison PNG. The overlay draws the original measured intrinsic
+permeability values on top of the generated raster with the **same color
+normalization**, so local agreement is visually inspectable. The comparison also
+shows the measurement-derived kriging reference, closest DaRUS-5065 training
+field and generated-minus-reference residual.
+
+### Real Munich measurement calibration
+
+The realistic-permeability branch now contains a second, preferred calibration
+path based on the actual Munich hydraulic-conductivity observations. The Excel
+loader retains positive Quaternary/unconfined measurements, intersects them with
+the active XY footprint recovered from the 3-D reference field, and preserves
+the original continuous coordinates while recording nearest 100 m grid cells
+for diagnostics.
+
+Covariance calibration can be performed directly on irregular
+`log10(K_h)` point pairs using directional x/y/diagonal semivariograms. The
+measurement workflow now jointly fits structured variance, nugget variance and
+directional length scales with pair-count-weighted variogram residuals. Model
+comparison uses spatial block cross-validation with fold-wise recalibration and
+exact full-covariance simple-kriging predictions at held-out real measurement
+locations. Reported diagnostics include RMSE/MAE, 90% posterior coverage,
+standardized residuals, Gaussian NLPD, fold-wise length scales, nugget fractions
+and weighted/unweighted variogram RMSE. A default robustness check repeats the
+fit after excluding only values above 5e-2 m/s while retaining all measurements
+in the baseline calibration.
+
+After model selection, `measurement-condition` evaluates the analytical
+posterior on the active 100 m reference grid from all accepted continuous
+measurements and records both hydraulic-conductivity quantities and an explicit
+conversion to intrinsic permeability using documented fluid-property constants.
+
+### Real-field-calibrated permeability generation
+
+The repository now contains a calibration/generation layer for realistic
+permeability experiments. Empirical positive permeability fields are transformed
+to `log10(K)`; scalable regular-grid y/x/diagonal semivariograms are estimated;
+and three candidates are fit and compared by variogram RMSE:
+
+- separable Matérn-3/2;
+- separable exponential;
+- radial anisotropic exponential.
+
+Synthetic borehole observations can be drawn reproducibly from a held-out real
+field with optional margin and minimum-spacing constraints. Separable candidates
+reuse `KLLogGaussianPermeabilityMap` plus the existing conditional-KL map. The
+radial anisotropic exponential candidate is implemented with GSTools
+`Exponential` + simple kriging + `CondSRF`, allowing scalable exact-condition
+Monte Carlo fields without a dense full-grid covariance matrix.
+
+The radial GSTools path is intentionally MC-only at present because it does not
+expose the explicit finite independent Gaussian coordinates required by the
+project's RQMC/Hermite-PCE design. Automatic anisotropy-angle fitting is also
+not implemented; calibration currently assumes grid-aligned principal axes,
+although the radial sampler accepts a configured rotation angle.
+
+The CLI is:
+
+```text
+subsurface-uq-realistic-permeability calibrate ...
+subsurface-uq-realistic-permeability generate ...
+```
+
+Held-out generation reports log-space mean RMSE/MAE, empirical 90% interval
+coverage, and maximum conditioning residual.
+
+A leave-one-out `realistic_permeability evaluate` experiment is also available:
+one real field is excluded from calibration, all three covariance candidates are
+fit on the remaining fields, and the same synthetic boreholes are used for each
+conditional reconstruction. Covariance-family selection now uses exact
+full-covariance Gaussian simple kriging for all candidates, evaluated through
+the small observation covariance and chunked grid-to-observation
+cross-covariances. It therefore does not depend on KL truncation or Monte Carlo
+sampling. The experiment writes empirical/fitted variogram plots, fitted
+directional length scales and anisotropy ratios, held-out
+truth/conditional-mean/std/error figures, and CSV/JSON model-comparison tables.
+Large DaRUS grids can use separate calibration and reconstruction strides while
+preserving physical distances in metres.
 
 ## Implemented Perlin PCE proof-of-concept machinery
 
@@ -275,21 +435,19 @@ The following remain planned thesis layers or scientific experiments:
 - execute the release25 Perlin-PCE experiment with real model/data assets and
   perform degree/training-budget convergence studies;
 - add additional smooth scalar QoIs such as monitoring-point temperatures;
-- calibrate/select KL/GRF hyperparameters for a scientific synthetic-GRF
-  experiment;
+- calibrate/select the final GRF covariance model and hyperparameters on the
+  real DaRUS permeability fields, including held-out reconstruction;
 - connect the KL/GRF coordinate law to the PCE workflow (Hermite rather than
   Legendre basis);
 - quantify Perlin-to-GRF distribution shift before interpreting LGCNN output;
 - plume length/area QoIs;
-- Monte Carlo convergence diagnostics/error bars for full field statistics;
-- borehole-conditioned GRF/kriging simulation and conditioning diagnostics;
 - systematic comparison of geostatistical uncertainty models;
 - model/surrogate uncertainty;
 - global sensitivity analysis;
 - alternative propagation methods such as first-order/JVP approximations.
 
-The immediate next scientific step is to run the implemented Perlin PCE
-proof-of-concept on the real release25 assets and inspect convergence with PCE
-degree and LGCNN training budget. Only after that baseline should the workflow
-move to the synthetic Matérn/KL random-field experiment, where distribution
-shift of the pretrained LGCNN becomes an explicit additional issue.
+The immediate scientific step is to run the RQ1 pilot/full experiment with the
+selected thesis GRF/KL parameters, conditioning observations, receptors and
+optional ROI, then check whether the largest conditional-MC budget is adequate
+as an empirical reference. PCE remains a later surrogate layer and is excluded
+from the finalized RQ1 evaluation itself.

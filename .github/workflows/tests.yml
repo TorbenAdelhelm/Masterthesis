@@ -17,6 +17,6 @@ jobs:
           python-version: "3.11"
           cache: pip
       - name: Install package
-        run: python -m pip install -e ".[test]"
+        run: python -m pip install -e ".[test,perlin]"
       - name: Run tests
         run: python -m pytest
