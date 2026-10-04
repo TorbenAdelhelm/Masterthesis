@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -13,8 +14,14 @@ Array = np.ndarray
 HISTORICAL_GENERATOR_REPOSITORY = "JuliaPelzer/Dataset-generation-with-Pflotran"
 HISTORICAL_GENERATOR_BRANCH = "windowed_real_vals_v2"
 HISTORICAL_GENERATOR_COMMIT = "c13ccea3fccd8180ea682ea30d5622fac0c333eb"
-HISTORICAL_PARENT_CRS = "EPSG:25832"
+# The exact parent raster supplied with the historical data is in the explicit
+# Easting/Northing form of DHDN / 3-degree Gauss-Kruger zone 4.
+HISTORICAL_PARENT_CRS = "EPSG:5678"
 HISTORICAL_SOURCE_RESOLUTION_M = 20.0
+HISTORICAL_PARENT_SHAPE_YX = (3797, 3583)
+HISTORICAL_PARENT_SHA256 = (
+    "6d50f2c6f9b96e3136fe77ad177ef4f70cc2d4cfc632f33ff655e59bdcc096ee"
+)
 HISTORICAL_HYDRAULIC_TO_PERMEABILITY_DIVISOR = 7.5e6
 HISTORICAL_PARENT_HYDRAULIC_CONDUCTIVITY_FILENAME = (
     "Hydraulic_conductivity_20m_resolution.tif"
@@ -184,23 +191,39 @@ def reconstruct_historical_training_permeability(
     )
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def load_parent_hydraulic_conductivity_tif(
     path: str | Path,
 ) -> tuple[Array, dict[str, object]]:
-    """Load the historical parent GeoTIFF while retaining its geospatial metadata."""
+    """Load the historical parent GeoTIFF while retaining provenance metadata.
+
+    Nodata values are returned as NaN. This mirrors the role of the historical
+    ``align_holes`` preprocessing for the hydraulic-conductivity channel while
+    preserving the original positive values used in valid simulation windows.
+    """
 
     try:
         import rasterio
     except ImportError as exc:
         raise ImportError(
-            "Historical parent-map reconstruction requires rasterio. Install it "
-            "before using --parent-hydraulic-conductivity-tif."
+            "Historical parent-map reconstruction requires rasterio. Install "
+            "'subsurface-uq[geostat]' before using "
+            "--parent-hydraulic-conductivity-tif."
         ) from exc
     source = Path(path).expanduser().resolve()
     if not source.is_file():
         raise FileNotFoundError(source)
+    sha256 = _sha256_file(source)
     with rasterio.open(source) as dataset:
-        values = np.asarray(dataset.read(1), dtype=np.float64)
+        masked = dataset.read(1, masked=True)
+        values = np.asarray(masked.filled(np.nan), dtype=np.float64)
         crs = None if dataset.crs is None else dataset.crs.to_string()
         transform = tuple(float(v) for v in dataset.transform)[:6]
         bounds = {
@@ -210,12 +233,18 @@ def load_parent_hydraulic_conductivity_tif(
             "top": float(dataset.bounds.top),
         }
         resolution = (float(abs(dataset.res[0])), float(abs(dataset.res[1])))
+        nodata = None if dataset.nodata is None else float(dataset.nodata)
     return values, {
         "path": str(source),
+        "sha256": sha256,
+        "shape_yx": [int(values.shape[0]), int(values.shape[1])],
         "crs": crs,
         "affine_transform": list(transform),
         "bounds": bounds,
         "resolution_m": list(resolution),
+        "nodata": nodata,
         "historical_expected_crs": HISTORICAL_PARENT_CRS,
+        "historical_expected_shape_yx": list(HISTORICAL_PARENT_SHAPE_YX),
+        "historical_expected_sha256": HISTORICAL_PARENT_SHA256,
         "historical_expected_filename": HISTORICAL_PARENT_HYDRAULIC_CONDUCTIVITY_FILENAME,
     }
