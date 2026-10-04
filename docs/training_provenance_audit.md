@@ -60,15 +60,49 @@ the depth raster to 20 m and bilinearly resamples the conductivity raster onto
 that grid before writing the 20 m output. It does not establish how the earlier
 10 m conductivity surface itself was inferred from borehole measurements.
 
+## Git Bash / Windows setup
+
+The commands below are written for the **Git Bash shell on Windows**. Use a
+backslash `\` for line continuation. PowerShell's backtick continuation must not
+be used in Git Bash.
+
+Run from the repository root after switching to the current branch and refresh
+the editable install once, because newly added `[project.scripts]` console
+commands are only created/updated during installation:
+
+```bash
+git switch feat/rq1-experiment
+git pull --ff-only origin feat/rq1-experiment
+python -m pip install -e ".[geostat]"
+```
+
+For provenance commands, the documentation deliberately prefers
+`python -m subsurface_uq.experiments.<module>` over the shorter installed
+console-script name. The module form does not depend on the shell finding a
+newly generated `Scripts/` entry point and is therefore more robust after a
+repository update. Windows paths should be written as quoted forward-slash
+paths such as `"C:/Users/Torbe/..."`.
+
+Before a long reconstruction run, the CLI can be checked with
+
+```bash
+python -m subsurface_uq.experiments.historical_realistic_reconstruction --help
+```
+
+The equivalent installed console command is
+`subsurface-uq-historical-realistic-reconstruction`, but it requires the editable
+installation above to have been refreshed after the command was added to
+`pyproject.toml`.
+
 ## 1. Exact RUN reconstruction
 
 Run against the local DaRUS-5065 directory:
 
-```powershell
-subsurface-uq-historical-realistic-reconstruction `
-  --dataset-root "C:/Users/Torbe/Desktop/MT/Daten/Trainingsdaten/dataset_100hp_giant_real_fixP0_0025" `
-  --parent-hydraulic-conductivity-tif "C:/path/to/Hydraulic_conductivity_20m_resolution.tif" `
-  --require-exact-parent-checksum `
+```bash
+python -m subsurface_uq.experiments.historical_realistic_reconstruction \
+  --dataset-root "C:/Users/Torbe/Desktop/MT/Daten/Trainingsdaten/dataset_100hp_giant_real_fixP0_0025" \
+  --parent-hydraulic-conductivity-tif "C:/path/to/Hydraulic_conductivity_20m_resolution.tif" \
+  --require-exact-parent-checksum \
   --output-dir run_output/realistic_k/historical_reconstruction
 ```
 
@@ -102,12 +136,15 @@ The parent GeoTIFF has a complete affine georeference, so the borehole workbook
 can now be compared directly with the exact parent field without first fitting a
 100 m reference-map alignment:
 
-```powershell
-subsurface-uq-parent-measurement-audit `
-  --parent-hydraulic-conductivity-tif "C:/path/to/Hydraulic_conductivity_20m_resolution.tif" `
-  --measurements "C:/path/to/kf_werte_190201.xlsx" `
+```bash
+python -m subsurface_uq.experiments.parent_measurement_audit \
+  --parent-hydraulic-conductivity-tif "C:/path/to/Hydraulic_conductivity_20m_resolution.tif" \
+  --measurements "C:/path/to/kf_werte_190201.xlsx" \
   --output-dir run_output/realistic_k/parent_measurements
 ```
+
+The equivalent installed console command is
+`subsurface-uq-parent-measurement-audit`.
 
 The default semantic filters remain
 
