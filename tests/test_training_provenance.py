@@ -138,10 +138,12 @@ def test_metadata_relation_reports_but_does_not_claim_rotation_semantics(tmp_pat
         tolerance_m=1.0,
     )
 
-    assert result["unique_simple_translation_candidate"] is True
-    assert result["selected_simple_translation_candidate"]["candidate_convention"] == (
-        "start_plus_constant_to_first_cell_center"
-    )
+    # A pure translation test cannot distinguish which fixed point of an equally
+    # sized crop the historical start position referred to. It can only establish
+    # that the run-to-run relation is translation-consistent.
+    assert result["consistent_candidate_count"] == 3
+    assert result["unique_simple_translation_candidate"] is False
+    assert result["selected_simple_translation_candidate"] is None
     assert result["rotation_convention_resolved"] is False
 
 
