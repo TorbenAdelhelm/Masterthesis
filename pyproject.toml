@@ -20,7 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 perlin = ["noise>=1.2.2"]
 geostat = ["gstools>=1.7", "h5py>=3.9", "openpyxl>=3.1", "rasterio>=1.3"]
-test = ["pytest>=7.4", "gstools>=1.7", "h5py>=3.9", "openpyxl>=3.1"]
+test = ["pytest>=7.4", "gstools>=1.7", "h5py>=3.9", "openpyxl>=3.1", "rasterio>=1.3"]
 
 [project.scripts]
 subsurface-uq-release25 = "subsurface_uq.experiments.release25_empirical:main"
@@ -29,9 +29,9 @@ subsurface-uq-release25-perlin-pce = "subsurface_uq.experiments.release25_perlin
 subsurface-uq-release25-grf = "subsurface_uq.experiments.release25_grf_mc:main"
 subsurface-uq-release25-rq1 = "subsurface_uq.experiments.release25_rq1:main"
 subsurface-uq-realistic-permeability = "subsurface_uq.experiments.realistic_permeability:main"
+subsurface-uq-release25-streamline-equivalence = "subsurface_uq.experiments.release25_streamline_equivalence:main"
 subsurface-uq-training-provenance = "subsurface_uq.experiments.training_provenance:main"
 subsurface-uq-historical-realistic-reconstruction = "subsurface_uq.experiments.historical_realistic_reconstruction:main"
-subsurface-uq-release25-streamline-equivalence = "subsurface_uq.experiments.release25_streamline_equivalence:main"
 subsurface-uq-plot-mc = "subsurface_uq.visualization.cli:main"
 subsurface-uq-plot-pce = "subsurface_uq.visualization.pce_cli:main"
 subsurface-uq-validate-temperature = "subsurface_uq.validation.cli:main"
