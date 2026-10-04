@@ -1,12 +1,21 @@
 from __future__ import annotations
 
-import numpy as np
+from pathlib import Path
 
+import numpy as np
+import rasterio
+from rasterio.transform import from_origin
+
+from subsurface_uq.experiments.historical_realistic_reconstruction import build_parser
 from subsurface_uq.sampling.historical_realistic import (
     HISTORICAL_HYDRAULIC_TO_PERMEABILITY_DIVISOR,
+    HISTORICAL_PARENT_CRS,
+    HISTORICAL_PARENT_SHA256,
+    HISTORICAL_PARENT_SHAPE_YX,
     historical_hydraulic_conductivity_to_training_permeability,
     historical_interpolate_window,
     historical_rotated_source_indices,
+    load_parent_hydraulic_conductivity_tif,
     reconstruct_historical_training_permeability,
 )
 from subsurface_uq.sampling.training_provenance import RealisticRunMetadata
@@ -19,6 +28,14 @@ def _metadata(angle: float = 0.0) -> RealisticRunMetadata:
         rotation_angle_deg=angle,
         start_position_m=(200.0, 400.0),
         source_path="synthetic",
+    )
+
+
+def test_historical_parent_identity_constants_match_supplied_source():
+    assert HISTORICAL_PARENT_CRS == "EPSG:5678"
+    assert HISTORICAL_PARENT_SHAPE_YX == (3797, 3583)
+    assert HISTORICAL_PARENT_SHA256 == (
+        "6d50f2c6f9b96e3136fe77ad177ef4f70cc2d4cfc632f33ff655e59bdcc096ee"
     )
 
 
@@ -73,3 +90,46 @@ def test_full_historical_reconstruction_returns_requested_shape():
     )
     assert result.reconstructed_permeability_m2.shape == (8, 8)
     np.testing.assert_allclose(result.reconstructed_permeability_m2, 1.0e-10)
+
+
+def test_parent_tif_loader_masks_nodata_and_records_metadata(tmp_path: Path):
+    path = tmp_path / "parent.tif"
+    nodata = -9999.0
+    values = np.asarray([[1.0e-3, nodata, 2.0e-3], [3.0e-3, 4.0e-3, 5.0e-3]], dtype=np.float32)
+    with rasterio.open(
+        path,
+        "w",
+        driver="GTiff",
+        height=2,
+        width=3,
+        count=1,
+        dtype="float32",
+        crs="EPSG:5678",
+        transform=from_origin(4_431_882.5536, 5_375_953.1595, 20.0, 20.0),
+        nodata=nodata,
+    ) as dataset:
+        dataset.write(values, 1)
+
+    loaded, metadata = load_parent_hydraulic_conductivity_tif(path)
+
+    assert loaded.shape == (2, 3)
+    assert np.isnan(loaded[0, 1])
+    assert metadata["crs"] == "EPSG:5678"
+    assert metadata["resolution_m"] == [20.0, 20.0]
+    assert metadata["shape_yx"] == [2, 3]
+    assert len(metadata["sha256"]) == 64
+
+
+def test_historical_reconstruction_cli_checksum_is_opt_in():
+    args = build_parser().parse_args(
+        [
+            "--dataset-root",
+            "dataset",
+            "--parent-hydraulic-conductivity-tif",
+            "parent.tif",
+            "--output-dir",
+            "out",
+        ]
+    )
+    assert args.require_historical_parent_metadata is True
+    assert args.require_exact_parent_checksum is False
