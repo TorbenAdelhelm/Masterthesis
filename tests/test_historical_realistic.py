@@ -17,6 +17,7 @@ from subsurface_uq.sampling.historical_realistic import (
     historical_rotated_source_indices,
     load_parent_hydraulic_conductivity_tif,
     reconstruct_historical_training_permeability,
+    sample_parent_hydraulic_conductivity_at_projected_points,
 )
 from subsurface_uq.sampling.training_provenance import RealisticRunMetadata
 
@@ -118,6 +119,24 @@ def test_parent_tif_loader_masks_nodata_and_records_metadata(tmp_path: Path):
     assert metadata["resolution_m"] == [20.0, 20.0]
     assert metadata["shape_yx"] == [2, 3]
     assert len(metadata["sha256"]) == 64
+
+
+def test_parent_sampling_uses_pixel_centres_and_north_up_affine():
+    row, col = np.mgrid[0:3, 0:4]
+    parent = 1.0 + row + 10.0 * col
+    metadata = {
+        "affine_transform": [20.0, 0.0, 100.0, 0.0, -20.0, 200.0]
+    }
+    # Exact centers of (row=0,col=0) and (row=2,col=3).
+    sampled, valid = sample_parent_hydraulic_conductivity_at_projected_points(
+        parent,
+        metadata,
+        np.asarray([110.0, 170.0]),
+        np.asarray([190.0, 150.0]),
+        method="linear",
+    )
+    assert np.all(valid)
+    np.testing.assert_allclose(sampled, np.asarray([1.0, 33.0]))
 
 
 def test_historical_reconstruction_cli_checksum_is_opt_in():
