@@ -248,3 +248,66 @@ def load_parent_hydraulic_conductivity_tif(
         "historical_expected_sha256": HISTORICAL_PARENT_SHA256,
         "historical_expected_filename": HISTORICAL_PARENT_HYDRAULIC_CONDUCTIVITY_FILENAME,
     }
+
+
+def sample_parent_hydraulic_conductivity_at_projected_points(
+    parent_hydraulic_conductivity_m_s: Array,
+    parent_metadata: dict[str, object],
+    x_m: Array,
+    y_m: Array,
+    *,
+    method: str = "linear",
+) -> tuple[Array, Array]:
+    """Sample the historical parent raster at projected measurement coordinates.
+
+    The uploaded historical raster is north-up with an affine transform in
+    EPSG:5678. Sampling uses pixel-centre coordinates and either bilinear
+    (``method='linear'``) or nearest-neighbour interpolation. Returned values
+    remain hydraulic conductivity in m/s.
+    """
+
+    parent = np.asarray(parent_hydraulic_conductivity_m_s, dtype=np.float64)
+    if parent.ndim != 2:
+        raise ValueError("parent hydraulic-conductivity map must be 2-D")
+    transform = tuple(float(v) for v in parent_metadata["affine_transform"])
+    if len(transform) != 6:
+        raise ValueError("parent affine transform must contain six coefficients")
+    a, b, c, d, e, f = transform
+    if not np.isclose(b, 0.0, atol=1.0e-12) or not np.isclose(d, 0.0, atol=1.0e-12):
+        raise ValueError("rotated/sheared parent rasters are not supported")
+    if np.isclose(a, 0.0) or np.isclose(e, 0.0):
+        raise ValueError("invalid parent affine transform")
+    method = str(method).lower()
+    if method not in {"linear", "nearest"}:
+        raise ValueError("method must be 'linear' or 'nearest'")
+
+    x = np.asarray(x_m, dtype=np.float64).reshape(-1)
+    y = np.asarray(y_m, dtype=np.float64).reshape(-1)
+    if x.shape != y.shape or not np.all(np.isfinite(x)) or not np.all(np.isfinite(y)):
+        raise ValueError("x_m and y_m must be finite aligned one-dimensional arrays")
+
+    col = (x - c) / a - 0.5
+    row = (y - f) / e - 0.5
+    inside = (
+        (row >= 0.0)
+        & (row <= parent.shape[0] - 1)
+        & (col >= 0.0)
+        & (col <= parent.shape[1] - 1)
+    )
+    sampled = np.full(x.shape, np.nan, dtype=np.float64)
+    if np.any(inside):
+        interpolator = RegularGridInterpolator(
+            (
+                np.arange(parent.shape[0], dtype=np.float64),
+                np.arange(parent.shape[1], dtype=np.float64),
+            ),
+            parent,
+            method=method,
+            bounds_error=False,
+            fill_value=np.nan,
+        )
+        sampled[inside] = interpolator(
+            np.column_stack((row[inside], col[inside]))
+        )
+    valid = inside & np.isfinite(sampled) & (sampled > 0.0)
+    return sampled, valid
