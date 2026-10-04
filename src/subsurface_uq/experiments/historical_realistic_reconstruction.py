@@ -17,6 +17,8 @@ from ..sampling.historical_realistic import (
     HISTORICAL_GENERATOR_REPOSITORY,
     HISTORICAL_HYDRAULIC_TO_PERMEABILITY_DIVISOR,
     HISTORICAL_PARENT_CRS,
+    HISTORICAL_PARENT_SHA256,
+    HISTORICAL_PARENT_SHAPE_YX,
     HISTORICAL_SOURCE_RESOLUTION_M,
     load_parent_hydraulic_conductivity_tif,
     reconstruct_historical_training_permeability,
@@ -133,20 +135,34 @@ def _run(args: argparse.Namespace) -> int:
     )
     parent_crs = str(parent_metadata.get("crs"))
     parent_resolution = tuple(float(v) for v in parent_metadata["resolution_m"])
+    parent_shape = tuple(int(v) for v in parent_metadata["shape_yx"])
+    parent_sha256 = str(parent_metadata["sha256"])
     crs_matches = parent_crs.upper() == HISTORICAL_PARENT_CRS.upper()
     resolution_matches = all(
         np.isclose(value, HISTORICAL_SOURCE_RESOLUTION_M, atol=1.0e-6)
         for value in parent_resolution
     )
+    shape_matches = parent_shape == HISTORICAL_PARENT_SHAPE_YX
+    checksum_matches = parent_sha256.lower() == HISTORICAL_PARENT_SHA256.lower()
     if args.require_historical_parent_metadata and not crs_matches:
         raise ValueError(
-            f"parent GeoTIFF CRS is {parent_crs!r}; historical generator used "
-            f"{HISTORICAL_PARENT_CRS}"
+            f"parent GeoTIFF CRS is {parent_crs!r}; the supplied historical parent "
+            f"raster is {HISTORICAL_PARENT_CRS}"
         )
     if args.require_historical_parent_metadata and not resolution_matches:
         raise ValueError(
             f"parent GeoTIFF resolution is {parent_resolution}; historical source "
             f"resolution was {HISTORICAL_SOURCE_RESOLUTION_M:g} m"
+        )
+    if args.require_historical_parent_metadata and not shape_matches:
+        raise ValueError(
+            f"parent GeoTIFF shape is {parent_shape}; exact historical source shape "
+            f"is {HISTORICAL_PARENT_SHAPE_YX}"
+        )
+    if args.require_exact_parent_checksum and not checksum_matches:
+        raise ValueError(
+            "parent GeoTIFF SHA-256 does not match the supplied historical "
+            "Hydraulic_conductivity_20m_resolution.tif"
         )
 
     summary_rows: list[dict[str, object]] = []
@@ -228,13 +244,15 @@ def _run(args: argparse.Namespace) -> int:
 
     all_validated = bool(summary_rows) and all(bool(row["validated"]) for row in summary_rows)
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "historical_generator": {
             "repository": HISTORICAL_GENERATOR_REPOSITORY,
             "branch": HISTORICAL_GENERATOR_BRANCH,
             "commit": HISTORICAL_GENERATOR_COMMIT,
             "parent_crs": HISTORICAL_PARENT_CRS,
             "source_resolution_m": HISTORICAL_SOURCE_RESOLUTION_M,
+            "source_shape_yx": list(HISTORICAL_PARENT_SHAPE_YX),
+            "known_parent_sha256": HISTORICAL_PARENT_SHA256,
             "hydraulic_conductivity_to_permeability": (
                 f"k = K_h / {HISTORICAL_HYDRAULIC_TO_PERMEABILITY_DIVISOR:g}"
             ),
@@ -247,8 +265,10 @@ def _run(args: argparse.Namespace) -> int:
         },
         "parent_tif": parent_metadata,
         "parent_metadata_checks": {
-            "crs_matches_historical_generator": crs_matches,
+            "crs_matches_supplied_historical_parent": crs_matches,
             "resolution_matches_historical_generator": resolution_matches,
+            "shape_matches_supplied_historical_parent": shape_matches,
+            "sha256_matches_supplied_historical_parent": checksum_matches,
         },
         "runs": run_payloads,
         "validation_thresholds": {
@@ -271,7 +291,10 @@ def _run(args: argparse.Namespace) -> int:
 
     print("Historical realistic-permeability reconstruction")
     print(f"  recovered generator commit: {HISTORICAL_GENERATOR_COMMIT}")
-    print(f"  parent CRS/resolution match: {crs_matches} / {resolution_matches}")
+    print(
+        "  parent CRS/resolution/shape/checksum match: "
+        f"{crs_matches} / {resolution_matches} / {shape_matches} / {checksum_matches}"
+    )
     for row in summary_rows:
         print(
             f"  {row['run_name']}: RMSE={float(row['rmse_log10']):.6g}, "
@@ -302,8 +325,18 @@ def build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=True,
         help=(
-            "Require the supplied parent raster to be 20 m EPSG:25832, matching the "
-            "historical reprojected Munich source fields."
+            "Require the supplied parent raster to match the observed historical "
+            "20 m EPSG:5678 raster shape/CRS metadata."
+        ),
+    )
+    parser.add_argument(
+        "--require-exact-parent-checksum",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Additionally require the byte-for-byte SHA-256 of the supplied "
+            "Hydraulic_conductivity_20m_resolution.tif. Metadata matching remains "
+            "the default so lossless GeoTIFF rewrites do not block reconstruction."
         ),
     )
     parser.add_argument("--output-dir", required=True)
