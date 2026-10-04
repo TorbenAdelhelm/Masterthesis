@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -47,3 +48,20 @@ def test_pyproject_registers_provenance_console_scripts():
         '"subsurface_uq.experiments.parent_measurement_audit:main"'
         in pyproject
     )
+
+
+def test_installed_provenance_console_scripts_resolve_and_show_help():
+    for command in (
+        "subsurface-uq-historical-realistic-reconstruction",
+        "subsurface-uq-parent-measurement-audit",
+    ):
+        executable = shutil.which(command)
+        assert executable is not None, f"installed console script not on PATH: {command}"
+        result = subprocess.run(
+            [executable, "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "usage:" in result.stdout.lower()
