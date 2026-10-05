@@ -459,6 +459,18 @@ class KLLogGaussianPermeabilityMap:
         fields += global_shift[:, None, None]
         return fields[0] if single else fields
 
+    def pointwise_log10_variance(self) -> Array:
+        """Actual retained variance, without constructing the full grid basis."""
+        unique_y, compact_y = np.unique(self._mode_y, return_inverse=True)
+        unique_x, compact_x = np.unique(self._mode_x, return_inverse=True)
+        weights = np.zeros((unique_y.size, unique_x.size), dtype=np.float64)
+        weights[compact_y, compact_x] = self._eigenvalues
+        variance = np.einsum(
+            "ya,ac,xc->yx", self._eigvecs_y[:, unique_y] ** 2, weights,
+            self._eigvecs_x[:, unique_x] ** 2, optimize=True,
+        )
+        return variance + self.global_mean_std_log10_k ** 2
+
     def map_coordinates(self, coordinates: Array) -> Array:
         """Map standard-normal KL coordinates to physical permeability fields."""
 

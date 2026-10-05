@@ -54,6 +54,8 @@ def test_installed_provenance_console_scripts_resolve_and_show_help():
     for command in (
         "subsurface-uq-historical-realistic-reconstruction",
         "subsurface-uq-parent-measurement-audit",
+        "subsurface-uq-reference-field-permeability",
+        "subsurface-uq-release25-gaussian-pce",
     ):
         executable = shutil.which(command)
         assert executable is not None, f"installed console script not on PATH: {command}"

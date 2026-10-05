@@ -84,7 +84,7 @@ def _build_grf_maps(
                 "stochastic input model physical domain does not match the configured "
                 "release25 cell size"
             )
-        return loaded.prior, loaded.conditional, loaded
+        return loaded.unconditional, loaded.conditional, loaded
 
     required = (
         config.mean_log10_k,

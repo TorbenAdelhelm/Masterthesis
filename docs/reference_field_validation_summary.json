@@ -1,0 +1,514 @@
+{
+  "software_base_commit": "58dd00f6081e912498fc8f8684b8e56d29880c52",
+  "study": {
+    "reference_runs": [
+      "RUN_1",
+      "RUN_2",
+      "RUN_3"
+    ],
+    "roi": [
+      640,
+      1920,
+      640,
+      1920
+    ],
+    "cell_size_m": 40.0,
+    "shape": [
+      160,
+      160
+    ],
+    "coarsening": "geometric_block_mean; different support from CNN stride decimation",
+    "samples_per_scenario": 64,
+    "seed": 4901,
+    "conditioning": null,
+    "amplitudes_are_sensitivity_assumptions": true
+  },
+  "parent_sha256": "6d50f2c6f9b96e3136fe77ad177ef4f70cc2d4cfc632f33ff655e59bdcc096ee",
+  "parent_reconstruction": {
+    "RUN_1": {
+      "status": "unverified",
+      "reason": "historical source window contains invalid hydraulic conductivity"
+    },
+    "RUN_2": {
+      "status": "unverified",
+      "reason": "historical source window contains invalid hydraulic conductivity"
+    },
+    "RUN_3": {
+      "status": "computed",
+      "selected": {
+        "transform": "transpose_flip_xy",
+        "rmse_log10": 0.2296191413004958,
+        "max_abs_log10": 1.2336265006987048,
+        "correlation_log10": 0.1460923519411058
+      },
+      "orientation_candidates": [
+        {
+          "transform": "transpose_flip_xy",
+          "rmse_log10": 0.2296191413004958,
+          "max_abs_log10": 1.2336265006987048,
+          "correlation_log10": 0.1460923519411058
+        },
+        {
+          "transform": "flip_y",
+          "rmse_log10": 0.23172927032336776,
+          "max_abs_log10": 1.2575914943123934,
+          "correlation_log10": 0.11616273158539459
+        },
+        {
+          "transform": "identity",
+          "rmse_log10": 0.23795550165708365,
+          "max_abs_log10": 1.2041674008140646,
+          "correlation_log10": 0.026255443092956285
+        },
+        {
+          "transform": "transpose_flip_y",
+          "rmse_log10": 0.23947069253378014,
+          "max_abs_log10": 1.6167083490669327,
+          "correlation_log10": 0.004015341988720937
+        },
+        {
+          "transform": "flip_x",
+          "rmse_log10": 0.24578824309643865,
+          "max_abs_log10": 1.2300386251851982,
+          "correlation_log10": -0.09023554266680502
+        },
+        {
+          "transform": "flip_xy",
+          "rmse_log10": 0.2466512169351902,
+          "max_abs_log10": 1.2499929407774673,
+          "correlation_log10": -0.10330066992014114
+        },
+        {
+          "transform": "transpose",
+          "rmse_log10": 0.2487772637115597,
+          "max_abs_log10": 1.305427228189041,
+          "correlation_log10": -0.13568366039775628
+        },
+        {
+          "transform": "transpose_flip_x",
+          "rmse_log10": 0.2499938346689822,
+          "max_abs_log10": 1.2441517057947653,
+          "correlation_log10": -0.1543389455640124
+        }
+      ],
+      "interpretation": "orientation search on matched ROI support; not proof of exact source lineage"
+    }
+  },
+  "parent_measurement_diagnostic": {
+    "valid_pair_count": 466,
+    "rmse_log10": 0.311100532255973,
+    "mean_log10_residual": 0.009454617626509471,
+    "std_log10_residual": 0.31129101462625997,
+    "interpretation": "descriptive same-support audit, not independent holdout evidence or calibrated uncertainty amplitude"
+  },
+  "reference_texture_covariance_fits": [
+    {
+      "covariance_model": "radial_exponential",
+      "mean_log10_k": -9.218050597821415,
+      "std_log10_k": 0.15002619841532,
+      "between_field_mean_std_log10_k": 0.09063454443584242,
+      "length_scale_y_m": 2367.5784965062217,
+      "length_scale_x_m": 2269.971329816449,
+      "angle_rad": 0.0,
+      "variogram_rmse": 0.0017249887724857214,
+      "variogram_rmse_y": 0.002168470299934131,
+      "variogram_rmse_x": 0.001342967990694907,
+      "variogram_rmse_diag": 0.001555934551926221,
+      "cell_size_m": 40.0,
+      "spatial_stride": 1,
+      "max_lag_cells": 48,
+      "calibration_source": "regular_grid",
+      "lag_bin_m": null,
+      "max_lag_m": null,
+      "angle_tolerance_deg": null,
+      "structured_std_log10_k": null,
+      "nugget_std_log10_k": 0.0,
+      "nugget_fraction": 0.0,
+      "variogram_weighted_rmse": null,
+      "variogram_weighted_rmse_y": null,
+      "variogram_weighted_rmse_x": null,
+      "variogram_weighted_rmse_diag": null,
+      "pair_count_weighted_fit": false,
+      "log_space": "log10"
+    },
+    {
+      "covariance_model": "matern32",
+      "mean_log10_k": -9.218050597821415,
+      "std_log10_k": 0.15002619841532,
+      "between_field_mean_std_log10_k": 0.09063454443584242,
+      "length_scale_y_m": 1644.2566176409953,
+      "length_scale_x_m": 1607.6230026329335,
+      "angle_rad": 0.0,
+      "variogram_rmse": 0.002197203405373613,
+      "variogram_rmse_y": 0.0015925404779732048,
+      "variogram_rmse_x": 0.0014788474276455584,
+      "variogram_rmse_diag": 0.0031240892313631505,
+      "cell_size_m": 40.0,
+      "spatial_stride": 1,
+      "max_lag_cells": 48,
+      "calibration_source": "regular_grid",
+      "lag_bin_m": null,
+      "max_lag_m": null,
+      "angle_tolerance_deg": null,
+      "structured_std_log10_k": null,
+      "nugget_std_log10_k": 0.0,
+      "nugget_fraction": 0.0,
+      "variogram_weighted_rmse": null,
+      "variogram_weighted_rmse_y": null,
+      "variogram_weighted_rmse_x": null,
+      "variogram_weighted_rmse_diag": null,
+      "pair_count_weighted_fit": false,
+      "log_space": "log10"
+    },
+    {
+      "covariance_model": "exponential",
+      "mean_log10_k": -9.218050597821415,
+      "std_log10_k": 0.15002619841532,
+      "between_field_mean_std_log10_k": 0.09063454443584242,
+      "length_scale_y_m": 2754.8814375620386,
+      "length_scale_x_m": 2638.628929672193,
+      "angle_rad": 0.0,
+      "variogram_rmse": 0.002483341144855619,
+      "variogram_rmse_y": 0.0025998424101567595,
+      "variogram_rmse_x": 0.0019905426766758053,
+      "variogram_rmse_diag": 0.002789177122357248,
+      "cell_size_m": 40.0,
+      "spatial_stride": 1,
+      "max_lag_cells": 48,
+      "calibration_source": "regular_grid",
+      "lag_bin_m": null,
+      "max_lag_m": null,
+      "angle_tolerance_deg": null,
+      "structured_std_log10_k": null,
+      "nugget_std_log10_k": 0.0,
+      "nugget_fraction": 0.0,
+      "variogram_weighted_rmse": null,
+      "variogram_weighted_rmse_y": null,
+      "variogram_weighted_rmse_x": null,
+      "variogram_weighted_rmse_diag": null,
+      "pair_count_weighted_fit": false,
+      "log_space": "log10"
+    }
+  ],
+  "covariance_shape_interpretation": "Directional variogram fit to reference texture is a covariance-shape proxy only. It does not identify the covariance or amplitude of interpolation error. No spatial trend is removed.",
+  "scenarios": [
+    {
+      "reference_run": "RUN_1",
+      "residual_std_log10_k": 0.05,
+      "truncation_sensitivity": [
+        {
+          "energy_requested": 0.95,
+          "energy_retained": 0.9507818794040347,
+          "dimension": 28,
+          "prior_dimension": 28,
+          "mean_retained_pointwise_variance": 0.0023769546985100915,
+          "min_retained_pointwise_variance": 0.001978363611207139,
+          "max_retained_pointwise_variance": 0.0024234552937109676,
+          "sample_reference_difference_rms_log10": 0.05146360276088959,
+          "marginal_wasserstein_log10": 0.011032215909379302,
+          "radial_power_relative_l2": 0.11264289474819453,
+          "angular_power_relative_l2": 0.1259391105922177,
+          "reference_axis_power_fraction": 0.4195061495655057,
+          "generated_axis_power_fraction": 0.4388863973445424
+        },
+        {
+          "energy_requested": 0.99,
+          "energy_retained": 0.9901283395987495,
+          "dimension": 70,
+          "prior_dimension": 70,
+          "mean_retained_pointwise_variance": 0.0024753208489968776,
+          "min_retained_pointwise_variance": 0.0023675483241362536,
+          "max_retained_pointwise_variance": 0.002480766561528889,
+          "sample_reference_difference_rms_log10": 0.04804942238228995,
+          "marginal_wasserstein_log10": 0.011120904203267366,
+          "radial_power_relative_l2": 0.10326880280869039,
+          "angular_power_relative_l2": 0.12326730090341219,
+          "reference_axis_power_fraction": 0.4195061495655057,
+          "generated_axis_power_fraction": 0.44025310135330603
+        },
+        {
+          "energy_requested": 0.999,
+          "energy_retained": 0.9990044333610324,
+          "dimension": 216,
+          "prior_dimension": 216,
+          "mean_retained_pointwise_variance": 0.0024975110834025856,
+          "min_retained_pointwise_variance": 0.0024864209948548773,
+          "max_retained_pointwise_variance": 0.0024978967132017593,
+          "sample_reference_difference_rms_log10": 0.049750690580951176,
+          "marginal_wasserstein_log10": 0.011422613053416944,
+          "radial_power_relative_l2": 0.10450727062493649,
+          "angular_power_relative_l2": 0.1213209712570219,
+          "reference_axis_power_fraction": 0.4195061495655057,
+          "generated_axis_power_fraction": 0.43586697425912213
+        }
+      ]
+    },
+    {
+      "reference_run": "RUN_1",
+      "residual_std_log10_k": 0.1,
+      "truncation_sensitivity": [
+        {
+          "energy_requested": 0.95,
+          "energy_retained": 0.9507818794040347,
+          "dimension": 28,
+          "prior_dimension": 28,
+          "mean_retained_pointwise_variance": 0.009507818794040366,
+          "min_retained_pointwise_variance": 0.007913454444828556,
+          "max_retained_pointwise_variance": 0.00969382117484387,
+          "sample_reference_difference_rms_log10": 0.10292720553073116,
+          "marginal_wasserstein_log10": 0.03409951452336293,
+          "radial_power_relative_l2": 0.47081838170338547,
+          "angular_power_relative_l2": 0.5058740791707991,
+          "reference_axis_power_fraction": 0.4195061495655057,
+          "generated_axis_power_fraction": 0.4681675416669468
+        },
+        {
+          "energy_requested": 0.99,
+          "energy_retained": 0.9901283395987495,
+          "dimension": 70,
+          "prior_dimension": 70,
+          "mean_retained_pointwise_variance": 0.00990128339598751,
+          "min_retained_pointwise_variance": 0.009470193296545014,
+          "max_retained_pointwise_variance": 0.009923066246115556,
+          "sample_reference_difference_rms_log10": 0.09609884475022504,
+          "marginal_wasserstein_log10": 0.03414258532020384,
+          "radial_power_relative_l2": 0.436519481428919,
+          "angular_power_relative_l2": 0.4772547619333318,
+          "reference_axis_power_fraction": 0.4195061495655057,
+          "generated_axis_power_fraction": 0.4686183547407585
+        },
+        {
+          "energy_requested": 0.999,
+          "energy_retained": 0.9990044333610324,
+          "dimension": 216,
+          "prior_dimension": 216,
+          "mean_retained_pointwise_variance": 0.009990044333610342,
+          "min_retained_pointwise_variance": 0.00994568397941951,
+          "max_retained_pointwise_variance": 0.009991586852807037,
+          "sample_reference_difference_rms_log10": 0.09950138113951916,
+          "marginal_wasserstein_log10": 0.03504570387401669,
+          "radial_power_relative_l2": 0.4273881674687731,
+          "angular_power_relative_l2": 0.4643476056527989,
+          "reference_axis_power_fraction": 0.4195061495655057,
+          "generated_axis_power_fraction": 0.4628090921278934
+        }
+      ]
+    },
+    {
+      "reference_run": "RUN_2",
+      "residual_std_log10_k": 0.05,
+      "truncation_sensitivity": [
+        {
+          "energy_requested": 0.95,
+          "energy_retained": 0.9507818794040347,
+          "dimension": 28,
+          "prior_dimension": 28,
+          "mean_retained_pointwise_variance": 0.0023769546985100915,
+          "min_retained_pointwise_variance": 0.001978363611207139,
+          "max_retained_pointwise_variance": 0.0024234552937109676,
+          "sample_reference_difference_rms_log10": 0.05146360275933372,
+          "marginal_wasserstein_log10": 0.009611047742479272,
+          "radial_power_relative_l2": 0.057046130877650036,
+          "angular_power_relative_l2": 0.05986345909882784,
+          "reference_axis_power_fraction": 0.4543125503933242,
+          "generated_axis_power_fraction": 0.4563358416443465
+        },
+        {
+          "energy_requested": 0.99,
+          "energy_retained": 0.9901283395987495,
+          "dimension": 70,
+          "prior_dimension": 70,
+          "mean_retained_pointwise_variance": 0.0024753208489968776,
+          "min_retained_pointwise_variance": 0.0023675483241362536,
+          "max_retained_pointwise_variance": 0.002480766561528889,
+          "sample_reference_difference_rms_log10": 0.0480494223910744,
+          "marginal_wasserstein_log10": 0.010176773411170806,
+          "radial_power_relative_l2": 0.08271504389241673,
+          "angular_power_relative_l2": 0.08133867388112963,
+          "reference_axis_power_fraction": 0.4543125503933242,
+          "generated_axis_power_fraction": 0.45600041984942635
+        },
+        {
+          "energy_requested": 0.999,
+          "energy_retained": 0.9990044333610324,
+          "dimension": 216,
+          "prior_dimension": 216,
+          "mean_retained_pointwise_variance": 0.0024975110834025856,
+          "min_retained_pointwise_variance": 0.0024864209948548773,
+          "max_retained_pointwise_variance": 0.0024978967132017593,
+          "sample_reference_difference_rms_log10": 0.04975069057426482,
+          "marginal_wasserstein_log10": 0.009437420605436087,
+          "radial_power_relative_l2": 0.07810884583461247,
+          "angular_power_relative_l2": 0.07859490500957561,
+          "reference_axis_power_fraction": 0.4543125503933242,
+          "generated_axis_power_fraction": 0.45376347503068043
+        }
+      ]
+    },
+    {
+      "reference_run": "RUN_2",
+      "residual_std_log10_k": 0.1,
+      "truncation_sensitivity": [
+        {
+          "energy_requested": 0.95,
+          "energy_retained": 0.9507818794040347,
+          "dimension": 28,
+          "prior_dimension": 28,
+          "mean_retained_pointwise_variance": 0.009507818794040366,
+          "min_retained_pointwise_variance": 0.007913454444828556,
+          "max_retained_pointwise_variance": 0.00969382117484387,
+          "sample_reference_difference_rms_log10": 0.10292720552217653,
+          "marginal_wasserstein_log10": 0.029510739284842272,
+          "radial_power_relative_l2": 0.24453353277134415,
+          "angular_power_relative_l2": 0.2536173914351357,
+          "reference_axis_power_fraction": 0.4543125503933242,
+          "generated_axis_power_fraction": 0.4662549511968969
+        },
+        {
+          "energy_requested": 0.99,
+          "energy_retained": 0.9901283395987495,
+          "dimension": 70,
+          "prior_dimension": 70,
+          "mean_retained_pointwise_variance": 0.00990128339598751,
+          "min_retained_pointwise_variance": 0.009470193296545014,
+          "max_retained_pointwise_variance": 0.009923066246115556,
+          "sample_reference_difference_rms_log10": 0.09609884476056471,
+          "marginal_wasserstein_log10": 0.0301482379837162,
+          "radial_power_relative_l2": 0.2876099238233622,
+          "angular_power_relative_l2": 0.28634012429150035,
+          "reference_axis_power_fraction": 0.4543125503933242,
+          "generated_axis_power_fraction": 0.4640933186893217
+        },
+        {
+          "energy_requested": 0.999,
+          "energy_retained": 0.9990044333610324,
+          "dimension": 216,
+          "prior_dimension": 216,
+          "mean_retained_pointwise_variance": 0.009990044333610342,
+          "min_retained_pointwise_variance": 0.00994568397941951,
+          "max_retained_pointwise_variance": 0.009991586852807037,
+          "sample_reference_difference_rms_log10": 0.0995013811686142,
+          "marginal_wasserstein_log10": 0.02867932936364404,
+          "radial_power_relative_l2": 0.2722292279606943,
+          "angular_power_relative_l2": 0.27357676783635854,
+          "reference_axis_power_fraction": 0.4543125503933242,
+          "generated_axis_power_fraction": 0.46098062315461236
+        }
+      ]
+    },
+    {
+      "reference_run": "RUN_3",
+      "residual_std_log10_k": 0.05,
+      "truncation_sensitivity": [
+        {
+          "energy_requested": 0.95,
+          "energy_retained": 0.9507818794040347,
+          "dimension": 28,
+          "prior_dimension": 28,
+          "mean_retained_pointwise_variance": 0.0023769546985100915,
+          "min_retained_pointwise_variance": 0.001978363611207139,
+          "max_retained_pointwise_variance": 0.0024234552937109676,
+          "sample_reference_difference_rms_log10": 0.05146360276216594,
+          "marginal_wasserstein_log10": 0.018587525290408344,
+          "radial_power_relative_l2": 0.5773043687081528,
+          "angular_power_relative_l2": 0.6942261953084294,
+          "reference_axis_power_fraction": 0.35168562332842795,
+          "generated_axis_power_fraction": 0.41745064441727847
+        },
+        {
+          "energy_requested": 0.99,
+          "energy_retained": 0.9901283395987495,
+          "dimension": 70,
+          "prior_dimension": 70,
+          "mean_retained_pointwise_variance": 0.0024753208489968776,
+          "min_retained_pointwise_variance": 0.0023675483241362536,
+          "max_retained_pointwise_variance": 0.002480766561528889,
+          "sample_reference_difference_rms_log10": 0.04804942238767298,
+          "marginal_wasserstein_log10": 0.017201187632187986,
+          "radial_power_relative_l2": 0.5077105515222626,
+          "angular_power_relative_l2": 0.6290075113479084,
+          "reference_axis_power_fraction": 0.35168562332842795,
+          "generated_axis_power_fraction": 0.4239121126447531
+        },
+        {
+          "energy_requested": 0.999,
+          "energy_retained": 0.9990044333610324,
+          "dimension": 216,
+          "prior_dimension": 216,
+          "mean_retained_pointwise_variance": 0.0024975110834025856,
+          "min_retained_pointwise_variance": 0.0024864209948548773,
+          "max_retained_pointwise_variance": 0.0024978967132017593,
+          "sample_reference_difference_rms_log10": 0.04975069057894125,
+          "marginal_wasserstein_log10": 0.017700422237415622,
+          "radial_power_relative_l2": 0.5025460966854889,
+          "angular_power_relative_l2": 0.6395147326862011,
+          "reference_axis_power_fraction": 0.35168562332842795,
+          "generated_axis_power_fraction": 0.43234947264036805
+        }
+      ]
+    },
+    {
+      "reference_run": "RUN_3",
+      "residual_std_log10_k": 0.1,
+      "truncation_sensitivity": [
+        {
+          "energy_requested": 0.95,
+          "energy_retained": 0.9507818794040347,
+          "dimension": 28,
+          "prior_dimension": 28,
+          "mean_retained_pointwise_variance": 0.009507818794040366,
+          "min_retained_pointwise_variance": 0.007913454444828556,
+          "max_retained_pointwise_variance": 0.00969382117484387,
+          "sample_reference_difference_rms_log10": 0.10292720551261868,
+          "marginal_wasserstein_log10": 0.05088721475875026,
+          "radial_power_relative_l2": 2.305241265264237,
+          "angular_power_relative_l2": 2.7802807703371237,
+          "reference_axis_power_fraction": 0.35168562332842795,
+          "generated_axis_power_fraction": 0.47864895781932865
+        },
+        {
+          "energy_requested": 0.99,
+          "energy_retained": 0.9901283395987495,
+          "dimension": 70,
+          "prior_dimension": 70,
+          "mean_retained_pointwise_variance": 0.00990128339598751,
+          "min_retained_pointwise_variance": 0.009470193296545014,
+          "max_retained_pointwise_variance": 0.009923066246115556,
+          "sample_reference_difference_rms_log10": 0.09609884475664239,
+          "marginal_wasserstein_log10": 0.047419620227878254,
+          "radial_power_relative_l2": 2.093178811117822,
+          "angular_power_relative_l2": 2.5224963658498805,
+          "reference_axis_power_fraction": 0.35168562332842795,
+          "generated_axis_power_fraction": 0.4833962586709804
+        },
+        {
+          "energy_requested": 0.999,
+          "energy_retained": 0.9990044333610324,
+          "dimension": 216,
+          "prior_dimension": 216,
+          "mean_retained_pointwise_variance": 0.009990044333610342,
+          "min_retained_pointwise_variance": 0.00994568397941951,
+          "max_retained_pointwise_variance": 0.009991586852807037,
+          "sample_reference_difference_rms_log10": 0.09950138115221256,
+          "marginal_wasserstein_log10": 0.04900167338664683,
+          "radial_power_relative_l2": 2.028450355979677,
+          "angular_power_relative_l2": 2.49031364999479,
+          "reference_axis_power_fraction": 0.35168562332842795,
+          "generated_axis_power_fraction": 0.4943048946480272
+        }
+      ]
+    }
+  ],
+  "quadratic_pce_terms": {
+    "28": 435,
+    "70": 2556,
+    "216": 23653
+  },
+  "limits": [
+    "no independent held-out measurement validation",
+    "no full 5 m or LGCNN QoI convergence study",
+    "reference texture is not interpolation-error covariance",
+    "64 samples; unpaired draws across dimensions",
+    "no exact parent-to-RUN reconstruction established"
+  ]
+}

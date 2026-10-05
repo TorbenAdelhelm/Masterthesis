@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from itertools import product
+from itertools import combinations_with_replacement
+from math import factorial
 
 import numpy as np
 from numpy.polynomial.legendre import legvander
+from numpy.polynomial.hermite_e import hermevander
 
 Array = np.ndarray
 
@@ -18,11 +20,14 @@ def total_degree_indices(dimension: int, degree: int) -> Array:
     if degree < 0:
         raise ValueError("degree must be non-negative")
 
-    indices = [
-        alpha
-        for alpha in product(range(degree + 1), repeat=dimension)
-        if sum(alpha) <= degree
-    ]
+    # Generate only admissible terms, rather than filtering (degree+1)^dimension.
+    indices = []
+    for total in range(degree + 1):
+        for axes in combinations_with_replacement(range(dimension), total):
+            alpha = [0] * dimension
+            for axis in axes:
+                alpha[axis] += 1
+            indices.append(tuple(alpha))
     indices.sort(key=lambda alpha: (sum(alpha), alpha))
     return np.asarray(indices, dtype=np.int64)
 
@@ -80,4 +85,27 @@ def evaluate_orthonormal_legendre(
         one_dimensional *= normalization[None, :]
         design *= one_dimensional[:, multi_indices[:, axis]]
 
+    return design
+
+
+def evaluate_orthonormal_hermite(coordinates: Array, multi_indices: Array) -> Array:
+    """Probabilists' Hermite products, orthonormal under iid N(0,1).
+
+    psi_alpha(eta) = product_j He_alpha_j(eta_j) / sqrt(alpha_j!).
+    This approximates a response in Gaussian coordinates, not an inverse CDF.
+    """
+    coordinates = np.asarray(coordinates, dtype=np.float64)
+    if coordinates.ndim == 1:
+        coordinates = coordinates[None, :]
+    indices = np.asarray(multi_indices, dtype=np.int64)
+    if (coordinates.ndim != 2 or not np.all(np.isfinite(coordinates))
+            or indices.ndim != 2 or indices.shape[1] != coordinates.shape[1]
+            or np.any(indices < 0)):
+        raise ValueError("finite [N,m] coordinates and non-negative [P,m] indices required")
+    design = np.ones((coordinates.shape[0], indices.shape[0]), dtype=np.float64)
+    for axis in range(coordinates.shape[1]):
+        degree = int(np.max(indices[:, axis], initial=0))
+        values = hermevander(coordinates[:, axis], degree)
+        values /= np.sqrt(np.asarray([factorial(n) for n in range(degree + 1)], dtype=float))
+        design *= values[:, indices[:, axis]]
     return design

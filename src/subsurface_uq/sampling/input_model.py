@@ -22,6 +22,12 @@ class ConditionalKLInputModel:
     prior: KLLogGaussianPermeabilityMap
     conditional: object
     payload: dict[str, object]
+    unconditional_map: object | None = None
+
+    @property
+    def unconditional(self):
+        """Physical permeability under the same marginal law as conditional."""
+        return self.prior if self.unconditional_map is None else self.unconditional_map
 
     @property
     def training_k_range(self) -> tuple[float, float] | None:
@@ -52,11 +58,24 @@ def load_conditional_kl_input_model(
     if not isinstance(raw, dict):
         raise ValueError("stochastic input model must contain a YAML mapping")
     schema_version = int(raw.get("schema_version", -1))
-    if schema_version not in {1, 2}:
+    if schema_version not in {1, 2, 3}:
         raise ValueError("unsupported stochastic input model schema_version")
     if raw.get("coordinate_distribution") != "iid_standard_normal":
         raise ValueError(
             "RQ1/PCE conditional KL input model requires iid_standard_normal coordinates"
+        )
+
+    if schema_version == 3:
+        if raw.get("input_law") != "reference-centered-lognormal-candidate":
+            raise ValueError("unsupported schema-3 input law")
+        from .reference_field import load_reference_field_maps
+        unconditional, conditional = load_reference_field_maps(raw, source)
+        if (tuple(raw["field_shape"]) != unconditional.field_shape
+                or int(raw["coordinate_dimension"]) != conditional.dimension):
+            raise ValueError("reference-field declared shape/dimension mismatch")
+        return ConditionalKLInputModel(
+            source_path=source, prior=unconditional.prior, conditional=conditional,
+            payload=dict(raw), unconditional_map=unconditional,
         )
 
     prior_raw = raw.get("prior")
@@ -87,6 +106,7 @@ def load_conditional_kl_input_model(
     )
 
     input_law = str(raw.get("input_law", "legacy-lognormal"))
+    unconditional_map = prior
     if schema_version >= 2 and input_law == "normal-score-copula":
         transform_raw = raw.get("normal_score_transform")
         if not isinstance(transform_raw, dict):
@@ -94,6 +114,9 @@ def load_conditional_kl_input_model(
                 "normal-score input model must contain normal_score_transform"
             )
         transform = EmpiricalNormalScoreTransform.from_dict(transform_raw)
+        unconditional_map = NormalScoreConditionalPermeabilityMap(
+            transform=transform, gaussian_map=prior,
+        )
         latent_values = np.asarray(
             conditioning_raw["observation_latent_values"],
             dtype=np.float64,
@@ -150,4 +173,5 @@ def load_conditional_kl_input_model(
         prior=prior,
         conditional=conditional,
         payload=dict(raw),
+        unconditional_map=unconditional_map,
     )

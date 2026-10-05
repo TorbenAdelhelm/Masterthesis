@@ -83,13 +83,35 @@ def _raw_grid_shape(settings: dict, *, cell_size_m: float) -> tuple[int, ...]:
     return dims
 
 
+def load_input_permeability_h5(path: str | Path, *, shape: tuple[int, ...]) -> Array:
+    """Read original PFLOTRAN input, honoring its explicit one-based Cell Ids.
+
+    Some local RUNs have no simulation output. Their input file contains flat
+    `permeability` values and `Cell Ids`; reordering prevents silent layout errors.
+    """
+    h5py = _require_h5py()
+    with h5py.File(path, "r") as handle:
+        values = np.asarray(handle["permeability"], dtype=np.float64).reshape(-1)
+        ids = np.asarray(handle["Cell Ids"]).reshape(-1)
+    count = int(np.prod(shape))
+    if (values.size != count or ids.size != count or not np.issubdtype(ids.dtype, np.integer)
+            or not np.array_equal(np.sort(ids), np.arange(1, count + 1))):
+        raise ValueError("input permeability requires one value for every one-based Cell Id")
+    ordered = np.empty(count, dtype=np.float64)
+    ordered[ids - 1] = values
+    field = np.squeeze(ordered.reshape(shape))
+    if field.ndim != 2 or not np.all(np.isfinite(field)) or np.any(field <= 0):
+        raise ValueError("input permeability must reduce to a finite positive 2-D field")
+    return field.astype(np.float32)
+
+
 def load_release25_raw_permeability_run(
     dataset_root: str | Path,
     run_name: str,
     *,
     cell_size_m: float = 5.0,
 ) -> Array:
-    """Load one release25/DaRUS RUN_*/pflotran.h5 permeability field."""
+    """Load one RUN, falling back to its original permeability input file."""
 
     root = Path(dataset_root).expanduser().resolve()
     if not root.is_dir():
@@ -105,7 +127,7 @@ def load_release25_raw_permeability_run(
     run = str(run_name)
     h5_path = root / run / "pflotran.h5"
     if not h5_path.is_file():
-        raise FileNotFoundError(h5_path)
+        return load_input_permeability_h5(root / run / "permeability.h5", shape=shape)
     return load_pflotran_permeability_h5(h5_path, shape=shape)
 
 
@@ -114,11 +136,11 @@ def load_release25_raw_permeability_dataset(
     *,
     cell_size_m: float = 5.0,
 ) -> tuple[Array, tuple[str, ...]]:
-    """Load all same-shape RUN_*/pflotran.h5 permeability fields from DaRUS raw data.
+    """Load same-shape RUN fields, including runs with only original input HDF5.
 
     This mirrors the release25 raw-data convention used for DARUS-5065: grid
     dimensions are recovered from ``settings.yaml`` and permeability is read
-    from the initial-time ``Permeability X [m^2]`` dataset.
+    from the initial-time output dataset or the original ``permeability`` input.
     """
 
     root = Path(dataset_root).expanduser().resolve()
@@ -141,7 +163,7 @@ def load_release25_raw_permeability_dataset(
         if not folder.is_dir() or not folder.name.startswith("RUN_"):
             continue
         h5_path = folder / "pflotran.h5"
-        if not h5_path.is_file():
+        if not h5_path.is_file() and not (folder / "permeability.h5").is_file():
             continue
         try:
             run_number = int(folder.name.removeprefix("RUN_"))
@@ -150,9 +172,10 @@ def load_release25_raw_permeability_dataset(
         runs.append((run_number, folder.name, h5_path))
     runs.sort(key=lambda item: item[0])
     if not runs:
-        raise ValueError(f"no RUN_*/pflotran.h5 files found below {root}")
+        raise ValueError(f"no RUN permeability input/output files found below {root}")
 
-    fields = [load_pflotran_permeability_h5(path, shape=shape) for _, _, path in runs]
+    fields = [load_release25_raw_permeability_run(root, name, cell_size_m=cell_size_m)
+              for _, name, _ in runs]
     field_shapes = {field.shape for field in fields}
     if len(field_shapes) != 1:
         raise ValueError(

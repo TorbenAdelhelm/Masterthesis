@@ -5,7 +5,7 @@ from math import comb
 
 import numpy as np
 
-from .basis import evaluate_orthonormal_legendre, total_degree_indices
+from .basis import evaluate_orthonormal_hermite, evaluate_orthonormal_legendre, total_degree_indices
 
 Array = np.ndarray
 
@@ -14,8 +14,8 @@ Array = np.ndarray
 class PolynomialChaosRegressor:
     """Scalar non-intrusive PCE fitted by least-squares regression.
 
-    The current implementation targets independent ``U(-1,1)`` coordinates and
-    therefore uses an orthonormal Legendre basis. It is intentionally scalar:
+    Coordinates follow independent U(-1,1) or N(0,1), with matching orthonormal
+    Legendre or Hermite products. It is scalar:
     the first end-to-end experiment fits continuous temperature QoIs rather than
     a full temperature field.
     """
@@ -23,6 +23,7 @@ class PolynomialChaosRegressor:
     dimension: int
     degree: int
     rcond: float | None = None
+    basis_family: str = "legendre"
 
     multi_indices_: Array = field(init=False, repr=False)
     coefficients_: Array | None = field(default=None, init=False, repr=False)
@@ -31,6 +32,8 @@ class PolynomialChaosRegressor:
     training_rmse_: float | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
+        if self.basis_family not in {"legendre", "hermite"}:
+            raise ValueError("basis_family must be legendre or hermite")
         self.dimension = int(self.dimension)
         self.degree = int(self.degree)
         if self.dimension <= 0:
@@ -71,7 +74,9 @@ class PolynomialChaosRegressor:
                 f"coordinates must have shape [N,{self.dimension}], "
                 f"got {coordinates.shape}"
             )
-        return evaluate_orthonormal_legendre(coordinates, self.multi_indices_)
+        evaluate = (evaluate_orthonormal_hermite if self.basis_family == "hermite"
+                    else evaluate_orthonormal_legendre)
+        return evaluate(coordinates, self.multi_indices_)
 
     def fit(self, coordinates: Array, targets: Array) -> "PolynomialChaosRegressor":
         design = self.design_matrix(coordinates)
@@ -132,8 +137,9 @@ class PolynomialChaosRegressor:
     def metadata(self) -> dict[str, object]:
         return {
             "model": "PolynomialChaosRegressor",
-            "basis": "orthonormal_legendre_total_degree",
-            "coordinate_distribution": "iid_uniform_minus1_1",
+            "basis": f"orthonormal_{self.basis_family}_total_degree",
+            "coordinate_distribution": ("iid_standard_normal" if self.basis_family == "hermite"
+                                        else "iid_uniform_minus1_1"),
             "dimension": self.dimension,
             "degree": self.degree,
             "basis_size": self.basis_size,

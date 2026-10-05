@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import comb
 
 import numpy as np
 
 from ..sampling.coordinates import StochasticPermeabilityMap
 from ..surrogates.base import TemperatureSurrogate
-from .design import iid_uniform_design, latin_hypercube_uniform_design
+from .design import (iid_uniform_design, latin_hypercube_uniform_design,
+                     iid_gaussian_design, latin_hypercube_gaussian_design)
 from .qoi import TemperatureFunctional
 from .regression import PolynomialChaosRegressor
 
@@ -188,7 +190,7 @@ class PCEProofOfConceptResult:
     diagnostics: PCEDiagnostics
 
 
-def run_uniform_pce_proof_of_concept(
+def run_coordinate_pce(
     evaluator: CoordinateQoIEvaluator,
     *,
     degree: int,
@@ -196,17 +198,21 @@ def run_uniform_pce_proof_of_concept(
     n_validation: int,
     train_seed: int,
     validation_seed: int,
+    basis_family: str = "legendre",
 ) -> PCEProofOfConceptResult:
-    """Fit Legendre PCE and validate it against independent surrogate evaluations.
+    """Fit coordinate PCE and validate it against independent surrogate evaluations.
 
     Training uses a randomized Latin-hypercube design. Validation uses iid
-    ``U(-1,1)`` coordinates so the expensive validation ensemble also serves as
+    coordinates under the matching product uniform/Gaussian measure, so it serves as
     a direct Monte Carlo reference under exactly the same stochastic law.
     """
 
+    if degree < 0 or n_train < comb(evaluator.field_map.dimension + degree, degree):
+        raise ValueError("n_train must be at least the PCE basis size for a non-negative degree")
     regressor = PolynomialChaosRegressor(
         dimension=evaluator.field_map.dimension,
         degree=degree,
+        basis_family=basis_family,
     )
     if n_train < regressor.basis_size:
         raise ValueError(
@@ -216,7 +222,10 @@ def run_uniform_pce_proof_of_concept(
     if n_validation < 2:
         raise ValueError("n_validation must be at least 2")
 
-    train_coordinates = latin_hypercube_uniform_design(
+    training_design = (latin_hypercube_gaussian_design if basis_family == "hermite"
+                       else latin_hypercube_uniform_design)
+    validation_design = iid_gaussian_design if basis_family == "hermite" else iid_uniform_design
+    train_coordinates = training_design(
         n_train,
         evaluator.field_map.dimension,
         seed=train_seed,
@@ -224,7 +233,7 @@ def run_uniform_pce_proof_of_concept(
     train_qoi = evaluator.evaluate(train_coordinates, phase="train")
     regressor.fit(train_coordinates, train_qoi)
 
-    validation_coordinates = iid_uniform_design(
+    validation_coordinates = validation_design(
         n_validation,
         evaluator.field_map.dimension,
         seed=validation_seed,
@@ -247,3 +256,13 @@ def run_uniform_pce_proof_of_concept(
         validation_prediction=validation_prediction,
         diagnostics=diagnostics,
     )
+
+
+def run_gaussian_pce(evaluator: CoordinateQoIEvaluator, **kwargs) -> PCEProofOfConceptResult:
+    """Fit Hermite response PCE and validate with iid Gaussian surrogate evaluations."""
+    return run_coordinate_pce(evaluator, basis_family="hermite", **kwargs)
+
+
+def run_uniform_pce_proof_of_concept(evaluator: CoordinateQoIEvaluator, **kwargs) -> PCEProofOfConceptResult:
+    """Original uniform-coordinate Legendre workflow."""
+    return run_coordinate_pce(evaluator, basis_family="legendre", **kwargs)

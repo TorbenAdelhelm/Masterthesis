@@ -127,6 +127,13 @@ def test_schema2_normal_score_input_model_reconstructs_physical_map(tmp_path):
     assert loaded.conditional.metadata["marginal_model"] == (
         "empirical_training_normal_score_inverse"
     )
+    zero = np.zeros(loaded.unconditional.dimension)
+    np.testing.assert_allclose(loaded.unconditional.map_coordinates(zero), 10.0**-9.4, rtol=1e-6)
+    # RQ1 must receive physical permeability on both sides of the comparison.
+    from types import SimpleNamespace
+    from subsurface_uq.rq1.workflow import _build_grf_maps
+    unconditional, _, _ = _build_grf_maps(SimpleNamespace(input_model=path, cell_size_m=100.), (3, 4))
+    np.testing.assert_allclose(unconditional.map_coordinates(zero), 10.0**-9.4, rtol=1e-6)
 
 
 

@@ -5,6 +5,12 @@ This repository contains the thesis-specific forward uncertainty-quantification
 The current scientific baseline focuses on uncertainty in the permeability
 field while pressure and heat-pump locations are held fixed.
 
+The [reference-centered lognormal candidate](docs/reference_field_uncertainty.md)
+adds spatial reference fields, explicit correlated input perturbations,
+matched-support spectra/truncation diagnostics and Gaussian/Hermite response PCE.
+It retains the measurement-kriging baseline until scientific comparisons justify
+changing the default.
+
 The implementation is designed around interchangeable components:
 
 ```text

@@ -34,10 +34,12 @@ def hydraulic_conductivity_to_intrinsic_permeability(
     dynamic_viscosity_pa_s: float = 1.002e-3,
     density_kg_m3: float = 998.2,
     gravity_m_s2: float = 9.80665,
+    permeability_convention: str = "physical",
 ) -> Array:
     """Convert hydraulic conductivity K [m/s] to intrinsic permeability k [m^2].
 
-    Defaults correspond approximately to liquid water near 20 degC. The chosen
+    ``historical-training`` explicitly reproduces K/7.5e6 for RUN comparisons.
+    The default ``physical`` uses approximately liquid water near 20 degC. The chosen
     constants should be recorded with any downstream LGCNN experiment because
     they shift log10(K) by a constant when converted to log10(k).
     """
@@ -45,6 +47,11 @@ def hydraulic_conductivity_to_intrinsic_permeability(
     values = np.asarray(hydraulic_conductivity_m_s, dtype=np.float64)
     if not np.all(np.isfinite(values)) or np.any(values <= 0.0):
         raise ValueError("hydraulic conductivity must be finite and positive")
+    if permeability_convention == "historical-training":
+        from .historical_realistic import HISTORICAL_HYDRAULIC_TO_PERMEABILITY_DIVISOR
+        return values / HISTORICAL_HYDRAULIC_TO_PERMEABILITY_DIVISOR
+    if permeability_convention != "physical":
+        raise ValueError("permeability_convention must be physical or historical-training")
     mu = float(dynamic_viscosity_pa_s)
     rho = float(density_kg_m3)
     g = float(gravity_m_s2)
