@@ -187,7 +187,7 @@ def plot_mc_rqmc_comparison(
     axis.set_yscale("log")
     axis.set_xlabel("LGCNN evaluations N")
     axis.set_ylabel("RMSE against empirical MC reference [degC]")
-    axis.set_title("Conditional GRF: MC vs randomized QMC")
+    axis.set_title("Selected Gaussian input law: MC vs randomized QMC")
     axis.legend()
     destination = root / "mc_vs_rqmc_rmse.png"
     figure.savefig(destination, dpi=180, bbox_inches="tight")
