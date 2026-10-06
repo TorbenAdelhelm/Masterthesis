@@ -1,0 +1,40 @@
+# Fixed real-K setup for the reduced study; replace external asset paths locally.
+# The temperature pilot overrides grf with each generated scenario artifact.
+experiment:
+  id: reference_pilot
+  output_root: run_output/reference_pilot/temperature
+release25:
+  repo: external/release25-repo/Heat-Plume-Prediction
+  cnn1_dir: models/LGCNN_step1_realK
+  cnn2_dir: models/LGCNN_step3_realK
+  prepared_pki_dir: data/reference_pilot/prepared_pki
+  fixed_run_id: RUN_2
+  device: cpu
+  cell_size_m: 5.0
+  background_temperature: 10.6
+  random_k: false
+sampling:
+  budgets: [4, 8]
+  comparison_budgets: [4, 8]
+  repetitions: 1
+  main_seed: 5901
+  repetition_seeds: [6901]
+  batch_size: 1
+  quantiles: [0.05, 0.50, 0.95]
+  quantile_chunk_rows: 16
+  input_preview_count: 1
+qoi:
+  # Native input2560 -> velocity1796 -> temperature1028; crop origin766.
+  # Raw row is physical x. Receptors are100/400m downstream of RUN2 sources.
+  receptors: [[312, 532], [372, 532], [301, 489]]
+  mean_anomaly_roi: [296, 596, 456, 636]
+grf:
+  input_model: null
+streamlines:
+  mode: bounded
+  method: RK45
+  max_nfev: 100000
+  diagnostics: false
+  slow_seconds: 2.0
+storage:
+  retain_scratch: false

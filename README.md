@@ -12,6 +12,9 @@ Amplitude and covariance are explicit model-form/sensitivity assumptions, not ca
 RUNs remain separate reference scenarios. The measurement-kriging workflow remains
 available as a legacy/comparison baseline with unchanged command defaults for reproducibility.
 
+The [reduced native-grid pilot](docs/reference_pilot.md) prepares actual RUN arrays
+and a fixed real-K setup before the full scenario matrix is attempted.
+
 The implementation is designed around interchangeable components:
 
 ```text
