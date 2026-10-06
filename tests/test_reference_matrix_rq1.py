@@ -60,7 +60,7 @@ def test_legacy_manual_rq1_config_remains_replayable(tmp_path):
     assert load_rq1_config(source) == config
 
 
-def _matrix_config(tmp_path, *, training_support=False):
+def _matrix_config(tmp_path, *, training_support=False, retain_generated_fields=None):
     reference = 10 ** (-9.5 + np.arange(36).reshape(6, 6) / 100.)
     np.save(tmp_path / "reference.npy", reference)
     source = tmp_path / "matrix.yaml"
@@ -70,6 +70,8 @@ def _matrix_config(tmp_path, *, training_support=False):
         "references": {"RUN_1": "reference.npy"}, "cell_size_m": 5.,
         "permeability_convention": "historical-training", "n_samples": 2,
     }
+    if retain_generated_fields is not None:
+        payload["storage"] = {"retain_generated_fields": retain_generated_fields}
     if training_support:
         np.save(tmp_path / "training.npy", reference * 2.)
         payload["training_support"] = {"reference_npy": ["training.npy"], "box_size": 3,
@@ -118,3 +120,38 @@ def test_matrix_rejects_training_shape_mismatch_before_writing(tmp_path):
     with pytest.raises(ValueError, match="share the full field shape"):
         run_matrix(source, output)
     assert not output.exists()
+
+
+def test_matrix_can_stream_diagnostics_without_retaining_full_fields(tmp_path):
+    report = run_matrix(
+        _matrix_config(tmp_path, retain_generated_fields=False), tmp_path / "out"
+    )
+    assert report["schema_version"] == 2
+    assert report["storage"] == {"retain_generated_fields": False}
+    for row in report["scenarios"]:
+        directory = Path(row["input_model"]).parent
+        assert row["scenario_instance_id"].startswith("ref-instance-")
+        assert row["storage"]["retain_generated_fields"] is False
+        assert row["storage"]["generated_fields"] is None
+        assert not (directory / "generated_fields.npy").exists()
+        assert (directory / "diagnostics.json").is_file()
+
+
+def test_matrix_refuses_to_overwrite_same_config_with_changed_reference_bytes(tmp_path):
+    source = _matrix_config(tmp_path, retain_generated_fields=False)
+    output = tmp_path / "out"
+    first = run_matrix(source, output)
+    first_ids = [row["scenario_instance_id"] for row in first["scenarios"]]
+    reference = np.load(tmp_path / "reference.npy")
+    reference[0, 0] *= 1.01
+    np.save(tmp_path / "reference.npy", reference)
+    with pytest.raises(ValueError, match="different scientific instance"):
+        run_matrix(source, output)
+    stored = [
+        yaml.safe_load((Path(row["input_model"]).parent / "stochastic_input_model.yaml").read_text())
+        for row in first["scenarios"]
+    ]
+    assert all(item["source_metadata"]["reference_npy_sha256"] ==
+               row["source_metadata"]["reference_npy_sha256"]
+               for item, row in zip(stored, first["scenarios"]))
+    assert first_ids == [row["scenario_instance_id"] for row in first["scenarios"]]
