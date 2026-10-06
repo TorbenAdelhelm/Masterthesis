@@ -199,6 +199,10 @@ retained log10 variance. Conditional artifacts also change marginal moments.
 
 Edit `configs/reference_scenarios.example.yaml` to specify physical reference arrays
 and the Cartesian product of RUN, amplitude, covariance, lengths and truncations.
+The example sets `storage.retain_generated_fields: false`, which streams samples
+through the diagnostics without keeping one full `generated_fields.npy` per
+scenario. This is strongly recommended for full 2560x2560 matrix studies; set it
+to `true` only when the individual permeability realizations are needed later.
 Git Bash:
 
 ```bash
@@ -208,25 +212,30 @@ python -m subsurface_uq.experiments.reference_scenarios \
 ```
 
 Add `--rq1-config configs/rq1.reference.example.yaml` after configuring the real-K model,
-fixed source scenario and temperature QoIs. This invokes existing RQ1 per scenario;
-reference RUN and fixed-source RUN are distinct choices. The same field map also
-drives scrambled Sobol Gaussian RQMC and normalized Hermite response PCE. No support
-metric alters the target law or rejects a realization.
+fixed source scenario and temperature QoIs. The reference RUN and fixed-source RUN
+remain distinct choices. For a schema-3 reference artifact, RQ1 now propagates only
+the artifact's selected target law: an unconditioned artifact gets one iid-MC target
+plus the scrambled-Sobol RQMC comparison, while a conditional artifact uses the
+conditional law instead. It does not also run the legacy Perlin and duplicate B/C
+baselines. Manual/legacy RQ1 configurations retain the historical A/B/C/D design.
+The same Gaussian field map remains compatible with normalized Hermite response PCE.
+No support metric alters the target law or rejects a realization.
 
 The matrix supplies its generated input artifact before validating the RQ1
 template and explicitly replaces the template's entire `grf` block. Saved RQ1
 configs contain just that artifact path and can be replayed directly. The original
-synthetic-model/manual-GRF template remains a legacy example. For unconditioned
-artifacts the legacy RQ1 B/C variants are the same map; their duplicate evaluations
-do not establish a conditioning effect. The direct KL temperature study avoids
-these extra baseline variants when only representation sensitivity is needed.
+synthetic-model/manual-GRF template remains a legacy example.
 
-IDs are hashes of scientific configuration, independent of axis order. Manifests
-also record reference/input-artifact checksums, cell size, seed and sample count;
-the configuration ID alone does not identify different reference bytes or grids.
-Results remain separate. Optional `scenario_weights: equal` or a complete
-ID-to-weight mapping is recorded explicitly as an assumption. The runner does not
-aggregate results even when weights are supplied; it never infers RUN probabilities.
+`scenario_id` remains a stable hash of the parameter configuration, independent of
+matrix-axis order. Because that ID alone does not identify changed reference bytes
+or grid geometry, each executed row now also records `scenario_instance_id`, derived
+from the configuration ID, reference SHA-256, field shape, cell size and permeability
+convention. If an existing scenario directory contains a different instance ID, the
+runner refuses to overwrite it. Manifests also record the input-artifact checksum,
+seed and sample count. Results remain separate. Optional `scenario_weights: equal`
+or a complete ID-to-weight mapping is recorded explicitly as an assumption. The
+runner does not aggregate results even when weights are supplied; it never infers
+RUN probabilities.
 
 Optional `training_support` references enable existing exact patch-lattice
 diagnostics at the generated grid resolution. The report marks observed descriptor
