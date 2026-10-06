@@ -12,6 +12,10 @@ Amplitude and covariance are explicit model-form/sensitivity assumptions, not ca
 RUNs remain separate reference scenarios. The measurement-kriging workflow remains
 available as a legacy/comparison baseline with unchanged command defaults for reproducibility.
 
+The [permeability input previews](docs/reference_field_previews.md) export selected
+generated fields beside their fixed reference, with PNG agreement maps and optional
+native arrays; completed-pilot inputs are verified against their model-query hashes.
+
 The [reduced native-grid pilot](docs/reference_pilot.md) prepares actual RUN arrays
 and a fixed real-K setup before the full scenario matrix is attempted.
 

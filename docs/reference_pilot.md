@@ -120,6 +120,11 @@ context to resume. Scientific arrays and caches remain ignored local assets.
 
 ## Decision before the 96-scenario matrix
 
+To store and inspect a subset of the exact permeability inputs used in this
+study, see [reference/realization PNG comparisons](reference_field_previews.md).
+The exporter verifies each regenerated input against its original model-query
+hash and can retain selected NPY arrays without saving the full ensemble.
+
 Inspect scenario-wise input descriptors, normalization-range excursions and
 temperature changes, then examine paired KL changes. Resolve the original
 training inventory and run additional scrambles/budgets before committing to a

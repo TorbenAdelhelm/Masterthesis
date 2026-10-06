@@ -1,0 +1,607 @@
+{
+  "schema_version": 1,
+  "sample_indices_zero_based": [
+    0,
+    1
+  ],
+  "save_arrays": true,
+  "selection": "explicit indices only; no agreement-based selection, filtering or rejection",
+  "scales": "shared full-range permeability and symmetric log-ratio scales per identical reference/grid within this export",
+  "output_type": "generated permeability inputs; not LGCNN temperature outputs",
+  "runtime": {
+    "python": "3.12.9",
+    "python_implementation": "CPython",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "packages": {
+      "numpy": "2.2.4",
+      "scipy": "1.15.1",
+      "matplotlib": "3.10.1"
+    }
+  },
+  "samples": [
+    {
+      "scenario_id": "ref-d8b27a3763cec1ec6f35",
+      "sample_index": 0,
+      "input_model_sha256": "d7ac316b4d6d4cc534150c7639d65ed37b72c87dcbcf4ac996b133352564c2d7",
+      "config": {
+        "reference_run": "RUN_2",
+        "sigma_R": 0.05,
+        "covariance_family": "matern32",
+        "ell_x": 800.0,
+        "ell_y": 500.0,
+        "n_modes": null,
+        "energy_threshold": 0.95,
+        "center": "median",
+        "marginal": "lognormal",
+        "physical_mean": null,
+        "physical_variance": null,
+        "lb": null,
+        "ub": null,
+        "alpha": null,
+        "marginal_reference_k": null
+      },
+      "permeability_convention": "historical-training",
+      "sampling": {
+        "method": "RQMC",
+        "seed": 5901,
+        "n_samples": 8
+      },
+      "coordinate_dimension": 5049,
+      "map_dimension": 607,
+      "pilot_context_id": "b248cf8eecaf568d797df568840dc94f44639baf0dbf2863eb5608c285f1ca23",
+      "pilot_input_hash_verified": true,
+      "source_diagnostics_sha256": "4792fb2cd35240e58fe05c2e63d0ea39f6f7980e491ff5dc26d7ba182c516596",
+      "physical_field_sha256": "086814abafaae192dfc93c59d7e1be4c3b80a0bd5f794edcf27483842887e060",
+      "reference_array_sha256": "71cae08591e9b021cb57d324d2f060f4e3ea45ca3f5182b0150182d2656463bb",
+      "group_id": "821e5a871d44c4c6c0fd",
+      "cell_size_m": 5.0,
+      "agreement": {
+        "pixel_count": 6553600,
+        "shape": [
+          2560,
+          2560
+        ],
+        "log10_bias": 0.002521606087790082,
+        "log10_rmse": 0.04698758449819915,
+        "log10_mae": 0.03698618765795336,
+        "log10_max_abs_difference": 0.18304942939273516,
+        "log10_spatial_correlation": 0.9714949042781044,
+        "spatial_ratio_quantiles_05_50_95": [
+          0.842488885346563,
+          1.00556638473183,
+          1.2055674965886616
+        ],
+        "fraction_pixels_within_10_percent": 0.6611122131347656,
+        "reference_log10_range": [
+          -10.089731451729673,
+          -8.19297142800321
+        ],
+        "generated_log10_range": [
+          -10.194708607132009,
+          -8.167015303019113
+        ],
+        "interpretation": "full-grid agreement with the fixed nominal reference; descriptive spatial statistics, not calibration, training-support certification or sample acceptance"
+      },
+      "png": "ref-d8b27a3763cec1ec6f35\\sample-0000.comparison.png",
+      "png_sha256": "0751dcedc68a6af927a73acabe04a25a29ff26dcb12df649c754114f586db831",
+      "generated_npy": "ref-d8b27a3763cec1ec6f35\\ref-d8b27a3763cec1ec6f35-sample-0000.npy",
+      "reference_npy": "reference-821e5a871d44c4c6c0fd.npy",
+      "shared_log10_limits": [
+        -10.300039580470733,
+        -8.02151490354341
+      ],
+      "shared_log10_ratio_limit": 0.4505175321749242
+    },
+    {
+      "scenario_id": "ref-d8b27a3763cec1ec6f35",
+      "sample_index": 1,
+      "input_model_sha256": "d7ac316b4d6d4cc534150c7639d65ed37b72c87dcbcf4ac996b133352564c2d7",
+      "config": {
+        "reference_run": "RUN_2",
+        "sigma_R": 0.05,
+        "covariance_family": "matern32",
+        "ell_x": 800.0,
+        "ell_y": 500.0,
+        "n_modes": null,
+        "energy_threshold": 0.95,
+        "center": "median",
+        "marginal": "lognormal",
+        "physical_mean": null,
+        "physical_variance": null,
+        "lb": null,
+        "ub": null,
+        "alpha": null,
+        "marginal_reference_k": null
+      },
+      "permeability_convention": "historical-training",
+      "sampling": {
+        "method": "RQMC",
+        "seed": 5901,
+        "n_samples": 8
+      },
+      "coordinate_dimension": 5049,
+      "map_dimension": 607,
+      "pilot_context_id": "b248cf8eecaf568d797df568840dc94f44639baf0dbf2863eb5608c285f1ca23",
+      "pilot_input_hash_verified": true,
+      "source_diagnostics_sha256": "4792fb2cd35240e58fe05c2e63d0ea39f6f7980e491ff5dc26d7ba182c516596",
+      "physical_field_sha256": "5ffe9861ca6b5c150a74cae33b6718ed1cd2c7a32db686ffa0d73ab94d424eea",
+      "reference_array_sha256": "71cae08591e9b021cb57d324d2f060f4e3ea45ca3f5182b0150182d2656463bb",
+      "group_id": "821e5a871d44c4c6c0fd",
+      "cell_size_m": 5.0,
+      "agreement": {
+        "pixel_count": 6553600,
+        "shape": [
+          2560,
+          2560
+        ],
+        "log10_bias": -0.005526626653945217,
+        "log10_rmse": 0.04904173996033871,
+        "log10_mae": 0.03910422903081798,
+        "log10_max_abs_difference": 0.18024672296588307,
+        "log10_spatial_correlation": 0.9683779004418861,
+        "spatial_ratio_quantiles_05_50_95": [
+          0.8147354186816695,
+          0.9915355464629145,
+          1.1767040314913866
+        ],
+        "fraction_pixels_within_10_percent": 0.6207850646972656,
+        "reference_log10_range": [
+          -10.089731451729673,
+          -8.19297142800321
+        ],
+        "generated_log10_range": [
+          -9.976944144905314,
+          -8.222645431999819
+        ],
+        "interpretation": "full-grid agreement with the fixed nominal reference; descriptive spatial statistics, not calibration, training-support certification or sample acceptance"
+      },
+      "png": "ref-d8b27a3763cec1ec6f35\\sample-0001.comparison.png",
+      "png_sha256": "662a983d63253f64166a9401bac218dff0c61339896ac64d234d0228eeab32b7",
+      "generated_npy": "ref-d8b27a3763cec1ec6f35\\ref-d8b27a3763cec1ec6f35-sample-0001.npy",
+      "reference_npy": "reference-821e5a871d44c4c6c0fd.npy",
+      "shared_log10_limits": [
+        -10.300039580470733,
+        -8.02151490354341
+      ],
+      "shared_log10_ratio_limit": 0.4505175321749242
+    },
+    {
+      "scenario_id": "ref-1d9b80aa7fd531b78a3b",
+      "sample_index": 0,
+      "input_model_sha256": "7c66886bd0a7f59e10708bda596a2b16b670ba03bfb5b38d3f46fda3e1389387",
+      "config": {
+        "reference_run": "RUN_2",
+        "sigma_R": 0.05,
+        "covariance_family": "exponential",
+        "ell_x": 800.0,
+        "ell_y": 500.0,
+        "n_modes": null,
+        "energy_threshold": 0.95,
+        "center": "median",
+        "marginal": "lognormal",
+        "physical_mean": null,
+        "physical_variance": null,
+        "lb": null,
+        "ub": null,
+        "alpha": null,
+        "marginal_reference_k": null
+      },
+      "permeability_convention": "historical-training",
+      "sampling": {
+        "method": "RQMC",
+        "seed": 5901,
+        "n_samples": 8
+      },
+      "coordinate_dimension": 9316,
+      "map_dimension": 9316,
+      "pilot_context_id": "b248cf8eecaf568d797df568840dc94f44639baf0dbf2863eb5608c285f1ca23",
+      "pilot_input_hash_verified": true,
+      "source_diagnostics_sha256": "bf8071922ee82a9c2d2110bf436f56d1c1069b7de9ceaf5f67d1ad97f22feeae",
+      "physical_field_sha256": "2e6ccc8a445da56f5a64102f922680d90fd60d0c76f6b337484bde3dcf912a06",
+      "reference_array_sha256": "71cae08591e9b021cb57d324d2f060f4e3ea45ca3f5182b0150182d2656463bb",
+      "group_id": "821e5a871d44c4c6c0fd",
+      "cell_size_m": 5.0,
+      "agreement": {
+        "pixel_count": 6553600,
+        "shape": [
+          2560,
+          2560
+        ],
+        "log10_bias": -0.0021618705970170905,
+        "log10_rmse": 0.047494479913066025,
+        "log10_mae": 0.03787296676232471,
+        "log10_max_abs_difference": 0.18532976713346194,
+        "log10_spatial_correlation": 0.9706782427275776,
+        "spatial_ratio_quantiles_05_50_95": [
+          0.8281169249661636,
+          0.9966805696462172,
+          1.188850865022154
+        ],
+        "fraction_pixels_within_10_percent": 0.6400570678710937,
+        "reference_log10_range": [
+          -10.089731451729673,
+          -8.19297142800321
+        ],
+        "generated_log10_range": [
+          -10.064682474189057,
+          -8.259896563160288
+        ],
+        "interpretation": "full-grid agreement with the fixed nominal reference; descriptive spatial statistics, not calibration, training-support certification or sample acceptance"
+      },
+      "png": "ref-1d9b80aa7fd531b78a3b\\sample-0000.comparison.png",
+      "png_sha256": "22e172705e812af75505fbd2f2a770e362e1b4f821053011449142e13494e9db",
+      "generated_npy": "ref-1d9b80aa7fd531b78a3b\\ref-1d9b80aa7fd531b78a3b-sample-0000.npy",
+      "reference_npy": "reference-821e5a871d44c4c6c0fd.npy",
+      "shared_log10_limits": [
+        -10.300039580470733,
+        -8.02151490354341
+      ],
+      "shared_log10_ratio_limit": 0.4505175321749242
+    },
+    {
+      "scenario_id": "ref-1d9b80aa7fd531b78a3b",
+      "sample_index": 1,
+      "input_model_sha256": "7c66886bd0a7f59e10708bda596a2b16b670ba03bfb5b38d3f46fda3e1389387",
+      "config": {
+        "reference_run": "RUN_2",
+        "sigma_R": 0.05,
+        "covariance_family": "exponential",
+        "ell_x": 800.0,
+        "ell_y": 500.0,
+        "n_modes": null,
+        "energy_threshold": 0.95,
+        "center": "median",
+        "marginal": "lognormal",
+        "physical_mean": null,
+        "physical_variance": null,
+        "lb": null,
+        "ub": null,
+        "alpha": null,
+        "marginal_reference_k": null
+      },
+      "permeability_convention": "historical-training",
+      "sampling": {
+        "method": "RQMC",
+        "seed": 5901,
+        "n_samples": 8
+      },
+      "coordinate_dimension": 9316,
+      "map_dimension": 9316,
+      "pilot_context_id": "b248cf8eecaf568d797df568840dc94f44639baf0dbf2863eb5608c285f1ca23",
+      "pilot_input_hash_verified": true,
+      "source_diagnostics_sha256": "bf8071922ee82a9c2d2110bf436f56d1c1069b7de9ceaf5f67d1ad97f22feeae",
+      "physical_field_sha256": "76473f3dd1b933d182abffee3c6f2069211daa0eaf85aa562d945d5e6ea00af9",
+      "reference_array_sha256": "71cae08591e9b021cb57d324d2f060f4e3ea45ca3f5182b0150182d2656463bb",
+      "group_id": "821e5a871d44c4c6c0fd",
+      "cell_size_m": 5.0,
+      "agreement": {
+        "pixel_count": 6553600,
+        "shape": [
+          2560,
+          2560
+        ],
+        "log10_bias": 0.005317678268030267,
+        "log10_rmse": 0.04919445805965022,
+        "log10_mae": 0.03907312762948873,
+        "log10_max_abs_difference": 0.22525876216942287,
+        "log10_spatial_correlation": 0.9692463631022976,
+        "spatial_ratio_quantiles_05_50_95": [
+          0.8394298905885187,
+          1.0116253307124135,
+          1.2167460765017528
+        ],
+        "fraction_pixels_within_10_percent": 0.62310546875,
+        "reference_log10_range": [
+          -10.089731451729673,
+          -8.19297142800321
+        ],
+        "generated_log10_range": [
+          -10.169688522918317,
+          -8.126935920700989
+        ],
+        "interpretation": "full-grid agreement with the fixed nominal reference; descriptive spatial statistics, not calibration, training-support certification or sample acceptance"
+      },
+      "png": "ref-1d9b80aa7fd531b78a3b\\sample-0001.comparison.png",
+      "png_sha256": "98de9c30b5e7db2399f947595ec5695ac9e1e789821b6c8c2ac3d296de65512a",
+      "generated_npy": "ref-1d9b80aa7fd531b78a3b\\ref-1d9b80aa7fd531b78a3b-sample-0001.npy",
+      "reference_npy": "reference-821e5a871d44c4c6c0fd.npy",
+      "shared_log10_limits": [
+        -10.300039580470733,
+        -8.02151490354341
+      ],
+      "shared_log10_ratio_limit": 0.4505175321749242
+    },
+    {
+      "scenario_id": "ref-a3fc275e35e27ebdc5fa",
+      "sample_index": 0,
+      "input_model_sha256": "1911cc9061bbe241914f5d088badf088c0fed944d658ef67eab635320e9a7934",
+      "config": {
+        "reference_run": "RUN_2",
+        "sigma_R": 0.1,
+        "covariance_family": "matern32",
+        "ell_x": 800.0,
+        "ell_y": 500.0,
+        "n_modes": null,
+        "energy_threshold": 0.95,
+        "center": "median",
+        "marginal": "lognormal",
+        "physical_mean": null,
+        "physical_variance": null,
+        "lb": null,
+        "ub": null,
+        "alpha": null,
+        "marginal_reference_k": null
+      },
+      "permeability_convention": "historical-training",
+      "sampling": {
+        "method": "RQMC",
+        "seed": 5901,
+        "n_samples": 8
+      },
+      "coordinate_dimension": 607,
+      "map_dimension": 607,
+      "pilot_context_id": "b248cf8eecaf568d797df568840dc94f44639baf0dbf2863eb5608c285f1ca23",
+      "pilot_input_hash_verified": true,
+      "source_diagnostics_sha256": "85758d3c0afd350fa3020f659ebeb9375f26a8b3a8d603519085d919bb4fd6ac",
+      "physical_field_sha256": "2f86fb8af20f3a1ececf1159ba5057c19f7da09c2bf478fae6bba490a3bba8f0",
+      "reference_array_sha256": "71cae08591e9b021cb57d324d2f060f4e3ea45ca3f5182b0150182d2656463bb",
+      "group_id": "821e5a871d44c4c6c0fd",
+      "cell_size_m": 5.0,
+      "agreement": {
+        "pixel_count": 6553600,
+        "shape": [
+          2560,
+          2560
+        ],
+        "log10_bias": 0.0050432121896247,
+        "log10_rmse": 0.0939751689816421,
+        "log10_mae": 0.0739723753059464,
+        "log10_max_abs_difference": 0.3660988830359191,
+        "log10_spatial_correlation": 0.897910500670249,
+        "spatial_ratio_quantiles_05_50_95": [
+          0.7097875390502335,
+          1.0111637703201426,
+          1.453393011754131
+        ],
+        "fraction_pixels_within_10_percent": 0.36764495849609374,
+        "reference_log10_range": [
+          -10.089731451729673,
+          -8.19297142800321
+        ],
+        "generated_log10_range": [
+          -10.300039580470733,
+          -8.140990369528165
+        ],
+        "interpretation": "full-grid agreement with the fixed nominal reference; descriptive spatial statistics, not calibration, training-support certification or sample acceptance"
+      },
+      "png": "ref-a3fc275e35e27ebdc5fa\\sample-0000.comparison.png",
+      "png_sha256": "62fe5bb497f7c58a88b32ef4b1e8dd00fdcc039fe007916d61d5a66693318960",
+      "generated_npy": "ref-a3fc275e35e27ebdc5fa\\ref-a3fc275e35e27ebdc5fa-sample-0000.npy",
+      "reference_npy": "reference-821e5a871d44c4c6c0fd.npy",
+      "shared_log10_limits": [
+        -10.300039580470733,
+        -8.02151490354341
+      ],
+      "shared_log10_ratio_limit": 0.4505175321749242
+    },
+    {
+      "scenario_id": "ref-a3fc275e35e27ebdc5fa",
+      "sample_index": 1,
+      "input_model_sha256": "1911cc9061bbe241914f5d088badf088c0fed944d658ef67eab635320e9a7934",
+      "config": {
+        "reference_run": "RUN_2",
+        "sigma_R": 0.1,
+        "covariance_family": "matern32",
+        "ell_x": 800.0,
+        "ell_y": 500.0,
+        "n_modes": null,
+        "energy_threshold": 0.95,
+        "center": "median",
+        "marginal": "lognormal",
+        "physical_mean": null,
+        "physical_variance": null,
+        "lb": null,
+        "ub": null,
+        "alpha": null,
+        "marginal_reference_k": null
+      },
+      "permeability_convention": "historical-training",
+      "sampling": {
+        "method": "RQMC",
+        "seed": 5901,
+        "n_samples": 8
+      },
+      "coordinate_dimension": 607,
+      "map_dimension": 607,
+      "pilot_context_id": "b248cf8eecaf568d797df568840dc94f44639baf0dbf2863eb5608c285f1ca23",
+      "pilot_input_hash_verified": true,
+      "source_diagnostics_sha256": "85758d3c0afd350fa3020f659ebeb9375f26a8b3a8d603519085d919bb4fd6ac",
+      "physical_field_sha256": "405e57622ab969855563908beb3590b446b291e606fdcb97dce79128c1bfd15b",
+      "reference_array_sha256": "71cae08591e9b021cb57d324d2f060f4e3ea45ca3f5182b0150182d2656463bb",
+      "group_id": "821e5a871d44c4c6c0fd",
+      "cell_size_m": 5.0,
+      "agreement": {
+        "pixel_count": 6553600,
+        "shape": [
+          2560,
+          2560
+        ],
+        "log10_bias": -0.01444283007348882,
+        "log10_rmse": 0.10283532389939135,
+        "log10_mae": 0.08033991700547631,
+        "log10_max_abs_difference": 0.3907301524861211,
+        "log10_spatial_correlation": 0.8701363119076918,
+        "spatial_ratio_quantiles_05_50_95": [
+          0.6547459693450346,
+          0.9801181772037485,
+          1.4044305244770559
+        ],
+        "fraction_pixels_within_10_percent": 0.35089645385742185,
+        "reference_log10_range": [
+          -10.089731451729673,
+          -8.19297142800321
+        ],
+        "generated_log10_range": [
+          -9.945830067089146,
+          -8.274030983455361
+        ],
+        "interpretation": "full-grid agreement with the fixed nominal reference; descriptive spatial statistics, not calibration, training-support certification or sample acceptance"
+      },
+      "png": "ref-a3fc275e35e27ebdc5fa\\sample-0001.comparison.png",
+      "png_sha256": "622b4d27d8f8a968bde6ee313076bad198036678f83267b9b6a7c8ab4226387f",
+      "generated_npy": "ref-a3fc275e35e27ebdc5fa\\ref-a3fc275e35e27ebdc5fa-sample-0001.npy",
+      "reference_npy": "reference-821e5a871d44c4c6c0fd.npy",
+      "shared_log10_limits": [
+        -10.300039580470733,
+        -8.02151490354341
+      ],
+      "shared_log10_ratio_limit": 0.4505175321749242
+    },
+    {
+      "scenario_id": "ref-ec7b8e8ca73259bae744",
+      "sample_index": 0,
+      "input_model_sha256": "1fdc0d02cd5f217628003dfc74a4901b4dfa1b7907c63a602d4b27c5e108ff8b",
+      "config": {
+        "reference_run": "RUN_2",
+        "sigma_R": 0.1,
+        "covariance_family": "exponential",
+        "ell_x": 800.0,
+        "ell_y": 500.0,
+        "n_modes": null,
+        "energy_threshold": 0.95,
+        "center": "median",
+        "marginal": "lognormal",
+        "physical_mean": null,
+        "physical_variance": null,
+        "lb": null,
+        "ub": null,
+        "alpha": null,
+        "marginal_reference_k": null
+      },
+      "permeability_convention": "historical-training",
+      "sampling": {
+        "method": "RQMC",
+        "seed": 5901,
+        "n_samples": 8
+      },
+      "coordinate_dimension": 9316,
+      "map_dimension": 9316,
+      "pilot_context_id": "b248cf8eecaf568d797df568840dc94f44639baf0dbf2863eb5608c285f1ca23",
+      "pilot_input_hash_verified": true,
+      "source_diagnostics_sha256": "566c9b23100f1c1540c6c38f8e918ccd57a3840c33eee3b1d474f7cc288f878d",
+      "physical_field_sha256": "24c590c60c5aeaa07c64d51d96636f5fb6f03e48139cad5d369c8f32c17d03e7",
+      "reference_array_sha256": "71cae08591e9b021cb57d324d2f060f4e3ea45ca3f5182b0150182d2656463bb",
+      "group_id": "821e5a871d44c4c6c0fd",
+      "cell_size_m": 5.0,
+      "agreement": {
+        "pixel_count": 6553600,
+        "shape": [
+          2560,
+          2560
+        ],
+        "log10_bias": -0.004323741188807565,
+        "log10_rmse": 0.09498895981874286,
+        "log10_mae": 0.07574593352268727,
+        "log10_max_abs_difference": 0.3706595133456698,
+        "log10_spatial_correlation": 0.8945851956503751,
+        "spatial_ratio_quantiles_05_50_95": [
+          0.685777663638889,
+          0.9933721712427098,
+          1.4133663317865173
+        ],
+        "fraction_pixels_within_10_percent": 0.3555171203613281,
+        "reference_log10_range": [
+          -10.089731451729673,
+          -8.19297142800321
+        ],
+        "generated_log10_range": [
+          -10.08305200575007,
+          -8.323843136282054
+        ],
+        "interpretation": "full-grid agreement with the fixed nominal reference; descriptive spatial statistics, not calibration, training-support certification or sample acceptance"
+      },
+      "png": "ref-ec7b8e8ca73259bae744\\sample-0000.comparison.png",
+      "png_sha256": "8e0d6a8bc31402ca620212f3af488de520820d8f89ca7c0be27b5b8ec13b0914",
+      "generated_npy": "ref-ec7b8e8ca73259bae744\\ref-ec7b8e8ca73259bae744-sample-0000.npy",
+      "reference_npy": "reference-821e5a871d44c4c6c0fd.npy",
+      "shared_log10_limits": [
+        -10.300039580470733,
+        -8.02151490354341
+      ],
+      "shared_log10_ratio_limit": 0.4505175321749242
+    },
+    {
+      "scenario_id": "ref-ec7b8e8ca73259bae744",
+      "sample_index": 1,
+      "input_model_sha256": "1fdc0d02cd5f217628003dfc74a4901b4dfa1b7907c63a602d4b27c5e108ff8b",
+      "config": {
+        "reference_run": "RUN_2",
+        "sigma_R": 0.1,
+        "covariance_family": "exponential",
+        "ell_x": 800.0,
+        "ell_y": 500.0,
+        "n_modes": null,
+        "energy_threshold": 0.95,
+        "center": "median",
+        "marginal": "lognormal",
+        "physical_mean": null,
+        "physical_variance": null,
+        "lb": null,
+        "ub": null,
+        "alpha": null,
+        "marginal_reference_k": null
+      },
+      "permeability_convention": "historical-training",
+      "sampling": {
+        "method": "RQMC",
+        "seed": 5901,
+        "n_samples": 8
+      },
+      "coordinate_dimension": 9316,
+      "map_dimension": 9316,
+      "pilot_context_id": "b248cf8eecaf568d797df568840dc94f44639baf0dbf2863eb5608c285f1ca23",
+      "pilot_input_hash_verified": true,
+      "source_diagnostics_sha256": "566c9b23100f1c1540c6c38f8e918ccd57a3840c33eee3b1d474f7cc288f878d",
+      "physical_field_sha256": "9aeed5eed82ae602dd99ad19fb8b94adeb9c34fa9e7960a4ada152644fe4b4bf",
+      "reference_array_sha256": "71cae08591e9b021cb57d324d2f060f4e3ea45ca3f5182b0150182d2656463bb",
+      "group_id": "821e5a871d44c4c6c0fd",
+      "cell_size_m": 5.0,
+      "agreement": {
+        "pixel_count": 6553600,
+        "shape": [
+          2560,
+          2560
+        ],
+        "log10_bias": 0.010635356548999372,
+        "log10_rmse": 0.09838891612650805,
+        "log10_mae": 0.07814625526307924,
+        "log10_max_abs_difference": 0.4505175321749242,
+        "log10_spatial_correlation": 0.8911513097253411,
+        "spatial_ratio_quantiles_05_50_95": [
+          0.7046425950526365,
+          1.0233858101691458,
+          1.4804711187237558
+        ],
+        "fraction_pixels_within_10_percent": 0.348475341796875,
+        "reference_log10_range": [
+          -10.089731451729673,
+          -8.19297142800321
+        ],
+        "generated_log10_range": [
+          -10.265584562617779,
+          -8.02151490354341
+        ],
+        "interpretation": "full-grid agreement with the fixed nominal reference; descriptive spatial statistics, not calibration, training-support certification or sample acceptance"
+      },
+      "png": "ref-ec7b8e8ca73259bae744\\sample-0001.comparison.png",
+      "png_sha256": "04f7530829f89f32340036a290e7d67375ed6bf23076f794f0fd4d2a58910317",
+      "generated_npy": "ref-ec7b8e8ca73259bae744\\ref-ec7b8e8ca73259bae744-sample-0001.npy",
+      "reference_npy": "reference-821e5a871d44c4c6c0fd.npy",
+      "shared_log10_limits": [
+        -10.300039580470733,
+        -8.02151490354341
+      ],
+      "shared_log10_ratio_limit": 0.4505175321749242
+    }
+  ]
+}

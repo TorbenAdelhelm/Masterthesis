@@ -39,6 +39,7 @@ subsurface-uq-historical-realistic-reconstruction = "subsurface_uq.experiments.h
 subsurface-uq-parent-measurement-audit = "subsurface_uq.experiments.parent_measurement_audit:main"
 subsurface-uq-plot-mc = "subsurface_uq.visualization.cli:main"
 subsurface-uq-plot-pce = "subsurface_uq.visualization.pce_cli:main"
+subsurface-uq-plot-reference-fields = "subsurface_uq.visualization.reference_fields_cli:main"
 subsurface-uq-validate-temperature = "subsurface_uq.validation.cli:main"
 
 [tool.setuptools.packages.find]
