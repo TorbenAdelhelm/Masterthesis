@@ -63,6 +63,37 @@ class _MainVariant:
     diagnostics: PermeabilityDiagnostics
 
 
+def _reference_artifact_execution_plan(loaded_input_model):
+    """Return the single target-law plan for schema-3 reference-field artifacts.
+
+    Legacy/manual RQ1 keeps the historical A/B/C/D design. A schema-3 reference
+    artifact already declares the stochastic law, so evaluating Perlin plus both
+    unconditional/conditional labels would either change the question or duplicate
+    the same map. Conditioning is selected only when the artifact actually contains
+    conditioning data.
+    """
+    if loaded_input_model is None:
+        return None
+    payload = loaded_input_model.payload
+    if int(payload.get("schema_version", -1)) != 3:
+        return None
+    if payload.get("input_law") not in {
+        "reference-centered-lognormal",
+        "reference-centered-lognormal-candidate",
+    }:
+        return None
+    conditioned = bool(payload.get("conditioning"))
+    return {
+        "conditioned": conditioned,
+        "mc_variant": (
+            "C_conditional_grf_mc" if conditioned else "B_unconditional_grf_mc"
+        ),
+        "rqmc_variant": (
+            "D_conditional_grf_rqmc" if conditioned else "D_unconditional_grf_rqmc"
+        ),
+    }
+
+
 def _build_grf_maps(
     config: RQ1Config,
     shape: tuple[int, int],
@@ -656,65 +687,100 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
         if loaded_input_model is None
         else loaded_input_model.training_k_range
     )
-    domain_size_m = (shape[0] * config.cell_size_m, shape[1] * config.cell_size_m)
+    artifact_plan = _reference_artifact_execution_plan(loaded_input_model)
 
-    perlin_map = PerlinCoordinatePermeabilityMap(
-        shape=shape,
-        domain_size_m=domain_size_m,
-        frequency=RELEASE25_PERLIN_FREQUENCY,
-        k_min=RELEASE25_PERLIN_K_MIN,
-        k_max=RELEASE25_PERLIN_K_MAX,
-    )
-    perlin = UniformCoordinatePermeabilitySampler(
-        field_map=perlin_map,
-        n_samples=config.max_budget,
-        batch_size=config.batch_size,
-        seed=config.main_seed,
-    )
-    unconditional_sampler = GaussianCoordinatePermeabilitySampler(
-        field_map=prior,
-        n_samples=config.max_budget,
-        batch_size=config.batch_size,
-        seed=config.main_seed,
-    )
-    conditional_sampler = GaussianCoordinatePermeabilitySampler(
-        field_map=conditional,
-        n_samples=config.max_budget,
-        batch_size=config.batch_size,
-        seed=config.main_seed,
-    )
-    variants = (
-        _MainVariant(
-            "A_perlin_mc",
-            "MC",
-            perlin,
-            _diagnostics(
-                config,
-                conditional=False,
-                training_k_range=training_k_range,
+    if artifact_plan is None:
+        domain_size_m = (shape[0] * config.cell_size_m, shape[1] * config.cell_size_m)
+        perlin_map = PerlinCoordinatePermeabilityMap(
+            shape=shape,
+            domain_size_m=domain_size_m,
+            frequency=RELEASE25_PERLIN_FREQUENCY,
+            k_min=RELEASE25_PERLIN_K_MIN,
+            k_max=RELEASE25_PERLIN_K_MAX,
+        )
+        perlin = UniformCoordinatePermeabilitySampler(
+            field_map=perlin_map,
+            n_samples=config.max_budget,
+            batch_size=config.batch_size,
+            seed=config.main_seed,
+        )
+        unconditional_sampler = GaussianCoordinatePermeabilitySampler(
+            field_map=prior,
+            n_samples=config.max_budget,
+            batch_size=config.batch_size,
+            seed=config.main_seed,
+        )
+        conditional_sampler = GaussianCoordinatePermeabilitySampler(
+            field_map=conditional,
+            n_samples=config.max_budget,
+            batch_size=config.batch_size,
+            seed=config.main_seed,
+        )
+        variants = (
+            _MainVariant(
+                "A_perlin_mc",
+                "MC",
+                perlin,
+                _diagnostics(
+                    config,
+                    conditional=False,
+                    training_k_range=training_k_range,
+                ),
             ),
-        ),
-        _MainVariant(
-            "B_unconditional_grf_mc",
-            "MC",
-            unconditional_sampler,
-            _diagnostics(
-                config,
-                conditional=False,
-                training_k_range=training_k_range,
+            _MainVariant(
+                "B_unconditional_grf_mc",
+                "MC",
+                unconditional_sampler,
+                _diagnostics(
+                    config,
+                    conditional=False,
+                    training_k_range=training_k_range,
+                ),
             ),
-        ),
-        _MainVariant(
-            "C_conditional_grf_mc",
-            "MC",
-            conditional_sampler,
-            _diagnostics(
-                config,
-                conditional=True,
-                training_k_range=training_k_range,
+            _MainVariant(
+                "C_conditional_grf_mc",
+                "MC",
+                conditional_sampler,
+                _diagnostics(
+                    config,
+                    conditional=True,
+                    training_k_range=training_k_range,
+                ),
             ),
-        ),
-    )
+        )
+        reference_variant_key = "C_conditional_grf_mc"
+        rqmc_variant_key = "D_conditional_grf_rqmc"
+        comparison_map = conditional
+        sampling_laws = {
+            "A_perlin_mc": perlin.metadata,
+            "B_unconditional_grf_mc": unconditional_sampler.metadata,
+            "C_conditional_grf_mc": conditional_sampler.metadata,
+        }
+        execution_mode = "legacy_manual_rq1_variants"
+    else:
+        comparison_map = conditional if artifact_plan["conditioned"] else prior
+        target_sampler = GaussianCoordinatePermeabilitySampler(
+            field_map=comparison_map,
+            n_samples=config.max_budget,
+            batch_size=config.batch_size,
+            seed=config.main_seed,
+        )
+        reference_variant_key = artifact_plan["mc_variant"]
+        rqmc_variant_key = artifact_plan["rqmc_variant"]
+        variants = (
+            _MainVariant(
+                reference_variant_key,
+                "MC",
+                target_sampler,
+                _diagnostics(
+                    config,
+                    conditional=artifact_plan["conditioned"],
+                    training_k_range=training_k_range,
+                ),
+            ),
+        )
+        sampling_laws = {reference_variant_key: target_sampler.metadata}
+        execution_mode = "reference_artifact_target_law_only"
 
     main_results: dict[str, dict[str, object]] = {}
     convergence_rows: list[dict[str, object]] = []
@@ -741,7 +807,7 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
             "qoi": completed["qoi_reference"],
         }
 
-    reference = main_results["C_conditional_grf_mc"]
+    reference = main_results[reference_variant_key]
     reference_result = reference["result"]
     reference_global = reference["global_metrics"]
     reference_qoi = reference["qoi_reference"]
@@ -751,20 +817,20 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
         for method in ("MC", "RQMC"):
             if method == "MC":
                 sampler = GaussianCoordinatePermeabilitySampler(
-                    field_map=conditional,
+                    field_map=comparison_map,
                     n_samples=config.max_comparison_budget,
                     batch_size=config.batch_size,
                     seed=seed,
                 )
-                variant_key = "C_conditional_grf_mc"
+                variant_key = reference_variant_key
             else:
                 sampler = ScrambledSobolGaussianPermeabilitySampler(
-                    field_map=conditional,
+                    field_map=comparison_map,
                     n_samples=config.max_comparison_budget,
                     batch_size=config.batch_size,
                     seed=seed,
                 )
-                variant_key = "D_conditional_grf_rqmc"
+                variant_key = rqmc_variant_key
 
             field_accumulator = ReferenceConvergenceFieldStatisticsAccumulator(
                 checkpoints=config.comparison_budgets,
@@ -820,11 +886,11 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
                 )
 
     comparison_rows = _aggregate_mc_rqmc(repeated_rows)
-    global_metrics["D_conditional_grf_rqmc"] = {
+    global_metrics[rqmc_variant_key] = {
         "role": "randomized_QMC_efficiency_comparison",
         "max_budget": config.max_comparison_budget,
         "repetitions": config.repetitions,
-        "reference": "C_conditional_grf_mc empirical MC at max main budget",
+        "reference": f"{reference_variant_key} empirical MC at max main budget",
     }
 
     artifacts: dict[str, Path] = {}
@@ -851,6 +917,18 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
     plot_rq1_convergence(convergence_rows, figures_root / "convergence")
     plot_mc_rqmc_comparison(comparison_rows, figures_root / "mc_vs_rqmc")
 
+    sampling_laws[rqmc_variant_key] = {
+        "sampler": "ScrambledSobolGaussianPermeabilitySampler",
+        "scramble": True,
+        "coordinate_distribution": "iid_standard_normal_via_inverse_cdf",
+        "uniform_design": "scipy.stats.qmc.Sobol(scramble=True)",
+        "coordinate_dimension": int(comparison_map.dimension),
+        "field_map": comparison_map.metadata,
+        "comparison_budgets": list(config.comparison_budgets),
+        "repetition_seeds": list(config.repetition_seeds),
+    }
+    metadata_variants = [variant.key for variant in variants] + [rqmc_variant_key]
+
     project_root = Path(__file__).resolve().parents[3]
     metadata = {
         "experiment_id": config.experiment_id,
@@ -859,32 +937,18 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
             "Permeability-input uncertainty only; pressure and heat-pump inputs are fixed "
             "and the release25 LGCNN weights are frozen."
         ),
-        "variants": [
-            "A_perlin_mc",
-            "B_unconditional_grf_mc",
-            "C_conditional_grf_mc",
-            "D_conditional_grf_rqmc",
-        ],
+        "execution_mode": execution_mode,
+        "variants": metadata_variants,
         "empirical_reference": {
-            "variant": "C_conditional_grf_mc",
+            "variant": reference_variant_key,
             "sample_count": config.max_budget,
-            "description": "largest conditional-GRF iid-MC run; empirical reference, not ground truth",
+            "description": (
+                "largest selected reference-family iid-MC run; empirical reference, not ground truth"
+                if artifact_plan is not None
+                else "largest conditional-GRF iid-MC run; empirical reference, not ground truth"
+            ),
         },
-        "sampling_laws": {
-            "A_perlin_mc": perlin.metadata,
-            "B_unconditional_grf_mc": unconditional_sampler.metadata,
-            "C_conditional_grf_mc": conditional_sampler.metadata,
-            "D_conditional_grf_rqmc": {
-                "sampler": "ScrambledSobolGaussianPermeabilitySampler",
-                "scramble": True,
-                "coordinate_distribution": "iid_standard_normal_via_inverse_cdf",
-                "uniform_design": "scipy.stats.qmc.Sobol(scramble=True)",
-                "coordinate_dimension": int(conditional.dimension),
-                "field_map": conditional.metadata,
-                "comparison_budgets": list(config.comparison_budgets),
-                "repetition_seeds": list(config.repetition_seeds),
-            },
-        },
+        "sampling_laws": sampling_laws,
         "rqmc": {
             "construction": "scrambled Sobol U(0,1)^d followed by component-wise standard-normal inverse CDF",
             "comparison_budgets": list(config.comparison_budgets),
