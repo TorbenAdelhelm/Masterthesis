@@ -1,7 +1,8 @@
 # Reference-centered lognormal input uncertainty
 
-This candidate describes local input uncertainty around a training field accepted
-as realistic. It retains the original measurement-kriging default. It does not
+This primary computational scenario family describes local input uncertainty
+around a realistic reference field. The original measurement-kriging CLI defaults
+remain available as a legacy/comparison baseline for reproducibility. It does not
 claim to recover the unique stochastic geological process or calibrate the error
 of the interpolation merely by fitting spatial texture.
 
@@ -161,5 +162,98 @@ adaptive methods, rather than inventing geological degrees of freedom. Energy
 
 Tests cover retained covariance, arithmetic-mean correction, noisy posterior
 moments, serialization, input-only loading, spectral normalization and Hermite
-response recovery. CI runs the full suite on this branch. This candidate is not
-promoted to production default until validation supports that decision.
+response recovery. CI runs the full suite on this branch. The architecture is
+primary; no particular residual amplitude or covariance is promoted as calibrated truth.
+
+## Parameterized scenario matrix and expert marginals
+
+`ReferenceScenario` declares RUN, lognormal marginal, centering, `sigma_R` in
+log10 units, separable covariance family, `ell_x`, `ell_y` in metres, and exactly
+one truncation choice. New artifacts use `reference-centered-lognormal`; old
+schema-3 `reference-centered-lognormal-candidate` artifacts still load.
+
+Optionally specify either `physical_mean` and `physical_variance` (m2 and m4),
+or `lb`, `ub`, `alpha`, together with `marginal_reference_k` (m2). These scalar
+specifications describe the **untruncated pointwise law at that reference value**,
+not a pooled spatial histogram. They must agree with the chosen reference center:
+the anchor equals the median for median centering or the physical mean for
+arithmetic-mean centering. An omitted `sigma_R` is derived; a supplied value must
+agree. Conflicting moments/bounds, amplitude, center or truncations are rejected.
+
+Using natural-log parameters, conversions are
+
+$$\sigma^2=\ln(1+v/m^2),\quad\mu=\ln m-\sigma^2/2,$$
+$$m=e^{\mu+\sigma^2/2},\quad v=m^2(e^{\sigma^2}-1).$$
+
+For equal-tail bounds, $z=\Phi^{-1}(1-\alpha/2)$,
+$\mu=(\ln lb+\ln ub)/2$, $\sigma=(\ln ub-\ln lb)/(2z)$ and
+$\sigma_R=\sigma/\ln10$. Thus $P(lb\le K\le ub)=1-\alpha$ at the declared
+anchor under the untruncated law. Bounds are never hard support and draws outside
+them are retained. A bounded/truncated lognormal mode is not implemented.
+
+For other locations, the reference supplies their center and the residual supplies
+relative dispersion. KL truncation changes pointwise dispersion; the mean correction
+uses actual retained variance. Bounds/variance are nominal **before truncation**,
+not guarantees for each represented marginal. Manifests report actual min/mean/max
+retained log10 variance. Conditional artifacts also change marginal moments.
+
+Edit `configs/reference_scenarios.example.yaml` to specify physical reference arrays
+and the Cartesian product of RUN, amplitude, covariance, lengths and truncations.
+Git Bash:
+
+```bash
+python -m subsurface_uq.experiments.reference_scenarios \
+  --config configs/reference_scenarios.example.yaml \
+  --output-dir run_output/reference_scenarios
+```
+
+Add `--rq1-config configs/rq1.example.yaml` after configuring the real-K model,
+fixed source scenario and temperature QoIs. This invokes existing RQ1 per scenario;
+reference RUN and fixed-source RUN are distinct choices. The same field map also
+drives scrambled Sobol Gaussian RQMC and normalized Hermite response PCE. No support
+metric alters the target law or rejects a realization.
+
+IDs are hashes of scientific configuration, independent of axis order. Manifests
+also record reference/input-artifact checksums, cell size, seed and sample count;
+the configuration ID alone does not identify different reference bytes or grids.
+Results remain separate. Optional `scenario_weights: equal` or a complete
+ID-to-weight mapping is recorded explicitly as an assumption. The runner does not
+aggregate results even when weights are supplied; it never infers RUN probabilities.
+
+Optional `training_support` references enable existing exact patch-lattice
+diagnostics at the generated grid resolution. The report marks observed descriptor
+deviations, or membership within the sampled descriptor envelopes. This is descriptive
+and does not prove in-distribution behavior. Without training references, compatibility
+is explicitly unassessed. Marginals, directional variograms and 2-D/radial/angular
+spectra are always reported on matched diagnostic support. Coarsened diagnostics
+do not establish compatibility at the full LGCNN patch resolution.
+
+## Temperature-oriented KL representation sensitivity
+
+The single-reference CLI also accepts `--n-modes 10 20 40` instead of energy
+thresholds. Compare unconditioned artifacts differing **only in truncation**:
+
+```bash
+python -m subsurface_uq.experiments.reference_kl_sensitivity \
+  --input-models run_output/ref/energy_0.95/stochastic_input_model.yaml \
+    run_output/ref/energy_0.99/stochastic_input_model.yaml \
+    run_output/ref/energy_0.999/stochastic_input_model.yaml \
+  --rq1-config configs/rq1.example.yaml \
+  --n-samples 64 --method RQMC --seed 4901 \
+  --output-dir run_output/temperature_kl_sensitivity
+```
+
+This queries the pretrained model with common Gaussian coordinates and reports
+receptor temperatures and optional ROI mean anomaly: means, standard deviations,
+5/50/95% quantiles, paired RMSE and mean/std differences relative to the largest
+dimension. Paired samples are saved. That largest dimension is a comparison reference,
+not truth. Repeat budgets and seeds to assess integration error, and choose QoI-specific
+tolerances explicitly. No automatic universal convergence criterion is assumed.
+The 0.95/0.99/0.999 energy targets remain **representation sensitivities**.
+The paired study currently rejects conditioned artifacts; each conditioned truncation
+needs its own update and a justified coupling before extending this analysis.
+
+The older `reference_field_validation` study retains reference-texture covariance fits
+for reproducibility. Its auto-selected texture proxy is a sensitivity assumption,
+not statistical identification of residual covariance. Use the explicit matrix for
+the primary model-form comparison.

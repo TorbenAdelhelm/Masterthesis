@@ -5,11 +5,12 @@ This repository contains the thesis-specific forward uncertainty-quantification
 The current scientific baseline focuses on uncertainty in the permeability
 field while pressure and heat-pump locations are held fixed.
 
-The [reference-centered lognormal candidate](docs/reference_field_uncertainty.md)
-adds spatial reference fields, explicit correlated input perturbations,
+The primary [reference-centered lognormal scenario family](docs/reference_field_uncertainty.md)
+uses spatial reference fields, explicit correlated input perturbations,
 matched-support spectra/truncation diagnostics and Gaussian/Hermite response PCE.
-It retains the measurement-kriging baseline until scientific comparisons justify
-changing the default.
+Amplitude and covariance are explicit model-form/sensitivity assumptions, not calibrated truth.
+RUNs remain separate reference scenarios. The measurement-kriging workflow remains
+available as a legacy/comparison baseline with unchanged command defaults for reproducibility.
 
 The implementation is designed around interchangeable components:
 
@@ -512,6 +513,7 @@ The cleaned baseline supports the next scientific layers without changing the
 propagation core. A borehole-conditioned geostatistical permeability workflow is
 now available, including real-field covariance calibration and Matérn-3/2,
 separable exponential and radial anisotropic exponential candidates. The next
-scientific step is to calibrate and validate these candidates on the real DaRUS
-permeability fields before fixing the input law for later QoIs. Model uncertainty
-and alternative propagation methods remain later/optional extensions.
+scientific step for the primary reference family is to compare explicitly assumed
+residual laws and KL representations using matched training support and downstream
+temperature QoIs. Reference-texture fits do not identify residual uncertainty.
+MC, scrambled Sobol RQMC and Hermite response PCE share the Gaussian-coordinate law.

@@ -10,7 +10,7 @@ import yaml
 
 from ..sampling.darus_real import load_release25_raw_permeability_run
 from ..sampling.coordinates import GaussianCoordinatePermeabilitySampler
-from ..sampling.reference_field import build_reference_field_maps, save_reference_field_input_model
+from ..sampling.reference_field import save_reference_field_input_model
 from ..sampling.spatial_diagnostics import compare_reference_ensemble
 
 
@@ -41,7 +41,9 @@ def build_parser():
     parser.add_argument("--length-scale-y-m", type=float, required=True)
     parser.add_argument("--length-scale-x-m", type=float, required=True)
     parser.add_argument("--covariance-model", choices=("matern32", "exponential"), default="matern32")
-    parser.add_argument("--energy-thresholds", type=float, nargs="+", default=[.95, .99, .999])
+    truncation = parser.add_mutually_exclusive_group()
+    truncation.add_argument("--energy-thresholds", type=float, nargs="+", default=None)
+    truncation.add_argument("--n-modes", type=int, nargs="+", help="Explicit representation sensitivity dimensions")
     parser.add_argument("--center", choices=("median", "arithmetic-mean"), default="median")
     parser.add_argument("--observations", help="YAML with local yx_m, log10_permeability_m2 and std_log10 arrays")
     parser.add_argument("--permeability-convention", choices=("historical-training", "physical"), required=True,
@@ -96,16 +98,18 @@ def main(argv=None):
         "diagnostic_factor": args.diagnostic_factor,
         "uncertainty_status": "explicit sensitivity assumption; not calibrated interpolation error",
     }
-    summary = {"input_law": "reference-centered-lognormal-candidate", "source": source,
+    summary = {"input_law": "reference-centered-lognormal", "source": source,
                "n_samples": args.n_samples, "seed": args.seed, "truncation_sensitivity": []}
-    for energy in args.energy_thresholds:
-        unconditional, conditional = build_reference_field_maps(
-            reference, cell_size_m=cell_size, residual_std_log10_k=args.residual_std_log10_k,
-            length_scale_m=(args.length_scale_y_m, args.length_scale_x_m),
-            covariance_model=args.covariance_model, energy_threshold=energy, center=args.center,
-            **conditioning,
-        )
-        directory = root / f"energy_{energy:g}"
+    choices = ([(None, n) for n in args.n_modes] if args.n_modes
+               else [(e, None) for e in (args.energy_thresholds or [.95, .99, .999])])
+    from ..sampling.scenarios import ReferenceScenario
+    for energy, n_modes in choices:
+        scenario = ReferenceScenario(reference_run=args.reference_run or "explicit-npy-reference",
+                                     sigma_R=args.residual_std_log10_k, ell_y=args.length_scale_y_m,
+                                     ell_x=args.length_scale_x_m, covariance_family=args.covariance_model,
+                                     energy_threshold=energy, n_modes=n_modes, center=args.center)
+        unconditional, conditional = scenario.build_maps(reference, cell_size_m=cell_size, **conditioning)
+        directory = root / (f"energy_{energy:g}" if energy is not None else f"modes_{n_modes}")
         directory.mkdir(exist_ok=True)
         save_reference_field_input_model(directory / "stochastic_input_model.yaml", unconditional,
                                          source_metadata=source, **conditioning)
@@ -127,7 +131,8 @@ def main(argv=None):
                                               cell_size_m=cell_size * args.diagnostic_factor)
         (directory / "fidelity.json").write_text(json.dumps(fidelity, indent=2, allow_nan=False), encoding="utf-8")
         variance = unconditional.prior.pointwise_log10_variance()
-        row = {"energy_requested": energy, "energy_retained": unconditional.prior.retained_energy_fraction,
+        row = {"scenario": scenario.manifest(), "n_modes_requested": n_modes,
+               "energy_requested": energy, "energy_retained": unconditional.prior.retained_energy_fraction,
                "dimension": conditional.dimension, "prior_dimension": unconditional.dimension,
                "mean_retained_pointwise_variance": float(variance.mean()),
                "min_retained_pointwise_variance": float(variance.min()),
@@ -139,9 +144,9 @@ def main(argv=None):
                "reference_axis_power_fraction": fidelity["spectra"]["reference"]["axis_band_power_fraction"],
                "generated_axis_power_fraction": fidelity["spectra"]["generated"]["axis_band_power_fraction"]}
         summary["truncation_sensitivity"].append(row)
-        print(f"energy={energy:g}: dimension={conditional.dimension}, retained={row['energy_retained']:.6f}")
+        print(f"{directory.name}: dimension={conditional.dimension}, retained={row['energy_retained']:.6f}")
     (root / "summary.json").write_text(json.dumps(summary, indent=2, allow_nan=False), encoding="utf-8")
-    print(f"Saved candidate generator and comparisons to {root}")
+    print(f"Saved reference scenario generator and comparisons to {root}")
     return 0
 
 

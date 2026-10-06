@@ -85,5 +85,8 @@ def compare_reference_ensemble(reference, generated, *, cell_size_m, max_lag_cel
                           "distance_m": (np.arange(1, len(curves[0]) + 1) * np.sqrt(2) * cell_size_m).tolist()}
     fidelity["both_diagonal_variograms"] = diagonal
     fidelity["spectra"] = spectra
+    fidelity["marginal"]["reference_range_m2"] = [float(reference.min()), float(reference.max())]
+    fidelity["marginal"]["generated_range_m2"] = [float(generated.min()), float(generated.max())]
+    fidelity["marginal"]["spatial_histogram_semantics"] = "mixture over heterogeneous locations; not one pointwise lognormal marginal"
     fidelity["spectral_interpretation"] = "matched-grid descriptive comparison; no universal acceptance threshold"
     return fidelity

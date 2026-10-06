@@ -1,5 +1,10 @@
 # Reference-field candidate: local-data results
 
+Historical study retained as recorded. The current architecture is now the primary
+reference-centered lognormal scenario family; the promotion decision below reflects
+the earlier study date. Its scientific limitations and uncalibrated amplitude/covariance
+choices remain valid. See [current scenario documentation](reference_field_uncertainty.md).
+
 Study run on 2026-10-05 using the code changes based on commit
 `58dd00f6081e912498fc8f8684b8e56d29880c52`. The reproducible workflow and scientific
 model are described in [reference_field_uncertainty.md](reference_field_uncertainty.md).

@@ -1,6 +1,6 @@
 # RQ1 example configuration.
 # The GRF parameters and receptor/ROI locations below are illustrative and must
-# be replaced by the calibrated/selected thesis values before scientific runs.
+# be replaced by explicitly assumed/selected thesis values before scientific runs.
 
 experiment:
   id: rq1_pilot
@@ -38,8 +38,9 @@ qoi:
   mean_anomaly_roi: [400, 1200, 400, 1200]
 
 grf:
-  # Preferred thesis path: set this to stochastic_input_model.yaml written by
-  # realistic-permeability new-domain-generate and remove the manual GRF keys below.
+  # Primary scenario path: set this to stochastic_input_model.yaml written by
+  # reference_scenarios or reference_field_permeability, and remove manual keys.
+  # measurement-kriging artifacts remain a legacy/comparison option.
   input_model: null
   # Manual fallback below is illustrative only; use calibrated/justified values.
   mean_log10_k: -9.64

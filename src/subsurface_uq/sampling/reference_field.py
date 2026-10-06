@@ -55,7 +55,8 @@ class ReferenceFieldLogGaussianPermeabilityMap:
     def metadata(self):
         return {
             "map": type(self).__name__,
-            "input_law": "reference-centered-lognormal-candidate",
+            "input_law": "reference-centered-lognormal",
+            "scenario": getattr(self, "scenario", None),
             "coordinate_distribution": "iid_standard_normal",
             "physical_variable": "intrinsic_permeability_m2",
             "center": self.center,
@@ -153,7 +154,8 @@ def save_reference_field_input_model(path, unconditional, *, observation_coordin
             "observation_std_log10_k": np.asarray(observation_std_log10_k).tolist(),
         }
     payload = {
-        "schema_version": 3, "input_law": "reference-centered-lognormal-candidate",
+        "schema_version": 3, "input_law": "reference-centered-lognormal",
+        "scenario": getattr(unconditional, "scenario", None),
         "coordinate_distribution": "iid_standard_normal", "coordinate_dimension": unconditional.dimension,
         "field_shape": list(unconditional.field_shape), "center": unconditional.center,
         "prior": unconditional.prior.metadata, "conditioning": conditioning,
@@ -185,7 +187,7 @@ def load_reference_field_maps(payload, source_path):
     if reference.shape != shape or not np.allclose(cell_sizes, cell_sizes[0]):
         raise ValueError("reference shape and uniform grid geometry must match the input law")
     conditioning = payload.get("conditioning", {})
-    return build_reference_field_maps(
+    maps = build_reference_field_maps(
         reference, cell_size_m=float(cell_sizes[0]), residual_std_log10_k=prior["std_log10_k"],
         length_scale_m=prior["length_scale_m"], covariance_model=prior["covariance"].removeprefix("separable_"),
         n_modes=prior["requested_n_modes"], energy_threshold=prior["energy_threshold_requested"],
@@ -194,3 +196,19 @@ def load_reference_field_maps(payload, source_path):
         observation_log10_k=conditioning.get("observation_log10_intrinsic_permeability"),
         observation_std_log10_k=conditioning.get("observation_std_log10_k"),
     )
+    if payload.get("scenario") is not None:
+        from .scenarios import ReferenceScenario
+        scenario = ReferenceScenario(**payload["scenario"]["config"])
+        if scenario.scenario_id != payload["scenario"]["scenario_id"]:
+            raise ValueError("scenario ID/config mismatch")
+        if (scenario.center != payload["center"]
+                or scenario.covariance_family != prior["covariance"].removeprefix("separable_")
+                or not np.isclose(scenario.sigma_R, prior["std_log10_k"], rtol=1e-10, atol=0)
+                or not np.allclose((scenario.ell_y, scenario.ell_x), prior["length_scale_m"], rtol=1e-10, atol=0)
+                or scenario.n_modes != prior["requested_n_modes"]
+                or (scenario.energy_threshold is not None
+                    and scenario.energy_threshold != prior["energy_threshold_requested"])):
+            raise ValueError("scenario config conflicts with serialized residual law")
+        for field_map in maps:
+            field_map.scenario = scenario.manifest()
+    return maps

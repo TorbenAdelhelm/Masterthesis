@@ -55,6 +55,8 @@ def test_installed_provenance_console_scripts_resolve_and_show_help():
         "subsurface-uq-historical-realistic-reconstruction",
         "subsurface-uq-parent-measurement-audit",
         "subsurface-uq-reference-field-permeability",
+        "subsurface-uq-reference-scenarios",
+        "subsurface-uq-reference-kl-sensitivity",
         "subsurface-uq-release25-gaussian-pce",
     ):
         executable = shutil.which(command)

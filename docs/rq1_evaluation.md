@@ -89,9 +89,15 @@ to RQ2.
 
 ## Input law and diagnostics
 
-The preferred thesis run uses the `stochastic_input_model.yaml` artifact
-written by the realistic-permeability workflow. Its production default is the
-**measurement-derived kriging/KL law**: real Munich measurements determine the
+The primary thesis path uses a separate `stochastic_input_model.yaml` per
+**reference-centered lognormal scenario**, written by `reference_scenarios` or
+`reference_field_permeability`. RUN, amplitude, covariance and correlation lengths
+are explicit scenario assumptions; truncation is a representation sensitivity.
+No RUN probabilities are inferred or pooled. The matrix runner can invoke RQ1
+with `--rq1-config`, retaining the same fixed sources and model across references.
+
+The **measurement-derived kriging/KL law** remains a legacy/comparison path:
+real Munich measurements determine the
 supported Matérn-3/2 or exponential covariance candidate by spatial block
 cross-validation, define the `log10(k)` mean/structured variance/length scales,
 and condition the same finite KL prior at continuous locations. RQ1 therefore

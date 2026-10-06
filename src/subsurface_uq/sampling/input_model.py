@@ -66,7 +66,7 @@ def load_conditional_kl_input_model(
         )
 
     if schema_version == 3:
-        if raw.get("input_law") != "reference-centered-lognormal-candidate":
+        if raw.get("input_law") not in {"reference-centered-lognormal", "reference-centered-lognormal-candidate"}:
             raise ValueError("unsupported schema-3 input law")
         from .reference_field import load_reference_field_maps
         unconditional, conditional = load_reference_field_maps(raw, source)
