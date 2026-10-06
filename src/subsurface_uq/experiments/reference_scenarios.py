@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import replace
+from hashlib import sha256
 import json
 from pathlib import Path
 
@@ -19,11 +20,52 @@ from ..sampling.training_compatibility import (
 from .reference_field_permeability import coarsen_reference
 
 
+def _scenario_instance_identity(scenario, *, reference_sha256, reference_shape,
+                                cell_size_m, permeability_convention):
+    """Identify one scientific scenario instance, including its reference bytes/grid."""
+    payload = {
+        "scenario_id": scenario.scenario_id,
+        "reference_sha256": str(reference_sha256),
+        "reference_shape": [int(v) for v in reference_shape],
+        "cell_size_m": float(cell_size_m),
+        "permeability_convention": str(permeability_convention),
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return "ref-instance-" + sha256(canonical.encode()).hexdigest()[:20], payload
+
+
+def _guard_scenario_directory(directory, instance_id):
+    """Do not silently replace outputs produced from a different reference/grid."""
+    if not directory.exists():
+        return
+    entries = list(directory.iterdir())
+    if not entries:
+        return
+    manifest_path = directory / "manifest.json"
+    if not manifest_path.is_file():
+        raise ValueError(
+            f"scenario directory {directory} is non-empty but has no manifest; "
+            "refusing to overwrite it"
+        )
+    try:
+        existing = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            f"scenario directory {directory} has an unreadable manifest; refusing to overwrite it"
+        ) from exc
+    if existing.get("scenario_instance_id") != instance_id:
+        raise ValueError(
+            f"scenario directory {directory} belongs to a different scientific instance; "
+            "use a new output directory or restore the original reference/grid"
+        )
+
+
 def run_matrix(config_path, output_dir, *, rq1_config=None):
     source = Path(config_path).resolve()
     config = yaml.safe_load(source.read_text(encoding="utf-8"))
     allowed = {"base", "axes", "references", "cell_size_m", "permeability_convention",
-               "n_samples", "seed", "diagnostic_factor", "scenario_weights", "training_support"}
+               "n_samples", "seed", "diagnostic_factor", "scenario_weights", "training_support",
+               "storage"}
     if not isinstance(config, dict) or not set(config) <= allowed:
         raise ValueError("unknown matrix config keys")
     scenarios = scenario_matrix(ReferenceScenario(**config["base"]), config.get("axes", {}))
@@ -40,6 +82,12 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
         raise ValueError("n_samples >= 2 and positive integer diagnostic_factor required")
     if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
         raise ValueError("seed must be a non-negative integer")
+    storage = config.get("storage", {})
+    if not isinstance(storage, dict) or not set(storage) <= {"retain_generated_fields"}:
+        raise ValueError("storage accepts only retain_generated_fields")
+    retain_generated_fields = storage.get("retain_generated_fields", True)
+    if not isinstance(retain_generated_fields, bool):
+        raise ValueError("storage.retain_generated_fields must be boolean")
     references = config["references"]
     def resolve(path):
         return (source.parent / path).resolve()
@@ -76,18 +124,26 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
         rq1_template = load_rq1_config(
             rq1_config, input_model_override=root / "stochastic_input_model.yaml")
     root.mkdir(parents=True, exist_ok=True)
-    report = {"schema_version": 1, "config_sha256": sha256_file(source),
+    report = {"schema_version": 2, "config_sha256": sha256_file(source),
               "seed": seed, "n_samples": count, "scenario_weights": weights,
               "weight_status": "explicit scenario assumptions, never inferred probabilities" if weights else "absent; results per scenario",
-              "pooling": False, "scenarios": []}
+              "pooling": False,
+              "storage": {"retain_generated_fields": retain_generated_fields},
+              "scenarios": []}
     for scenario in scenarios:
-        reference = np.load(paths[scenario.reference_run], allow_pickle=False)
-        unconditional, field_map = scenario.build_maps(reference, cell_size_m=cell)
-        directory = root / scenario.scenario_id
-        directory.mkdir(exist_ok=True)
+        reference_path = paths[scenario.reference_run]
+        reference = np.load(reference_path, allow_pickle=False)
+        reference_sha = sha256_file(reference_path)
         source_metadata = {"reference_run": scenario.reference_run,
-                           "reference_npy_sha256": sha256_file(paths[scenario.reference_run]),
+                           "reference_npy_sha256": reference_sha,
                            "permeability_convention": config["permeability_convention"]}
+        instance_id, instance_identity = _scenario_instance_identity(
+            scenario, reference_sha256=reference_sha, reference_shape=reference.shape,
+            cell_size_m=cell, permeability_convention=config["permeability_convention"])
+        directory = root / scenario.scenario_id
+        _guard_scenario_directory(directory, instance_id)
+        directory.mkdir(exist_ok=True)
+        unconditional, field_map = scenario.build_maps(reference, cell_size_m=cell)
         artifact = directory / "stochastic_input_model.yaml"
         support_metadata = ({"training_reference": {
             **profile.to_dict(), "provenance": {"kind": "explicit_training_fields", "sources": [
@@ -97,15 +153,23 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
                                          **support_metadata)
         diagnostics = TrainingPatchCompatibilityDiagnostics(profile) if profile else None
         sampler = GaussianCoordinatePermeabilitySampler(field_map=field_map, n_samples=count, batch_size=1, seed=seed)
-        ensemble = np.lib.format.open_memmap(directory / "generated_fields.npy", mode="w+",
-                                            dtype=np.float32, shape=(count, *reference.shape))
+        generated_path = directory / "generated_fields.npy"
+        ensemble = (np.lib.format.open_memmap(generated_path, mode="w+",
+                                              dtype=np.float32, shape=(count, *reference.shape))
+                    if retain_generated_fields else None)
+        if not retain_generated_fields and generated_path.exists():
+            generated_path.unlink()
         coarse = []
-        for index, batch in enumerate(sampler):
-            ensemble[index] = batch[0]
-            coarse.append(coarsen_reference(batch[0], factor))
+        start = 0
+        for batch in sampler:
+            if ensemble is not None:
+                ensemble[start:start + len(batch)] = batch
+            coarse.extend(coarsen_reference(field, factor) for field in batch)
             if diagnostics:
                 diagnostics.update(batch)
-        ensemble.flush()
+            start += len(batch)
+        if ensemble is not None:
+            ensemble.flush()
         fidelity = compare_reference_ensemble(coarsen_reference(reference, factor), np.asarray(coarse),
                                               cell_size_m=cell * factor)
         patch = diagnostics.finalize() if diagnostics else None
@@ -120,10 +184,13 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
         (directory / "diagnostics.json").write_text(json.dumps(fidelity, indent=2, allow_nan=False), encoding="utf-8")
         manifest = scenario.manifest()
         variance = unconditional.prior.pointwise_log10_variance()
-        manifest.update(source_metadata=source_metadata, cell_size_m=cell, seed=seed, n_samples=count,
+        manifest.update(scenario_instance_id=instance_id, instance_identity=instance_identity,
+                        source_metadata=source_metadata, cell_size_m=cell, seed=seed, n_samples=count,
                         dimension=field_map.dimension, retained_energy=unconditional.prior.retained_energy_fraction,
                         retained_log10_variance={"min": float(variance.min()), "mean": float(variance.mean()), "max": float(variance.max())},
-                        input_model_sha256=sha256_file(artifact), input_model=str(artifact))
+                        input_model_sha256=sha256_file(artifact), input_model=str(artifact),
+                        storage={"retain_generated_fields": retain_generated_fields,
+                                 "generated_fields": str(generated_path) if retain_generated_fields else None})
         if rq1_config:
             from ..rq1.workflow import run_rq1
             rq1 = replace(rq1_template, input_model=artifact, output_root=directory / "rq1",
