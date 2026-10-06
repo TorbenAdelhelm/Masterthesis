@@ -30,6 +30,10 @@ n_samples: 32
 seed: 4901
 diagnostic_factor: 8
 scenario_weights: null  # optional "equal" or {scenario-id: explicit weight}
+storage:
+  # Full 2560x2560 float32 fields are expensive across a large scenario matrix.
+  # Diagnostics are still computed when this is false.
+  retain_generated_fields: false
 # Optional exact training-support arrays, at the generated full grid resolution.
 # training_support:
 #   reference_npy: [../data/RUN_1.reference.npy, ../data/RUN_2.reference.npy, ../data/RUN_3.reference.npy]
