@@ -65,6 +65,20 @@ def compare_reference_ensemble(reference, generated, *, cell_size_m, max_lag_cel
         reference, generated, cell_size_m=cell_size_m, spatial_stride=1,
         max_lag_cells=min(max_lag_cells, min(reference.shape[1:]) - 1),
     )
+    # The nominal reference need not be a selected training field. Keep its
+    # fidelity descriptors separate from explicit LGCNN training-support data.
+    fidelity["reference_field_count"] = fidelity.pop("training_field_count")
+    marginal = fidelity["marginal"]
+    for key in tuple(marginal):
+        if key.startswith("training_"):
+            marginal["reference_" + key.removeprefix("training_")] = marginal.pop(key)
+    for curve in fidelity["directional_variograms"].values():
+        curve["reference_semivariance"] = curve.pop("training_semivariance")
+    fidelity["interpretation"] = (
+        "Marginal and directional variogram differences describe fidelity to the "
+        "nominal reference on matched spatial support. This reference comparison "
+        "does not assess LGCNN training support or reject generated samples."
+    )
     spectra = {
         "reference": log_field_spectrum(reference, cell_size_m=cell_size_m),
         "generated": log_field_spectrum(generated, cell_size_m=cell_size_m),

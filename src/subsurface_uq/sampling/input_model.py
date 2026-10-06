@@ -14,6 +14,36 @@ from .normal_score import (
 )
 
 
+def validate_explicit_training_reference(reference):
+    """Require declared training sources, distinct from a nominal scenario field.
+
+    Source checksums record the explicitly selected support data; this validates
+    provenance structure and does not independently verify a model's training split.
+    """
+    if not isinstance(reference, dict):
+        raise ValueError("training_reference must be a profile mapping")
+    provenance = reference.get("provenance")
+    if not isinstance(provenance, dict) or provenance.get("kind") != "explicit_training_fields":
+        raise ValueError("training_reference requires explicit training-field provenance")
+    sources = provenance.get("sources")
+    if not isinstance(sources, list) or not sources:
+        raise ValueError("training_reference requires non-empty training sources")
+    for source in sources:
+        if not isinstance(source, dict) or not isinstance(source.get("path"), str) or not source["path"].strip():
+            raise ValueError("training source requires a path")
+        checksum = source.get("sha256")
+        if (not isinstance(checksum, str) or len(checksum) != 64
+                or any(c not in "0123456789abcdefABCDEF" for c in checksum)):
+            raise ValueError("training source requires a SHA-256 checksum")
+    try:
+        low, high = (float(reference[key]) for key in ("minimum_k_m2", "maximum_k_m2"))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("training_reference requires permeability range in m2") from exc
+    if not (np.isfinite(low) and np.isfinite(high) and 0.0 < low < high):
+        raise ValueError("training_reference permeability range must be positive and finite")
+    return reference
+
+
 @dataclass(frozen=True)
 class ConditionalKLInputModel:
     """Reconstructed training-informed conditional KL input law."""
@@ -34,6 +64,12 @@ class ConditionalKLInputModel:
         reference = self.payload.get("training_reference")
         if not isinstance(reference, dict):
             return None
+        if int(self.payload.get("schema_version", -1)) == 3:
+            # Older schema-3 artifacts stored the nominal field range here. Keep
+            # their physical law reproducible without relabeling it as training data.
+            if "provenance" not in reference:
+                return None
+            validate_explicit_training_reference(reference)
         low = reference.get("minimum_k_m2")
         high = reference.get("maximum_k_m2")
         if low is None or high is None:
@@ -68,6 +104,9 @@ def load_conditional_kl_input_model(
     if schema_version == 3:
         if raw.get("input_law") not in {"reference-centered-lognormal", "reference-centered-lognormal-candidate"}:
             raise ValueError("unsupported schema-3 input law")
+        reference_support = raw.get("training_reference")
+        if isinstance(reference_support, dict) and "provenance" in reference_support:
+            validate_explicit_training_reference(reference_support)
         from .reference_field import load_reference_field_maps
         unconditional, conditional = load_reference_field_maps(raw, source)
         if (tuple(raw["field_shape"]) != unconditional.field_shape

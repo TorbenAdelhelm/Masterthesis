@@ -1,4 +1,5 @@
-# RQ1 example configuration.
+# Legacy manual/synthetic RQ1 example configuration.
+# Use rq1.reference.example.yaml for the primary real-K scenario family.
 # The GRF parameters and receptor/ROI locations below are illustrative and must
 # be replaced by explicitly assumed/selected thesis values before scientific runs.
 

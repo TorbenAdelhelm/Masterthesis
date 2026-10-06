@@ -151,7 +151,7 @@ def _diagnostics(
         ddof=1,
         training_k_range=(
             training_k_range
-            if training_k_range is not None
+            if training_k_range is not None or config.input_model is not None
             else (RELEASE25_PERLIN_K_MIN, RELEASE25_PERLIN_K_MAX)
         ),
         observation_indices=indices,
@@ -174,7 +174,9 @@ def _diagnostics_payload(result, config: RQ1Config) -> dict[str, object]:
             else [result.training_k_min, result.training_k_max]
         ),
         "training_range_source": (
-            "input_model_training_fields"
+            "unassessed_input_model_training_support"
+            if config.input_model is not None and result.training_k_min is None
+            else "explicit_input_model_training_reference"
             if config.input_model is not None
             else "historical_release25_perlin_bounds"
         ),
@@ -897,6 +899,9 @@ def run_rq1(config: RQ1Config) -> dict[str, Path]:
                 "path": str(loaded_input_model.source_path),
                 "sha256": sha256_file(loaded_input_model.source_path),
                 "source_policy": loaded_input_model.payload.get("source_policy"),
+                "scenario": loaded_input_model.payload.get("scenario"),
+                "reference_field": loaded_input_model.payload.get("reference_field"),
+                "source_metadata": loaded_input_model.payload.get("source_metadata"),
                 "training_reference": loaded_input_model.payload.get(
                     "training_reference"
                 ),

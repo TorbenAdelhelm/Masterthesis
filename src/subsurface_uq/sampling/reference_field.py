@@ -130,7 +130,7 @@ def build_reference_field_maps(reference_permeability, *, cell_size_m, residual_
 
 def save_reference_field_input_model(path, unconditional, *, observation_coordinates_yx_m=None,
                                      observation_log10_k=None, observation_std_log10_k=None,
-                                     source_metadata=None):
+                                     source_metadata=None, training_reference=None):
     """Store a portable reference artifact and Gaussian residual law for RQ1/PCE.
 
     Input measurements must already be converted to the declared intrinsic-
@@ -143,6 +143,9 @@ def save_reference_field_input_model(path, unconditional, *, observation_coordin
         raise ValueError("conditioning requires coordinates, values and noise std")
     if unconditional.gaussian_map is not unconditional.prior:
         raise ValueError("save requires the unconditional reference-field map")
+    if training_reference is not None:
+        from .input_model import validate_explicit_training_reference
+        validate_explicit_training_reference(training_reference)
     path.parent.mkdir(parents=True, exist_ok=True)
     reference_path = path.with_suffix(".reference.npz")
     np.savez_compressed(reference_path, permeability_m2=unconditional.reference_permeability)
@@ -160,10 +163,11 @@ def save_reference_field_input_model(path, unconditional, *, observation_coordin
         "field_shape": list(unconditional.field_shape), "center": unconditional.center,
         "prior": unconditional.prior.metadata, "conditioning": conditioning,
         "reference_field": {"path": reference_path.name,
-                            "sha256": sha256(reference_path.read_bytes()).hexdigest()},
+                            "sha256": sha256(reference_path.read_bytes()).hexdigest(),
+                            "range_m2": [float(np.min(unconditional.reference_permeability)),
+                                         float(np.max(unconditional.reference_permeability))]},
         "source_metadata": source_metadata or {},
-        "training_reference": {"minimum_k_m2": float(np.min(unconditional.reference_permeability)),
-                               "maximum_k_m2": float(np.max(unconditional.reference_permeability))},
+        "training_reference": training_reference,
         "source_policy": {"covariance": "explicit_residual_sensitivity_assumption",
                           "pixelwise_covariance_between_RUNs": False, "sample_filtering": None},
     }

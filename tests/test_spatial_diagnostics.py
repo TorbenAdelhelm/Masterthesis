@@ -25,3 +25,18 @@ def test_identity_ensemble_has_zero_matched_support_error():
     assert result["spectra"]["radial_power_relative_l2"] == 0
     assert result["spectra"]["angular_power_relative_l2"] == 0
     assert set(result["both_diagonal_variograms"]) == {"positive", "negative"}
+
+
+def test_nominal_reference_diagnostics_do_not_claim_training_provenance():
+    reference = np.power(10., -10. + np.arange(16).reshape(4, 4) / 10.)
+    result = compare_reference_ensemble(reference, reference[None], cell_size_m=5.)
+    assert result['reference_field_count'] == 1
+    assert 'training_field_count' not in result
+    assert 'reference_quantiles' in result['marginal']
+    assert not any(key.startswith('training_') for key in result['marginal'])
+    for curve in result['directional_variograms'].values():
+        assert 'reference_semivariance' in curve
+        assert 'training_semivariance' not in curve
+    assert all(set(curve) == {'reference', 'generated', 'distance_m'}
+               for curve in result['both_diagonal_variograms'].values())
+    assert 'nominal reference' in result['interpretation']

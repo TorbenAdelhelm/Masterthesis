@@ -78,7 +78,7 @@ def main(argv=None):
     from ..surrogates import Release25Surrogate
     from ..surrogates.release25_runtime import Release25Runtime
     from ..surrogates.bounded_streamlines import configure_release25_streamlines
-    config = load_rq1_config(args.rq1_config)
+    config = load_rq1_config(args.rq1_config, input_model_override=args.input_models[0])
     loaded = [load_conditional_kl_input_model(path) for path in args.input_models]
     # Do not silently discard conditioning from an artifact.
     if any(model.payload.get("conditioning") for model in loaded):

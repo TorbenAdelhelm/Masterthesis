@@ -207,11 +207,19 @@ python -m subsurface_uq.experiments.reference_scenarios \
   --output-dir run_output/reference_scenarios
 ```
 
-Add `--rq1-config configs/rq1.example.yaml` after configuring the real-K model,
+Add `--rq1-config configs/rq1.reference.example.yaml` after configuring the real-K model,
 fixed source scenario and temperature QoIs. This invokes existing RQ1 per scenario;
 reference RUN and fixed-source RUN are distinct choices. The same field map also
 drives scrambled Sobol Gaussian RQMC and normalized Hermite response PCE. No support
 metric alters the target law or rejects a realization.
+
+The matrix supplies its generated input artifact before validating the RQ1
+template and explicitly replaces the template's entire `grf` block. Saved RQ1
+configs contain just that artifact path and can be replayed directly. The original
+synthetic-model/manual-GRF template remains a legacy example. For unconditioned
+artifacts the legacy RQ1 B/C variants are the same map; their duplicate evaluations
+do not establish a conditioning effect. The direct KL temperature study avoids
+these extra baseline variants when only representation sensitivity is needed.
 
 IDs are hashes of scientific configuration, independent of axis order. Manifests
 also record reference/input-artifact checksums, cell size, seed and sample count;
@@ -228,6 +236,37 @@ is explicitly unassessed. Marginals, directional variograms and 2-D/radial/angul
 spectra are always reported on matched diagnostic support. Coarsened diagnostics
 do not establish compatibility at the full LGCNN patch resolution.
 
+Nominal-field comparisons are labelled `reference_*`, separately from the
+explicit `training_patch_support` profile. The nominal field's range is stored
+under `reference_field.range_m2`; it is not a surrogate training range. Matrix
+training profiles include the explicitly selected source paths and checksums,
+and propagate into the input artifact. With no profile, RQ1 leaves training-range
+compatibility unassessed rather than substituting synthetic Perlin bounds.
+
+For example, an alternative expert-bound base can replace the amplitude-only
+base in the matrix YAML (remove or consistently revise its amplitude sweep):
+
+```yaml
+base:
+  reference_run: RUN_1
+  marginal: lognormal
+  center: median
+  lb: 1.0e-10
+  ub: 4.0e-10
+  alpha: 0.01
+  marginal_reference_k: 2.0e-10
+  sigma_R: null  # derived, not independently fitted
+  covariance_family: matern32
+  ell_x: 800.0
+  ell_y: 500.0
+  energy_threshold: 0.95
+```
+
+These values are illustrative assumptions. Log-domain conversion utilities avoid
+forming overflowing/underflowing physical ratios. They reject requested outputs
+outside the finite positive numerical range; this is a representability check,
+not a truncation or sample-selection rule.
+
 ## Temperature-oriented KL representation sensitivity
 
 The single-reference CLI also accepts `--n-modes 10 20 40` instead of energy
@@ -238,7 +277,7 @@ python -m subsurface_uq.experiments.reference_kl_sensitivity \
   --input-models run_output/ref/energy_0.95/stochastic_input_model.yaml \
     run_output/ref/energy_0.99/stochastic_input_model.yaml \
     run_output/ref/energy_0.999/stochastic_input_model.yaml \
-  --rq1-config configs/rq1.example.yaml \
+  --rq1-config configs/rq1.reference.example.yaml \
   --n-samples 64 --method RQMC --seed 4901 \
   --output-dir run_output/temperature_kl_sensitivity
 ```

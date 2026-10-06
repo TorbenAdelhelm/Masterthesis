@@ -11,9 +11,9 @@ from hashlib import sha256
 from itertools import product
 import json
 import math
-from statistics import NormalDist
 
 import numpy as np
+from scipy.special import ndtri_exp
 
 from .reference_field import build_reference_field_maps
 
@@ -21,15 +21,60 @@ from .reference_field import build_reference_field_maps
 def physical_to_lognormal(mean, variance):
     if not (math.isfinite(mean) and mean > 0 and math.isfinite(variance) and variance >= 0):
         raise ValueError("physical mean must be positive and variance non-negative, both finite")
-    s2 = math.log1p(variance / mean**2)
-    return math.log(mean) - s2 / 2, math.sqrt(s2)
+    log_mean = math.log(mean)
+    if variance == 0:
+        return log_mean, 0.0
+    # Forming variance/mean**2 can overflow or underflow for valid moments.
+    log_ratio = math.log(variance) - 2 * log_mean
+    s2 = (log_ratio + math.log1p(math.exp(-log_ratio)) if log_ratio > 0
+          else math.log1p(math.exp(log_ratio)))
+    # Very small s2 may underflow while its square root remains representable.
+    sigma = math.exp(log_ratio / 2) if log_ratio < -36 else math.sqrt(s2)
+    if sigma == 0:
+        raise ValueError("lognormal sigma is below the representable positive range")
+    return log_mean - s2 / 2, sigma
+
+
+def _validate_log_parameters(mu, sigma):
+    if not (math.isfinite(mu) and math.isfinite(sigma) and sigma >= 0):
+        raise ValueError("finite mu and non-negative finite sigma required")
+
+
+def _positive_exp(log_value, name):
+    """Reject unrepresentable positive outputs instead of returning zero/inf."""
+    try:
+        value = math.exp(log_value)
+    except OverflowError as exc:
+        raise ValueError(f"{name} exceeds the representable finite range") from exc
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} is outside the representable positive finite range")
+    return value
+
+
+def _equal_tail_z(alpha):
+    if not (math.isfinite(alpha) and 0 < alpha < 1):
+        raise ValueError("alpha must lie strictly between zero and one")
+    # The smallest positive alpha cannot be halved directly in float64.
+    return -float(ndtri_exp(math.log(alpha) - math.log(2)))
 
 
 def lognormal_to_physical(mu, sigma):
-    if not (math.isfinite(mu) and math.isfinite(sigma) and sigma >= 0):
-        raise ValueError("finite mu and non-negative finite sigma required")
-    mean = math.exp(mu + sigma**2 / 2)
-    return mean, mean**2 * math.expm1(sigma**2)
+    _validate_log_parameters(mu, sigma)
+    s2 = sigma * sigma
+    log_mean = mu + s2 / 2
+    mean = _positive_exp(log_mean, "physical mean")
+    if sigma == 0:
+        return mean, 0.0
+    # Combine logarithms before exponentiating: individual factors can exceed
+    # float64 even when the resulting physical variance is representable.
+    if sigma < 1e-8:
+        log_expm1_s2 = 2 * math.log(sigma)
+    elif s2 < 50:
+        log_expm1_s2 = math.log(math.expm1(s2))
+    else:
+        log_expm1_s2 = s2 + math.log1p(-math.exp(-s2))
+    variance = _positive_exp(2 * log_mean + log_expm1_s2, "physical variance")
+    return mean, variance
 
 
 def bounds_to_lognormal(lb, ub, alpha):
@@ -37,16 +82,15 @@ def bounds_to_lognormal(lb, ub, alpha):
     if not (math.isfinite(lb) and math.isfinite(ub) and 0 < lb < ub
             and math.isfinite(alpha) and 0 < alpha < 1):
         raise ValueError("need finite 0 < lb < ub and 0 < alpha < 1")
-    z = -NormalDist().inv_cdf(alpha / 2)
+    z = _equal_tail_z(alpha)
     return (math.log(lb) + math.log(ub)) / 2, (math.log(ub) - math.log(lb)) / (2 * z)
 
 
 def lognormal_to_bounds(mu, sigma, alpha):
-    lognormal_to_physical(mu, sigma)
-    if not (math.isfinite(alpha) and 0 < alpha < 1):
-        raise ValueError("alpha must lie strictly between zero and one")
-    z = -NormalDist().inv_cdf(alpha / 2)
-    return math.exp(mu - z * sigma), math.exp(mu + z * sigma)
+    _validate_log_parameters(mu, sigma)
+    z = _equal_tail_z(alpha)
+    return (_positive_exp(mu - z * sigma, "lower quantile bound"),
+            _positive_exp(mu + z * sigma, "upper quantile bound"))
 
 
 @dataclass(frozen=True)
@@ -104,7 +148,10 @@ class ReferenceScenario:
             derived = sigma / math.log(10)
             if self.sigma_R is not None and not math.isclose(self.sigma_R, derived, rel_tol=1e-8, abs_tol=1e-12):
                 raise ValueError("sigma_R conflicts with expert marginal dispersion")
-            object.__setattr__(self, "sigma_R", derived)
+            # Serialized scenarios already contain their validated amplitude.
+            # Preserve it (and their ID) across numerical conversion improvements.
+            if self.sigma_R is None:
+                object.__setattr__(self, "sigma_R", derived)
         elif self.marginal_reference_k is not None:
             raise ValueError("marginal_reference_k requires expert moments or bounds")
         if self.sigma_R is None or not math.isfinite(self.sigma_R) or self.sigma_R <= 0:
@@ -158,7 +205,9 @@ def scenario_matrix(base, axes):
             params.update(n_modes=None, energy_threshold=None)
             params.update(truncation)
         scenarios.append(replace(base, **params))
-    if len({s.scenario_id for s in scenarios}) != len(scenarios):
+    # Numeric formatting (e.g. 500 versus 500.0) does not define a new law.
+    # Keep existing serialized IDs while comparing actual configuration values.
+    if len(set(scenarios)) != len(scenarios):
         raise ValueError("duplicate scenarios in matrix")
     return scenarios
 
@@ -171,6 +220,6 @@ def scenario_weights(ids, weights=None):
         return {key: 1 / len(ids) for key in ids}
     if not isinstance(weights, dict) or set(weights) != set(ids):
         raise ValueError("custom scenario weights must cover exactly the scenario IDs")
-    if any(not math.isfinite(v) or v < 0 for v in weights.values()) or not math.isclose(sum(weights.values()), 1., abs_tol=1e-10):
+    if any(not math.isfinite(v) or v < 0 for v in weights.values()) or not math.isclose(sum(weights.values()), 1., rel_tol=0, abs_tol=1e-10):
         raise ValueError("scenario weights must be non-negative, finite and sum to one")
     return dict(weights)

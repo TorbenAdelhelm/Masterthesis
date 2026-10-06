@@ -146,7 +146,7 @@ def test_temperature_kl_cli_queries_adapter_and_records_qoi_context(tmp_path, mo
                              streamline_mode='release25', streamline_max_nfev=10000, streamline_diagnostics=False,
                              streamline_slow_seconds=2., cell_size_m=5., background_temperature=10.6,
                              receptors=((0, 0),), mean_anomaly_roi=(0, 4, 0, 4), to_dict=lambda: {'test': True})
-    monkeypatch.setattr(config_module, 'load_rq1_config', lambda path: config)
+    monkeypatch.setattr(config_module, 'load_rq1_config', lambda path, **kwargs: config)
     monkeypatch.setattr(Release25Runtime, 'from_paths', lambda **kwargs: SimpleNamespace(
         adapter=Adapter(), scenario=SimpleNamespace(shape=(4, 4), fixed=None)))
     monkeypatch.setattr(bounded_streamlines, 'configure_release25_streamlines', lambda *args, **kwargs: None)

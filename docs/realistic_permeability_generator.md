@@ -1,5 +1,13 @@
 # Realistic permeability generator
 
+This document describes the legacy/comparison measurement-kriging and empirical
+texture workflows. Their command defaults remain available for reproducibility.
+The primary computational input family is now the
+[reference-centered lognormal scenario family](reference_field_uncertainty.md),
+whose residual amplitude and covariance are explicit model-form assumptions.
+References to production calibration below concern the legacy measurement model;
+they do not identify the residual law around a realistic RUN reference.
+
 ## Purpose
 
 The realistic-permeability workflow turns empirical permeability fields into a

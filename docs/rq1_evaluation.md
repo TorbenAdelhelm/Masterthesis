@@ -20,15 +20,23 @@ The RQ1 command executes the finalized four-part design:
   successive x-shifts.
 - **B — unconditional log-GRF/KL + MC:** effect of replacing the Perlin input
   law by the explicit Gaussian random-field prior.
-- **C — conditional log-GRF/KL + MC:** primary input-UQ experiment.
+- **C — declared Gaussian input law + MC:** primary input-UQ experiment.
 - **D — conditional log-GRF/KL + randomized QMC:** scrambled Sobol comparison
   at equal frozen-LGCNN evaluation budgets.
+
+These legacy output-directory names remain stable for reproducibility. For an
+unconditioned reference-centered artifact, B and C use the same map and identical
+main coordinates; C is not a measurement posterior in that case. The Perlin
+baseline is a comparison input family and does not establish training compatibility
+for a real-K model. A matrix currently runs this full legacy variant design per
+scenario, so its repeated baseline and duplicate unconditioned B/C evaluations
+must be included in the computational budget.
 
 The default design encoded in the example configuration uses main checkpoints
 N = {32, 64, 128, 256, 512, 1024} and repeated MC/RQMC comparison budgets
 N = {32, 64, 128, 256, 512}.
 
-The largest conditional iid-MC run is an **empirical reference**, not ground
+The largest declared-law iid-MC run is an **empirical reference**, not ground
 truth. The configuration accepts larger powers of two (for example 2048 or
 4096) if the reference-convergence check later shows that this is needed.
 
@@ -106,11 +114,14 @@ stochastic parameters.
 
 Every main variant observes the exact permeability batches passed into the
 frozen LGCNN. Diagnostics are evaluated in `Y = log10(K)`. When an input-model
-artifact is used, its empirical training-field minimum/maximum becomes the
-range reference; the historical release25 Perlin bounds are only the fallback
-for the manual legacy configuration.
+artifact has explicitly documented training-support fields, their minimum/maximum
+becomes the range reference. The selected nominal reference is not automatically
+training support. Without an explicit training profile, training-range compatibility
+is unassessed; historical release25 Perlin bounds are only the fallback for the
+manual legacy configuration.
 
-Surrogate-support validation itself is performed upstream by the
+Surrogate-support diagnostics are performed upstream by `reference_scenarios`
+with optional explicit `training_support`, or by the legacy
 realistic-permeability workflow. DaRUS-5065 does not define the production
 geological prior; instead, the exact release25 1280-cell / skip-8 patch lattice
 from the three training fields is the LGCNN-support reference. The workflow
@@ -133,7 +144,7 @@ residuals and enforce an explicitly configured
 
 ## Repeated MC versus randomized QMC
 
-The conditional-GRF empirical MC result at the largest main budget is used as
+The declared-law empirical MC result at the largest main budget is used as
 the common reference. For each independent repetition and equal budget the code
 records errors for:
 
@@ -151,12 +162,29 @@ evaluations.
 
 ## Command
 
-For the production thesis run, first generate and validate the permeability
-input law. Then configure RQ1 with the resulting artifact:
+For the primary reference-family comparison, configure the real-K checkpoints,
+fixed sources, physical background temperature and temperature QoIs in
+`configs/rq1.reference.example.yaml`, then run a matrix in Git Bash:
+
+```bash
+python -m subsurface_uq.experiments.reference_scenarios \
+  --config configs/reference_scenarios.example.yaml \
+  --rq1-config configs/rq1.reference.example.yaml \
+  --output-dir run_output/reference_scenarios
+```
+
+The matrix supplies each selected artifact before validating RQ1's stochastic
+inputs and replaces the template's entire `grf` block. An artifact-only template
+with `input_model: null` therefore needs no placeholder manual parameters.
+Fixed sources and model paths remain those declared in the template. Each emitted
+RQ1 `config.yaml` contains only its actual `grf.input_model` and can be loaded again.
+
+For a direct RQ1 invocation, first generate the permeability input law and set
+the actual artifact path in the real-K example:
 
 ```yaml
 grf:
-  input_model: run_output/realistic_k/new_domain/stochastic_input_model.yaml
+  input_model: run_output/reference_scenarios/<SCENARIO_ID>/stochastic_input_model.yaml
 ```
 
 Do not also specify manual GRF moments, covariance parameters, KL truncation or
@@ -171,10 +199,10 @@ or, after package installation,
 
     subsurface-uq-release25-rq1 --config configs/rq1.yaml
 
-The command reconstructs the declared training-informed prior and
-real-measurement-conditioned Gaussian map, checks its shape and physical domain
+The command reconstructs the declared reference-centered or legacy measurement
+Gaussian map, checks its shape and physical domain
 against the release25 runtime, records the input-model SHA-256 in RQ1 metadata,
-and reuses the same map for conditional MC and scrambled-Sobol RQMC. The manual
+and reuses the same map for declared-law MC and scrambled-Sobol RQMC. The manual
 GRF block in `configs/rq1.example.yaml` remains an explicit fallback for
 synthetic/debug experiments.
 

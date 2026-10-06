@@ -285,9 +285,13 @@ individually valid for every run and cross-run consistent in orientation and
 unit shift. See `docs/realistic_permeability_generator.md` for the decision
 rule.
 
-## Training-informed, measurement-conditioned LGCNN domain
+## Legacy measurement-conditioned comparison workflow
 
-The production permeability workflow now distinguishes the **three complete
+This comparison path keeps its original command defaults for reproducibility.
+The primary input architecture is the reference-centered scenario family linked
+above; fitting reference texture does not identify its residual uncertainty law.
+
+The measurement permeability workflow distinguishes the **three complete
 real-permeability fields used to train the frozen LGCNN** from the much larger
 set of overlapping patches that the CNN actually saw during optimization.
 The real-permeability **training data** are published as
@@ -299,9 +303,9 @@ and one for validation.
 For both real-`k` LGCNN steps the selected cutout hyperparameters are
 `box_length=1280` cells and `skip_per_dir=8` cells.
 
-The three complete training fields are **not** the production geological prior.
+The three complete training fields are **not** a pooled geological prior.
 Their overlapping cutouts are also not treated as tens of thousands of
-independent geological realizations. In the production workflow, the real Munich
+independent geological realizations. In this legacy workflow, the real Munich
 measurements define the geostatistical mean/covariance model; DaRUS-5065 is used
 to test whether those generated inputs remain inside the spatial/statistical
 support seen by the frozen LGCNN.
@@ -350,11 +354,11 @@ population is used to compute log-permeability marginal, gradient and local
 correlation descriptors for both training and generated fields. Full-field
 statistics remain secondary diagnostics.
 
-The production law is now measurement-derived simple kriging represented in a
+This comparison law uses measurement-derived simple kriging represented in a
 finite KL basis. The measurement workflow estimates the mean, structured
 variance, nugget and directional correlation lengths in `log10(K_h)`; conversion
 to intrinsic permeability adds a constant log shift and therefore leaves the
-covariance structure unchanged. The production map is
+covariance structure unchanged. The legacy comparison map is
 
 ```text
 real Munich measurements

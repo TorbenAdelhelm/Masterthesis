@@ -103,7 +103,7 @@ class RQ1Config:
                     None if self.mean_anomaly_roi is None else list(self.mean_anomaly_roi)
                 ),
             },
-            "grf": {
+            "grf": {"input_model": str(self.input_model)} if self.input_model is not None else {
                 "input_model": None if self.input_model is None else str(self.input_model),
                 "mean_log10_k": self.mean_log10_k,
                 "std_log10_k": self.std_log10_k,
@@ -130,7 +130,15 @@ class RQ1Config:
         }
 
 
-def load_rq1_config(path: str | Path) -> RQ1Config:
+def load_rq1_config(
+    path: str | Path, *, input_model_override: str | Path | None = None,
+) -> RQ1Config:
+    """Load a direct config or a template with an explicit scenario artifact.
+
+    The matrix runner supplies its selected artifact before stochastic-input
+    validation. That explicit override replaces the template's entire GRF block;
+    ordinary config loads still reject duplicated artifact/manual parameters.
+    """
     source = Path(path).expanduser().resolve()
     with source.open("r", encoding="utf-8") as handle:
         raw = yaml.safe_load(handle)
@@ -141,6 +149,8 @@ def load_rq1_config(path: str | Path) -> RQ1Config:
     sampling = _mapping(root.get("sampling"), "sampling")
     qoi = _mapping(root.get("qoi"), "qoi")
     grf = _mapping(root.get("grf"), "grf")
+    if input_model_override is not None:
+        grf = {"input_model": str(input_model_override)}
     streamlines = _mapping(root.get("streamlines", {}), "streamlines")
     storage = _mapping(root.get("storage", {}), "storage")
 
