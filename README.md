@@ -1,5 +1,8 @@
 # Master Thesis — Subsurface UQ
 
+**Current working branch:** [`feat/reference-field-uq`](https://github.com/TorbenAdelhelm/Masterthesis/tree/feat/reference-field-uq).
+Use this branch for the reference-scenario study and permeability input previews.
+
 This repository contains the thesis-specific forward uncertainty-quantification
 (UQ) framework around deterministic groundwater heat-plume surrogate models.
 The current scientific baseline focuses on uncertainty in the permeability
