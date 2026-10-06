@@ -10,7 +10,22 @@ input uncertainty only.
 
 ## Experimental variants
 
-The RQ1 command executes the finalized four-part design:
+For the primary schema-3 **reference-centered input artifact**, RQ1 executes only
+the stochastic law selected by that artifact:
+
+- an **unconditioned** artifact uses `B_unconditional_grf_mc` as the main iid-MC
+  target and `D_unconditional_grf_rqmc` for the equal-budget scrambled-Sobol
+  comparison;
+- a genuinely **conditioned** artifact uses `C_conditional_grf_mc` as the main
+  iid-MC target and `D_conditional_grf_rqmc` for the RQMC comparison.
+
+This avoids evaluating the same unconditioned map twice under B/C labels and does
+not add a Perlin baseline to every reference-family scenario. The emitted
+`metadata.json` records `execution_mode: reference_artifact_target_law_only` and
+the exact variants that were evaluated.
+
+The older manual/legacy RQ1 configuration retains the finalized four-part design
+for reproducibility:
 
 - **A — Perlin + MC:** in-generator-family release25 baseline using the existing
   two-coordinate Perlin map with iid uniform offset coordinates. This defines a
@@ -20,17 +35,14 @@ The RQ1 command executes the finalized four-part design:
   successive x-shifts.
 - **B — unconditional log-GRF/KL + MC:** effect of replacing the Perlin input
   law by the explicit Gaussian random-field prior.
-- **C — declared Gaussian input law + MC:** primary input-UQ experiment.
+- **C — conditional log-GRF/KL + MC:** historical conditional-GRF target.
 - **D — conditional log-GRF/KL + randomized QMC:** scrambled Sobol comparison
   at equal frozen-LGCNN evaluation budgets.
 
-These legacy output-directory names remain stable for reproducibility. For an
-unconditioned reference-centered artifact, B and C use the same map and identical
-main coordinates; C is not a measurement posterior in that case. The Perlin
-baseline is a comparison input family and does not establish training compatibility
-for a real-K model. A matrix currently runs this full legacy variant design per
-scenario, so its repeated baseline and duplicate unconditioned B/C evaluations
-must be included in the computational budget.
+The Perlin baseline is a comparison input family and does not establish training
+compatibility for a real-K model. It is not part of the primary schema-3
+reference-family propagation unless the user deliberately runs the legacy/manual
+configuration.
 
 The default design encoded in the example configuration uses main checkpoints
 N = {32, 64, 128, 256, 512, 1024} and repeated MC/RQMC comparison budgets
@@ -41,10 +53,9 @@ truth. The configuration accepts larger powers of two (for example 2048 or
 4096) if the reference-convergence check later shows that this is needed.
 
 RQMC uses independently scrambled Sobol designs. A point u in (0,1)^d is
-transformed component-wise by the standard-normal inverse CDF, so the
-conditional KL map still receives independent standard-Gaussian coordinates.
-The same explicit repetition-seed list is used to pair the MC and RQMC
-repetitions.
+transformed component-wise by the standard-normal inverse CDF, so the selected
+Gaussian field map still receives standard-Gaussian target coordinates. The
+same explicit repetition-seed list is used to pair the MC and RQMC repetitions.
 
 ## Temperature uncertainty metrics
 
@@ -127,15 +138,15 @@ geological prior; instead, the exact release25 1280-cell / skip-8 patch lattice
 from the three training fields is the LGCNN-support reference. The workflow
 reports patch/full-field descriptors, generated-vs-training marginal
 Wasserstein/quantile errors and directional semivariogram mismatch. These
-diagnostics never filter samples, so the RQ1 coordinates remain iid standard
-normal.
+diagnostics never filter samples, so the RQ1 coordinates remain evaluations of
+the declared Gaussian target law.
 
 For the continuous real-measurement input model, conditioning quality and prior
 compatibility are also recorded upstream, including prior-predictive
 standardized residuals and the covariance-aware Mahalanobis diagnostic. RQ1
 does not apply a post-hoc sample acceptance rule. This is intentional: all
-MC/RQMC samples remain evaluations of the declared iid Gaussian
-posterior-coordinate law.
+MC/RQMC samples remain evaluations of the declared Gaussian posterior-coordinate
+law.
 
 The older manual grid-cell GRF configuration remains available for synthetic
 experiments. In that mode RQ1 can still compute per-sample conditioning
@@ -178,6 +189,9 @@ inputs and replaces the template's entire `grf` block. An artifact-only template
 with `input_model: null` therefore needs no placeholder manual parameters.
 Fixed sources and model paths remain those declared in the template. Each emitted
 RQ1 `config.yaml` contains only its actual `grf.input_model` and can be loaded again.
+The matrix example also sets `storage.retain_generated_fields: false`; upstream
+permeability diagnostics are still calculated, while one full `generated_fields.npy`
+per scenario is not retained.
 
 For a direct RQ1 invocation, first generate the permeability input law and set
 the actual artifact path in the real-K example:
@@ -200,11 +214,11 @@ or, after package installation,
     subsurface-uq-release25-rq1 --config configs/rq1.yaml
 
 The command reconstructs the declared reference-centered or legacy measurement
-Gaussian map, checks its shape and physical domain
-against the release25 runtime, records the input-model SHA-256 in RQ1 metadata,
-and reuses the same map for declared-law MC and scrambled-Sobol RQMC. The manual
-GRF block in `configs/rq1.example.yaml` remains an explicit fallback for
-synthetic/debug experiments.
+Gaussian map, checks its shape and physical domain against the release25 runtime,
+records the input-model SHA-256 in RQ1 metadata, and reuses the selected map for
+declared-law MC and scrambled-Sobol RQMC. The manual GRF block in
+`configs/rq1.example.yaml` remains an explicit fallback for synthetic/debug
+experiments and retains its historical multi-variant comparison design.
 
 ## Result layout
 
@@ -219,7 +233,7 @@ The output root contains the required machine-readable artifacts:
     receptor_metrics.csv
     qoi_samples.csv
 
-Each main variant has its own directory. Its fields directory contains
+Each evaluated main variant has its own directory. Its fields directory contains
 
     temperature_mean.npy
     temperature_std.npy
