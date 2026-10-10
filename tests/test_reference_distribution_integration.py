@@ -45,12 +45,13 @@ def test_matrix_writes_hydraulic_distribution_validation_without_filtering(tmp_p
     np.save(tmp_path / "run.npy", permeability)
 
     config = {
-        "base": {"reference_run": "RUN_1", "sigma_R": 0.05},
-        "axes": {
-            "ell_row_m": [20.0],
-            "ell_col_m": [30.0],
-            "truncation": [{"n_modes": 3}],
+        "base": {
+            "reference_run": "RUN_1",
+            "sigma_R": 0.05,
+            "ell_row_m": 20.0,
+            "ell_col_m": 30.0,
         },
+        "axes": {"truncation": [{"n_modes": 3}]},
         "references": {"RUN_1": "run.npy"},
         "cell_size_m": 5.0,
         "permeability_convention": "historical-training",
@@ -74,6 +75,8 @@ def test_matrix_writes_hydraulic_distribution_validation_without_filtering(tmp_p
     source.write_text(yaml.safe_dump(config), encoding="utf-8")
     report = run_matrix(source, tmp_path / "out")
     row = report["scenarios"][0]
+    assert row["correlation_lengths_m"]["row"] == 20.0
+    assert row["correlation_lengths_m"]["column"] == 30.0
     validation_path = tmp_path / "out" / row["scenario_id"] / "distribution_validation.json"
     validation = json.loads(validation_path.read_text(encoding="utf-8"))
 
