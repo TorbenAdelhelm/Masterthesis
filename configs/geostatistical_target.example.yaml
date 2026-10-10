@@ -1,0 +1,29 @@
+# Geostatistical marginal assumption used for reference-centered sensitivity studies.
+# K_h is hydraulic conductivity [m/s], not intrinsic permeability k [m^2].
+# The LGCNN still receives k [m^2]; conversion parameters are recorded explicitly.
+
+target:
+  distribution: base10_lognormal_hydraulic_conductivity
+  log10_mean: -3.0
+  log10_std: 0.5
+  # This interval is a validation/high-probability target, NOT hard support.
+  # A true lognormal law has support (0, +infinity), so fields are never clipped.
+  interval_m_s: [1.0e-4, 5.0e-2]
+  minimum_interval_fraction: 0.95
+
+fluid_properties:
+  density_kg_m3: 1000.0
+  dynamic_viscosity_pa_s: 1.0e-3
+  gravity_m_s2: 9.80665
+
+# Residual covariance is a model-form/sensitivity assumption.
+# New interfaces should use row/column length scales because array axes are not
+# automatically geographic x/y. Choose lengths from training variograms and
+# sensitivity analysis. The dimensionless lambda examples shown in the attached
+# geostatistics slides are NOT mapped to metres without an explicit convention.
+scenario_sensitivity:
+  sigma_R_log10: [0.05, 0.10]
+  covariance_family: [matern32, exponential]
+  ell_row_m: [250.0, 500.0]
+  ell_col_m: [250.0, 500.0]
+  retained_energy: [0.95, 0.99, 0.999]
