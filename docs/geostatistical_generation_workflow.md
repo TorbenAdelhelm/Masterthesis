@@ -44,7 +44,7 @@ The supplied geostatistical teaching example states
 
 The interval `[1e-4, 5e-2] m/s` is treated as a high-probability/validation interval, not hard support. A true lognormal law is positive and unbounded, so generated fields are never clipped, rejected, or resampled because individual pixels leave that interval.
 
-The value `0.5` in the teaching material is `sigma_log10`, i.e. the **standard deviation in base-10 log space**. Its corresponding base-10 log variance is `0.25`. If a variance of `0.5` is intended in a separate experiment, specify `log10_variance: 0.5` explicitly; the configuration forbids supplying both std and variance.
+The value `0.5` in the teaching material is `sigma_log10`, i.e. the **standard deviation in base-10 log space**. The corresponding log10 variance is `0.25`. If a variance of `0.5` is intended in a separate experiment, specify `log10_variance: 0.5` explicitly; the configuration forbids supplying both std and variance.
 
 The reference-centered stochastic law remains
 
