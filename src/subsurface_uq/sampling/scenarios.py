@@ -24,11 +24,9 @@ def physical_to_lognormal(mean, variance):
     log_mean = math.log(mean)
     if variance == 0:
         return log_mean, 0.0
-    # Forming variance/mean**2 can overflow or underflow for valid moments.
     log_ratio = math.log(variance) - 2 * log_mean
     s2 = (log_ratio + math.log1p(math.exp(-log_ratio)) if log_ratio > 0
           else math.log1p(math.exp(log_ratio)))
-    # Very small s2 may underflow while its square root remains representable.
     sigma = math.exp(log_ratio / 2) if log_ratio < -36 else math.sqrt(s2)
     if sigma == 0:
         raise ValueError("lognormal sigma is below the representable positive range")
@@ -54,7 +52,6 @@ def _positive_exp(log_value, name):
 def _equal_tail_z(alpha):
     if not (math.isfinite(alpha) and 0 < alpha < 1):
         raise ValueError("alpha must lie strictly between zero and one")
-    # The smallest positive alpha cannot be halved directly in float64.
     return -float(ndtri_exp(math.log(alpha) - math.log(2)))
 
 
@@ -65,8 +62,6 @@ def lognormal_to_physical(mu, sigma):
     mean = _positive_exp(log_mean, "physical mean")
     if sigma == 0:
         return mean, 0.0
-    # Combine logarithms before exponentiating: individual factors can exceed
-    # float64 even when the resulting physical variance is representable.
     if sigma < 1e-8:
         log_expm1_s2 = 2 * math.log(sigma)
     elif s2 < 50:
@@ -148,14 +143,22 @@ class ReferenceScenario:
             derived = sigma / math.log(10)
             if self.sigma_R is not None and not math.isclose(self.sigma_R, derived, rel_tol=1e-8, abs_tol=1e-12):
                 raise ValueError("sigma_R conflicts with expert marginal dispersion")
-            # Serialized scenarios already contain their validated amplitude.
-            # Preserve it (and their ID) across numerical conversion improvements.
             if self.sigma_R is None:
                 object.__setattr__(self, "sigma_R", derived)
         elif self.marginal_reference_k is not None:
             raise ValueError("marginal_reference_k requires expert moments or bounds")
         if self.sigma_R is None or not math.isfinite(self.sigma_R) or self.sigma_R <= 0:
             raise ValueError("positive finite sigma_R required (log10 units)")
+
+    @property
+    def ell_row_m(self) -> float:
+        """Correlation length along array rows (legacy field ``ell_y``)."""
+        return float(self.ell_y)
+
+    @property
+    def ell_col_m(self) -> float:
+        """Correlation length along array columns (legacy field ``ell_x``)."""
+        return float(self.ell_x)
 
     @property
     def scenario_id(self):
@@ -166,6 +169,12 @@ class ReferenceScenario:
         result = {"scenario_id": self.scenario_id, "config": asdict(self),
                   "input_law": "reference-centered-lognormal",
                   "sigma_R_units": "log10_permeability", "coordinate_distribution": "iid_standard_normal",
+                  "correlation_lengths_m": {
+                      "row": self.ell_row_m,
+                      "column": self.ell_col_m,
+                      "legacy_aliases": {"ell_y": "row", "ell_x": "column"},
+                      "axis_interpretation": "array axes; geographic x/y are not assumed",
+                  },
                   "assumption_status": "model-form/sensitivity; not statistically identified",
                   "bounds_semantics": "equal-tail untruncated pointwise prior at reference anchor",
                   "truncation_semantics": "representation sensitivity; actual retained variance varies spatially",
@@ -182,7 +191,7 @@ class ReferenceScenario:
             raise ValueError("n_modes exceeds reference grid dimension")
         maps = build_reference_field_maps(
             reference, cell_size_m=cell_size_m, residual_std_log10_k=self.sigma_R,
-            length_scale_m=(self.ell_y, self.ell_x), covariance_model=self.covariance_family,
+            length_scale_m=(self.ell_row_m, self.ell_col_m), covariance_model=self.covariance_family,
             n_modes=self.n_modes, energy_threshold=self.energy_threshold or 1., center=self.center,
             **conditioning)
         for field_map in maps:
@@ -190,14 +199,41 @@ class ReferenceScenario:
         return maps
 
 
+def reference_scenario_from_config(config: dict[str, object]) -> ReferenceScenario:
+    """Accept new row/column names while preserving legacy ell_y/ell_x artifacts."""
+    if not isinstance(config, dict):
+        raise ValueError("scenario config must be a mapping")
+    params = dict(config)
+    row = params.pop("ell_row_m", None)
+    col = params.pop("ell_col_m", None)
+    if row is not None:
+        if "ell_y" in params and not math.isclose(float(params["ell_y"]), float(row)):
+            raise ValueError("ell_row_m conflicts with legacy ell_y")
+        params["ell_y"] = float(row)
+    if col is not None:
+        if "ell_x" in params and not math.isclose(float(params["ell_x"]), float(col)):
+            raise ValueError("ell_col_m conflicts with legacy ell_x")
+        params["ell_x"] = float(col)
+    return ReferenceScenario(**params)
+
+
 def scenario_matrix(base, axes):
     """Cartesian product of explicit axes; no weights or pooling by default."""
-    allowed = {"reference_run", "sigma_R", "covariance_family", "ell_x", "ell_y", "truncation"}
+    allowed = {"reference_run", "sigma_R", "covariance_family", "ell_x", "ell_y",
+               "ell_row_m", "ell_col_m", "truncation"}
     if not set(axes) <= allowed or any(not values for values in axes.values()):
         raise ValueError("unknown or empty scenario matrix axis")
     scenarios = []
     for values in product(*axes.values()):
         params = dict(zip(axes, values))
+        if "ell_row_m" in params:
+            if "ell_y" in params and not math.isclose(float(params["ell_y"]), float(params["ell_row_m"])):
+                raise ValueError("ell_row_m conflicts with ell_y in matrix")
+            params["ell_y"] = params.pop("ell_row_m")
+        if "ell_col_m" in params:
+            if "ell_x" in params and not math.isclose(float(params["ell_x"]), float(params["ell_col_m"])):
+                raise ValueError("ell_col_m conflicts with ell_x in matrix")
+            params["ell_x"] = params.pop("ell_col_m")
         if "truncation" in params:
             truncation = params.pop("truncation")
             if not isinstance(truncation, dict) or set(truncation) not in ({"n_modes"}, {"energy_threshold"}):
@@ -205,8 +241,6 @@ def scenario_matrix(base, axes):
             params.update(n_modes=None, energy_threshold=None)
             params.update(truncation)
         scenarios.append(replace(base, **params))
-    # Numeric formatting (e.g. 500 versus 500.0) does not define a new law.
-    # Keep existing serialized IDs while comparing actual configuration values.
     if len(set(scenarios)) != len(scenarios):
         raise ValueError("duplicate scenarios in matrix")
     return scenarios
