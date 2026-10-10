@@ -137,7 +137,12 @@ def _qq_rmse_standard_normal(standardized: Array) -> float:
     return float(np.sqrt(np.mean((z - expected) ** 2)))
 
 
-def _normality_metrics(logs: Array, target: Base10LognormalTarget) -> dict[str, float]:
+def _finite_or_none(value: float) -> float | None:
+    value = float(value)
+    return value if np.isfinite(value) else None
+
+
+def _normality_metrics(logs: Array, target: Base10LognormalTarget) -> dict[str, object]:
     sampled = _bounded_logs(logs)
     standardized = (sampled - target.log10_mean) / target.log10_std
     cvm = cramervonmises(standardized, "norm")
@@ -145,13 +150,16 @@ def _normality_metrics(logs: Array, target: Base10LognormalTarget) -> dict[str, 
     probabilities = (np.arange(sampled.size, dtype=np.float64) + 0.5) / sampled.size
     expected_logs = target.log10_mean + target.log10_std * norm.ppf(probabilities)
     observed_sorted = np.sort(sampled)
+    raw_skew = skew(sampled, bias=False) if sampled.size > 2 else 0.0
+    raw_kurtosis = kurtosis(sampled, fisher=True, bias=False) if sampled.size > 3 else 0.0
     return {
-        "skewness_log10": float(skew(sampled, bias=False)) if sampled.size > 2 else 0.0,
-        "excess_kurtosis_log10": float(kurtosis(sampled, fisher=True, bias=False)) if sampled.size > 3 else 0.0,
+        "skewness_log10": _finite_or_none(raw_skew),
+        "excess_kurtosis_log10": _finite_or_none(raw_kurtosis),
         "qq_rmse_standardized": _qq_rmse_standard_normal(standardized),
         "cvm_normality_statistic_log10": float(cvm.statistic),
         "ks_normality_statistic_log10": float(ks.statistic),
         "wasserstein_to_target_normal_log10": float(wasserstein_distance(observed_sorted, expected_logs)),
+        "undefined_shape_moments": bool(not np.isfinite(raw_skew) or not np.isfinite(raw_kurtosis)),
     }
 
 
