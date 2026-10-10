@@ -126,7 +126,7 @@ def test_matrix_can_stream_diagnostics_without_retaining_full_fields(tmp_path):
     report = run_matrix(
         _matrix_config(tmp_path, retain_generated_fields=False), tmp_path / "out"
     )
-    assert report["schema_version"] == 2
+    assert report["schema_version"] == 3
     assert report["storage"] == {"retain_generated_fields": False}
     for row in report["scenarios"]:
         directory = Path(row["input_model"]).parent
@@ -135,6 +135,7 @@ def test_matrix_can_stream_diagnostics_without_retaining_full_fields(tmp_path):
         assert row["storage"]["generated_fields"] is None
         assert not (directory / "generated_fields.npy").exists()
         assert (directory / "diagnostics.json").is_file()
+        assert (directory / "distribution_validation.json").is_file()
 
 
 def test_matrix_refuses_to_overwrite_same_config_with_changed_reference_bytes(tmp_path):
