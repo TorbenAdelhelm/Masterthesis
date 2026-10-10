@@ -1,24 +1,27 @@
 # Explicit sensitivity assumptions, not estimated geological probabilities.
+# Reference fields remain in the exact intrinsic-permeability convention expected
+# by the pretrained real-K LGCNN. Distribution checks are performed after the
+# explicit historical-training k <-> K_h conversion below.
 base:
   reference_run: RUN_1
   marginal: lognormal
   center: median
-  sigma_R: 0.05  # log10 units
+  sigma_R: 0.05  # residual log10 amplitude around the heterogeneous reference
   covariance_family: matern32
-  ell_x: 800.0
-  ell_y: 500.0
   energy_threshold: 0.95
 axes:
   reference_run: [RUN_1, RUN_2, RUN_3]
   sigma_R: [0.05, 0.1]
   covariance_family: [matern32, exponential]
-  ell_x: [500.0, 800.0]
-  ell_y: [500.0]
+  # New configs use array row/column names. Legacy ell_y/ell_x remain loadable.
+  ell_row_m: [500.0]
+  ell_col_m: [500.0, 800.0]
   truncation:
     - {energy_threshold: 0.95}
     - {energy_threshold: 0.99}
     - {energy_threshold: 0.999}
     - {n_modes: 20}
+
 # Paths relative to this config. One positive physical 2-D m2 array per RUN.
 references:
   RUN_1: ../data/RUN_1.reference.npy
@@ -26,15 +29,43 @@ references:
   RUN_3: ../data/RUN_3.reference.npy
 cell_size_m: 5.0
 permeability_convention: historical-training
+
+# Hydrogeological distribution assumption used for validation, not clipping.
+# The supplied geostatistics slides state sigma_log10 = 0.5. Consequently the
+# base-10 log variance is 0.25. If a variance of 0.5 is intended instead, replace
+# log10_std with `log10_variance: 0.5` explicitly.
+distribution_target:
+  distribution: base10_lognormal_hydraulic_conductivity
+  log10_mean: -3.0
+  log10_std: 0.5
+  interval_m_s: [1.0e-4, 5.0e-2]
+  minimum_interval_fraction: 0.95
+
+# Optional heuristic flags only; generated samples are never rejected/resampled.
+distribution_validation:
+  max_abs_log10_mean_error: 0.25
+  max_abs_log10_std_error: 0.15
+  max_qq_rmse_standardized: 0.35
+
+# Used only for `permeability_convention: physical`. Historical-training uses
+# the historical k = K_h / 7.5e6 conversion exactly.
+fluid_properties:
+  density_kg_m3: 1000.0
+  dynamic_viscosity_pa_s: 1.0e-3
+  gravity_m_s2: 9.80665
+
 n_samples: 32
 seed: 4901
 diagnostic_factor: 8
 scenario_weights: null  # optional "equal" or {scenario-id: explicit weight}
 storage:
   # Full 2560x2560 float32 fields are expensive across a large scenario matrix.
-  # Diagnostics are still computed when this is false.
+  # Distribution/spatial diagnostics are still computed when this is false.
   retain_generated_fields: false
+
 # Optional exact training-support arrays, at the generated full grid resolution.
+# Populate only after CNN1/CNN3 training membership has been proven from release25
+# command_line_arguments.yaml + the prepared/raw RUN inventory.
 # training_support:
 #   reference_npy: [../data/RUN_1.reference.npy, ../data/RUN_2.reference.npy, ../data/RUN_3.reference.npy]
 #   box_size: 1280
