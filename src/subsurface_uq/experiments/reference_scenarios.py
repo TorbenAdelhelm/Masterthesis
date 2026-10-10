@@ -11,7 +11,11 @@ import numpy as np
 import yaml
 
 from ..io import sha256_file
-from ..sampling.scenarios import ReferenceScenario, scenario_matrix, scenario_weights
+from ..sampling.scenarios import (
+    reference_scenario_from_config,
+    scenario_matrix,
+    scenario_weights,
+)
 from ..sampling.reference_field import save_reference_field_input_model
 from ..sampling.coordinates import GaussianCoordinatePermeabilitySampler
 from ..sampling.geostatistical_target import (
@@ -88,7 +92,9 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
                "storage", "distribution_target", "distribution_validation", "fluid_properties"}
     if not isinstance(config, dict) or not set(config) <= allowed:
         raise ValueError("unknown matrix config keys")
-    scenarios = scenario_matrix(ReferenceScenario(**config["base"]), config.get("axes", {}))
+    scenarios = scenario_matrix(
+        reference_scenario_from_config(config["base"]), config.get("axes", {})
+    )
     weights = scenario_weights([s.scenario_id for s in scenarios], config.get("scenario_weights"))
     if config["permeability_convention"] not in {"historical-training", "physical"}:
         raise ValueError("explicit permeability convention required")
