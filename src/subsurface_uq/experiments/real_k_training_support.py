@@ -16,10 +16,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from ..sampling.darus_real import (
-    load_release25_raw_permeability_dataset,
-    load_release25_raw_permeability_run,
-)
+from ..sampling.darus_real import load_release25_raw_permeability_run
 from ..sampling.geostatistical_target import (
     Base10LognormalTarget,
     HydraulicConductivityValidationAccumulator,
@@ -48,6 +45,27 @@ def _summary(values: np.ndarray) -> dict[str, object]:
             "q99": float(np.quantile(values, .99)),
         },
     }
+
+
+def _discover_available_runs(dataset_root: str | Path) -> list[str]:
+    root = Path(dataset_root).expanduser().resolve()
+    if not root.is_dir():
+        raise NotADirectoryError(root)
+    runs = []
+    for folder in root.iterdir():
+        if not folder.is_dir() or not folder.name.startswith("RUN_"):
+            continue
+        if not ((folder / "pflotran.h5").is_file() or (folder / "permeability.h5").is_file()):
+            continue
+        try:
+            number = int(folder.name.removeprefix("RUN_"))
+        except ValueError:
+            continue
+        runs.append((number, folder.name))
+    runs.sort()
+    if not runs:
+        raise ValueError(f"no usable RUN permeability files found below {root}")
+    return [name for _, name in runs]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -111,10 +129,7 @@ def main(argv=None) -> int:
                            key=lambda value: int(value.removeprefix("RUN_")))
         support_kind = "training_support" if common_training else "resolved_but_no_common_training_runs"
     else:
-        _, discovered = load_release25_raw_permeability_dataset(
-            args.dataset_root, cell_size_m=args.cell_size_m
-        )
-        inventory = list(discovered)
+        inventory = _discover_available_runs(args.dataset_root)
         common_training = []
         support_kind = "realistic_dataset_support"
 
@@ -147,6 +162,7 @@ def main(argv=None) -> int:
             })
         entry: dict[str, object] = {
             "role": role,
+            "shape": [int(v) for v in k.shape],
             "permeability_array_sha256": _field_checksum(k),
             "marginal": _summary(kh),
             "target_validation": validate_hydraulic_conductivity_marginal(kh, target),
@@ -155,7 +171,7 @@ def main(argv=None) -> int:
             entry["directional_variograms"] = directional_variograms(
                 np.log10(kh), cell_size_m=args.cell_size_m
             )
-        except Exception as exc:  # diagnostics must not invalidate provenance/marginal analysis
+        except Exception as exc:
             entry["directional_variograms_error"] = str(exc)
         try:
             entry["spectral"] = spatial_power_spectrum(
