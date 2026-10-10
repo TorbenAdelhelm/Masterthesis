@@ -14,6 +14,16 @@ from ..io import sha256_file
 from ..sampling.scenarios import ReferenceScenario, scenario_matrix, scenario_weights
 from ..sampling.reference_field import save_reference_field_input_model
 from ..sampling.coordinates import GaussianCoordinatePermeabilitySampler
+from ..sampling.geostatistical_target import (
+    Base10LognormalTarget,
+    HydraulicConductivityValidationAccumulator,
+    validate_hydraulic_conductivity_marginal,
+)
+from ..sampling.hydraulic_conductivity import (
+    FluidProperties,
+    hydraulic_conversion_metadata,
+    permeability_to_hydraulic_conductivity,
+)
 from ..sampling.spatial_diagnostics import compare_reference_ensemble
 from ..sampling.training_compatibility import (
     characterize_training_patch_distribution, TrainingPatchCompatibilityDiagnostics)
@@ -44,8 +54,7 @@ def _guard_scenario_directory(directory, instance_id):
     manifest_path = directory / "manifest.json"
     if not manifest_path.is_file():
         raise ValueError(
-            f"scenario directory {directory} is non-empty but has no manifest; "
-            "refusing to overwrite it"
+            f"scenario directory {directory} is non-empty but has no manifest; refusing to overwrite it"
         )
     try:
         existing = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -60,18 +69,35 @@ def _guard_scenario_directory(directory, instance_id):
         )
 
 
+def _fluid_from_config(payload):
+    if payload is None:
+        return FluidProperties()
+    if not isinstance(payload, dict):
+        raise ValueError("fluid_properties must be a mapping")
+    allowed = {"density_kg_m3", "dynamic_viscosity_pa_s", "gravity_m_s2"}
+    if not set(payload) <= allowed:
+        raise ValueError("unknown fluid_properties keys")
+    return FluidProperties(**payload)
+
+
 def run_matrix(config_path, output_dir, *, rq1_config=None):
     source = Path(config_path).resolve()
     config = yaml.safe_load(source.read_text(encoding="utf-8"))
     allowed = {"base", "axes", "references", "cell_size_m", "permeability_convention",
                "n_samples", "seed", "diagnostic_factor", "scenario_weights", "training_support",
-               "storage"}
+               "storage", "distribution_target", "distribution_validation", "fluid_properties"}
     if not isinstance(config, dict) or not set(config) <= allowed:
         raise ValueError("unknown matrix config keys")
     scenarios = scenario_matrix(ReferenceScenario(**config["base"]), config.get("axes", {}))
     weights = scenario_weights([s.scenario_id for s in scenarios], config.get("scenario_weights"))
     if config["permeability_convention"] not in {"historical-training", "physical"}:
         raise ValueError("explicit permeability convention required")
+    permeability_convention = config["permeability_convention"]
+    target = Base10LognormalTarget.from_mapping(config.get("distribution_target"))
+    fluid = _fluid_from_config(config.get("fluid_properties"))
+    validation_tolerances = config.get("distribution_validation")
+    if validation_tolerances is not None and not isinstance(validation_tolerances, dict):
+        raise ValueError("distribution_validation must be a mapping of heuristic tolerances")
     cell = float(config["cell_size_m"])
     if not np.isfinite(cell) or cell <= 0:
         raise ValueError("cell_size_m must be positive and finite")
@@ -91,7 +117,6 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
     references = config["references"]
     def resolve(path):
         return (source.parent / path).resolve()
-    # Preflight all scenario configurations and references before writing outputs.
     paths = {s.reference_run: resolve(references[s.reference_run]) for s in scenarios}
     reference_shapes = set()
     for path in paths.values():
@@ -119,15 +144,16 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
     rq1_template = None
     if rq1_config:
         from ..rq1.config import load_rq1_config
-        # A matrix owns its input law. Validate only the fixed-model, sampling
-        # and QoI template; discard any legacy/manual stochastic-input block.
         rq1_template = load_rq1_config(
             rq1_config, input_model_override=root / "stochastic_input_model.yaml")
     root.mkdir(parents=True, exist_ok=True)
-    report = {"schema_version": 2, "config_sha256": sha256_file(source),
+    conversion = hydraulic_conversion_metadata(permeability_convention, fluid=fluid)
+    report = {"schema_version": 3, "config_sha256": sha256_file(source),
               "seed": seed, "n_samples": count, "scenario_weights": weights,
               "weight_status": "explicit scenario assumptions, never inferred probabilities" if weights else "absent; results per scenario",
               "pooling": False,
+              "distribution_target": target.metadata,
+              "hydraulic_conversion": conversion,
               "storage": {"retain_generated_fields": retain_generated_fields},
               "scenarios": []}
     for scenario in scenarios:
@@ -136,10 +162,12 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
         reference_sha = sha256_file(reference_path)
         source_metadata = {"reference_run": scenario.reference_run,
                            "reference_npy_sha256": reference_sha,
-                           "permeability_convention": config["permeability_convention"]}
+                           "permeability_convention": permeability_convention,
+                           "hydraulic_conductivity_validation_target": target.metadata,
+                           "hydraulic_conversion": conversion}
         instance_id, instance_identity = _scenario_instance_identity(
             scenario, reference_sha256=reference_sha, reference_shape=reference.shape,
-            cell_size_m=cell, permeability_convention=config["permeability_convention"])
+            cell_size_m=cell, permeability_convention=permeability_convention)
         directory = root / scenario.scenario_id
         _guard_scenario_directory(directory, instance_id)
         directory.mkdir(exist_ok=True)
@@ -159,12 +187,20 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
                     if retain_generated_fields else None)
         if not retain_generated_fields and generated_path.exists():
             generated_path.unlink()
+        distribution = HydraulicConductivityValidationAccumulator(
+            target, tolerances=validation_tolerances
+        )
         coarse = []
         start = 0
         for batch in sampler:
             if ensemble is not None:
                 ensemble[start:start + len(batch)] = batch
-            coarse.extend(coarsen_reference(field, factor) for field in batch)
+            for field in batch:
+                kh = permeability_to_hydraulic_conductivity(
+                    field, convention=permeability_convention, fluid=fluid
+                )
+                distribution.update(kh)
+                coarse.append(coarsen_reference(field, factor))
             if diagnostics:
                 diagnostics.update(batch)
             start += len(batch)
@@ -173,7 +209,6 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
         fidelity = compare_reference_ensemble(coarsen_reference(reference, factor), np.asarray(coarse),
                                               cell_size_m=cell * factor)
         patch = diagnostics.finalize() if diagnostics else None
-        # Descriptor-envelope comparison is descriptive, not a calibrated acceptance test.
         outside = ([key for key, value in patch["metrics"].items()
                     if value["fraction_generated_patches_outside_training_envelope"] > 0] if patch else [])
         fidelity["training_patch_support"] = patch
@@ -182,12 +217,43 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
             "interpretation": "Inspect patch descriptor deviations; no calibrated universal threshold or guarantee of in-distribution predictions",
             "sample_filtering": None, "flagged_metrics": outside}
         (directory / "diagnostics.json").write_text(json.dumps(fidelity, indent=2, allow_nan=False), encoding="utf-8")
+
+        reference_kh = permeability_to_hydraulic_conductivity(
+            reference, convention=permeability_convention, fluid=fluid
+        )
+        distribution_report = distribution.finalize()
+        distribution_report.update({
+            "reference_marginal": validate_hydraulic_conductivity_marginal(
+                reference_kh, target, tolerances=validation_tolerances
+            ),
+            "residual_law": {
+                "sigma_R_log10": float(scenario.sigma_R),
+                "interpretation": (
+                    "sigma_R is the stochastic residual amplitude around the heterogeneous reference; "
+                    "it is not the same quantity as the pooled full-field log10 standard deviation."
+                ),
+            },
+            "hydraulic_conversion": conversion,
+            "spatial_support_deviation": fidelity["compatibility_assessment"],
+            "assumption_coverage": distribution_report["pooled"]["fraction_inside_interval"],
+            "log10_sigma_error": distribution_report["pooled"]["log10_std_error"],
+            "normality_deviation": distribution_report["pooled"]["normality_deviation"],
+            "sample_filtering": None,
+        })
+        (directory / "distribution_validation.json").write_text(
+            json.dumps(distribution_report, indent=2, allow_nan=False), encoding="utf-8"
+        )
+
         manifest = scenario.manifest()
         variance = unconditional.prior.pointwise_log10_variance()
         manifest.update(scenario_instance_id=instance_id, instance_identity=instance_identity,
                         source_metadata=source_metadata, cell_size_m=cell, seed=seed, n_samples=count,
                         dimension=field_map.dimension, retained_energy=unconditional.prior.retained_energy_fraction,
                         retained_log10_variance={"min": float(variance.min()), "mean": float(variance.mean()), "max": float(variance.max())},
+                        distribution_validation=str(directory / "distribution_validation.json"),
+                        generated_full_field_log10_std=distribution_report["pooled"]["log10_std"],
+                        generated_full_field_log10_std_error=distribution_report["pooled"]["log10_std_error"],
+                        generated_interval_fraction=distribution_report["pooled"]["fraction_inside_interval"],
                         input_model_sha256=sha256_file(artifact), input_model=str(artifact),
                         storage={"retain_generated_fields": retain_generated_fields,
                                  "generated_fields": str(generated_path) if retain_generated_fields else None})
