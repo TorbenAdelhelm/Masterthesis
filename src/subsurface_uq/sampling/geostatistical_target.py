@@ -16,7 +16,7 @@ Array = np.ndarray
 
 @dataclass(frozen=True)
 class Base10LognormalTarget:
-    """Pointwise/marginal target in base-10 log space.
+    """Optional global histogram diagnostic target in base-10 log space.
 
     ``log10(K_h) ~ Normal(log10_mean, log10_std²)``.
 
@@ -163,31 +163,41 @@ def _normality_metrics(logs: Array, target: Base10LognormalTarget) -> dict[str, 
     }
 
 
+def _validated_tolerances(tolerances):
+    if tolerances is None:
+        return None
+    allowed = {"max_abs_log10_mean_error", "max_abs_log10_std_error", "max_qq_rmse_standardized"}
+    if not isinstance(tolerances, dict) or not set(tolerances) <= allowed:
+        raise ValueError("unknown distribution validation tolerance")
+    limits = {key: None for key in sorted(allowed)}
+    for key, value in tolerances.items():
+        if value is not None:
+            value = float(value)
+            if not np.isfinite(value) or value < 0:
+                raise ValueError("distribution validation tolerances must be finite and non-negative")
+            limits[key] = value
+    return limits
+
+
 def _heuristic_assessment(metrics: dict[str, object], tolerances: dict[str, float] | None) -> dict[str, object]:
+    if metrics["target"] is None:
+        return {"status": "not_assessed", "interpretation": "No global distribution target was configured."}
     if tolerances is None:
         return {
             "status": "descriptive_only",
             "interpretation": "No acceptance thresholds were supplied; diagnostics do not filter samples.",
         }
-    allowed = {"max_abs_log10_mean_error", "max_abs_log10_std_error", "max_qq_rmse_standardized"}
-    if not set(tolerances) <= allowed:
-        raise ValueError("unknown distribution validation tolerance")
-    defaults = {
-        "max_abs_log10_mean_error": np.inf,
-        "max_abs_log10_std_error": np.inf,
-        "max_qq_rmse_standardized": np.inf,
-    }
-    limits = {**defaults, **{key: float(value) for key, value in tolerances.items()}}
-    if any((not np.isfinite(v) and not np.isinf(v)) or v < 0.0 for v in limits.values()):
-        raise ValueError("distribution validation tolerances must be non-negative")
+    limits = _validated_tolerances(tolerances)
+    def check(key, observed):
+        return None if limits[key] is None else bool(abs(observed) <= limits[key])
     checks = {
         "interval_fraction": bool(metrics["fraction_inside_interval"] >= metrics["minimum_interval_fraction"]),
-        "log10_mean": bool(abs(metrics["log10_mean_error"]) <= limits["max_abs_log10_mean_error"]),
-        "log10_std": bool(abs(metrics["log10_std_error"]) <= limits["max_abs_log10_std_error"]),
-        "qq_shape": bool(metrics["normality_deviation"]["qq_rmse_standardized"] <= limits["max_qq_rmse_standardized"]),
+        "log10_mean": check("max_abs_log10_mean_error", metrics["log10_mean_error"]),
+        "log10_std": check("max_abs_log10_std_error", metrics["log10_std_error"]),
+        "qq_shape": check("max_qq_rmse_standardized", metrics["normality_deviation"]["qq_rmse_standardized"]),
     }
     return {
-        "status": "heuristically_compatible" if all(checks.values()) else "heuristic_deviation",
+        "status": "heuristically_compatible" if all(v is not False for v in checks.values()) else "heuristic_deviation",
         "checks": checks,
         "tolerances": limits,
         "interpretation": "Heuristic thresholds are user assumptions, not a statistical proof or sample-selection rule.",
@@ -196,7 +206,7 @@ def _heuristic_assessment(metrics: dict[str, object], tolerances: dict[str, floa
 
 def validate_hydraulic_conductivity_marginal(
     hydraulic_conductivity_m_s: Array,
-    target: Base10LognormalTarget,
+    target: Base10LognormalTarget | None = None,
     *,
     tolerances: dict[str, float] | None = None,
 ) -> dict[str, object]:
@@ -204,13 +214,18 @@ def validate_hydraulic_conductivity_marginal(
 
     Pixelwise goodness-of-fit p-values are intentionally not reported because
     spatial correlation violates the iid assumptions used to interpret them.
-    Distribution discrepancies are effect-size diagnostics only.
+    Distribution discrepancies are effect-size diagnostics only. Without an
+    explicit target, moments and physical quantiles remain available, while
+    target discrepancies, interval counts and normality checks are unassessed.
     """
 
+    tolerances = _validated_tolerances(tolerances)
+    if target is None and tolerances is not None:
+        raise ValueError("distribution validation tolerances require an explicit distribution target")
     values = _positive_values(hydraulic_conductivity_m_s)
     logs = np.log10(values)
-    lo, hi = target.interval_m_s
-    fraction = float(np.mean((values >= lo) & (values <= hi)))
+    lo, hi = target.interval_m_s if target is not None else (None, None)
+    fraction = float(np.mean((values >= lo) & (values <= hi))) if target is not None else None
     observed_mean = float(np.mean(logs))
     observed_std = float(np.std(logs, ddof=1)) if logs.size > 1 else 0.0
     observed_variance = float(np.var(logs, ddof=1)) if logs.size > 1 else 0.0
@@ -219,9 +234,9 @@ def validate_hydraulic_conductivity_marginal(
         "log10_mean": observed_mean,
         "log10_std": observed_std,
         "log10_variance": observed_variance,
-        "log10_mean_error": observed_mean - target.log10_mean,
-        "log10_std_error": observed_std - target.log10_std,
-        "log10_variance_error": observed_variance - target.log10_variance,
+        "log10_mean_error": observed_mean - target.log10_mean if target is not None else None,
+        "log10_std_error": observed_std - target.log10_std if target is not None else None,
+        "log10_variance_error": observed_variance - target.log10_variance if target is not None else None,
         "hydraulic_conductivity_quantiles_m_s": {
             "q01": float(np.quantile(values, 0.01)),
             "q05": float(np.quantile(values, 0.05)),
@@ -230,36 +245,47 @@ def validate_hydraulic_conductivity_marginal(
             "q99": float(np.quantile(values, 0.99)),
         },
         "fraction_inside_interval": fraction,
-        "lower_tail_fraction": float(np.mean(values < lo)),
-        "upper_tail_fraction": float(np.mean(values > hi)),
-        "minimum_interval_fraction": target.minimum_interval_fraction,
-        "interval_fraction_status": "pass" if fraction >= target.minimum_interval_fraction else "warn",
-        "normality_deviation": _normality_metrics(logs, target),
+        "lower_tail_fraction": float(np.mean(values < lo)) if target is not None else None,
+        "upper_tail_fraction": float(np.mean(values > hi)) if target is not None else None,
+        "minimum_interval_fraction": target.minimum_interval_fraction if target is not None else None,
+        "interval_fraction_status": ("pass" if fraction >= target.minimum_interval_fraction else "warn") if target is not None else "not_assessed",
+        "normality_deviation": _normality_metrics(logs, target) if target is not None else None,
         "iid_caveat": (
             "Pixels are spatially correlated; goodness-of-fit statistics are descriptive and "
             "must not be interpreted using iid p-values."
         ),
         "no_filtering": True,
-        "target": target.metadata,
+        "target": target.metadata if target is not None else None,
     }
     metrics["heuristic_assessment"] = _heuristic_assessment(metrics, tolerances)
     return metrics
 
 
 class HydraulicConductivityValidationAccumulator:
-    """Bounded-memory pooled and per-field validation for full-resolution ensembles."""
+    """Bounded-memory, descriptive pixel summaries within one scenario.
+
+    Global target comparisons require an explicit target. The diagnostic sample
+    uses its own seeded RNG and cannot alter the generator's Gaussian coordinates.
+    """
 
     def __init__(
         self,
-        target: Base10LognormalTarget,
+        target: Base10LognormalTarget | None = None,
         *,
         tolerances: dict[str, float] | None = None,
         max_pooled_sample_values: int = 200_000,
+        sample_seed: int = 0,
     ) -> None:
         if max_pooled_sample_values < 100:
             raise ValueError("max_pooled_sample_values must be at least 100")
         self.target = target
-        self.tolerances = tolerances
+        self.tolerances = _validated_tolerances(tolerances)
+        if target is None and self.tolerances is not None:
+            raise ValueError("distribution validation tolerances require an explicit distribution target")
+        if isinstance(sample_seed, bool) or not isinstance(sample_seed, int) or sample_seed < 0:
+            raise ValueError("sample_seed must be a non-negative integer")
+        self.sample_seed = sample_seed
+        self._rng = np.random.default_rng(sample_seed)
         self.max_pooled_sample_values = int(max_pooled_sample_values)
         self._n = 0
         self._sum = 0.0
@@ -270,19 +296,47 @@ class HydraulicConductivityValidationAccumulator:
         self._sample_logs = np.empty(0, dtype=np.float64)
         self._per_field: list[dict[str, object]] = []
 
+    def _update_log_sample(self, logs: Array) -> None:
+        """Merge uniform pixel samples, preserving population rather than batch weights.
+
+        Keep all values until capacity is reached. Thereafter each buffer entry
+        is an independent uniform draw with replacement from all pixels seen.
+        Replace an entry with probability new_count / total_count. This avoids
+        repeatedly thinning old fields and has memory cost O(capacity), even
+        when the total population exceeds NumPy's hypergeometric size limits.
+        """
+        total = self._n + logs.size
+        capacity = self.max_pooled_sample_values
+        if total <= capacity:
+            self._sample_logs = np.concatenate((self._sample_logs, logs))
+            return
+        if self._n <= capacity:
+            # Transition from exact stored values to independent reservoir draws.
+            choose_new = self._rng.random(capacity) < logs.size / total
+            sample = np.empty(capacity, dtype=np.float64)
+            old_count = int(np.count_nonzero(~choose_new))
+            if old_count:
+                sample[~choose_new] = self._sample_logs[self._rng.integers(self._n, size=old_count)]
+            new_count = int(np.count_nonzero(choose_new))
+            sample[choose_new] = logs[self._rng.integers(logs.size, size=new_count)]
+            self._sample_logs = sample
+        else:
+            replace = self._rng.random(capacity) < logs.size / total
+            count = int(np.count_nonzero(replace))
+            self._sample_logs[replace] = logs[self._rng.integers(logs.size, size=count)]
+
     def update(self, hydraulic_conductivity_m_s: Array) -> None:
         values = _positive_values(hydraulic_conductivity_m_s)
         logs = np.log10(values)
+        self._update_log_sample(logs)
         self._n += int(logs.size)
         self._sum += float(np.sum(logs, dtype=np.float64))
         self._sum2 += float(np.sum(logs * logs, dtype=np.float64))
-        lo, hi = self.target.interval_m_s
-        self._inside += int(np.count_nonzero((values >= lo) & (values <= hi)))
-        self._lower += int(np.count_nonzero(values < lo))
-        self._upper += int(np.count_nonzero(values > hi))
-        sampled = _bounded_logs(logs, max(100, self.max_pooled_sample_values // 8))
-        combined = np.concatenate((self._sample_logs, sampled))
-        self._sample_logs = _bounded_logs(combined, self.max_pooled_sample_values)
+        if self.target is not None:
+            lo, hi = self.target.interval_m_s
+            self._inside += int(np.count_nonzero((values >= lo) & (values <= hi)))
+            self._lower += int(np.count_nonzero(values < lo))
+            self._upper += int(np.count_nonzero(values > hi))
         self._per_field.append(validate_hydraulic_conductivity_marginal(
             values, self.target, tolerances=self.tolerances
         ))
@@ -304,22 +358,29 @@ class HydraulicConductivityValidationAccumulator:
             "log10_mean": float(mean),
             "log10_std": std,
             "log10_variance": variance,
-            "log10_mean_error": float(mean - self.target.log10_mean),
-            "log10_std_error": float(std - self.target.log10_std),
-            "log10_variance_error": float(variance - self.target.log10_variance),
-            "fraction_inside_interval": float(self._inside / self._n),
-            "lower_tail_fraction": float(self._lower / self._n),
-            "upper_tail_fraction": float(self._upper / self._n),
+            "log10_mean_error": float(mean - self.target.log10_mean) if self.target is not None else None,
+            "log10_std_error": float(std - self.target.log10_std) if self.target is not None else None,
+            "log10_variance_error": float(variance - self.target.log10_variance) if self.target is not None else None,
+            "fraction_inside_interval": float(self._inside / self._n) if self.target is not None else None,
+            "lower_tail_fraction": float(self._lower / self._n) if self.target is not None else None,
+            "upper_tail_fraction": float(self._upper / self._n) if self.target is not None else None,
             "quantile_normality_sample_size": int(self._sample_logs.size),
+            "quantile_normality_sampling": {
+                "method": "uniform_pixels_with_replacement" if self._n > self.max_pooled_sample_values else "all_values",
+                "seed": self.sample_seed, "capacity": self.max_pooled_sample_values,
+                "population_size": self._n,
+                "interpretation": "Descriptive pixel pool; no geological scenario probabilities. Moments and interval counts use every pixel.",
+            },
         })
         pooled["interval_fraction_status"] = (
-            "pass" if pooled["fraction_inside_interval"] >= self.target.minimum_interval_fraction else "warn"
+            ("pass" if pooled["fraction_inside_interval"] >= self.target.minimum_interval_fraction else "warn")
+            if self.target is not None else "not_assessed"
         )
         pooled["heuristic_assessment"] = _heuristic_assessment(pooled, self.tolerances)
         return {
             "pooled": pooled,
             "per_field": self._per_field,
             "field_count": len(self._per_field),
-            "target": self.target.metadata,
+            "target": self.target.metadata if self.target is not None else None,
             "no_filtering": True,
         }

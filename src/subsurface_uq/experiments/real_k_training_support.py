@@ -18,7 +18,6 @@ import yaml
 
 from ..sampling.darus_real import load_release25_raw_permeability_run
 from ..sampling.geostatistical_target import (
-    Base10LognormalTarget,
     HydraulicConductivityValidationAccumulator,
     validate_hydraulic_conductivity_marginal,
 )
@@ -27,8 +26,11 @@ from ..sampling.hydraulic_conductivity import (
     hydraulic_conversion_metadata,
     permeability_to_hydraulic_conductivity,
 )
-from ..sampling.spatial_diagnostics import directional_variograms, spatial_power_spectrum
+from ..sampling.calibration import estimate_directional_variograms
+from ..sampling.spatial_diagnostics import log_field_spectrum
 from ..sampling.training_split_provenance import resolve_release25_training_split
+from .distribution_options import add_distribution_target_arguments, distribution_target_from_args
+from .reference_field_permeability import coarsen_reference
 
 
 def _summary(values: np.ndarray) -> dict[str, object]:
@@ -77,17 +79,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--cnn3-prepared-inputs")
     p.add_argument("--runs", nargs="+", help="Optional explicit realistic RUN subset for support profiling")
     p.add_argument("--cell-size-m", type=float, default=5.0)
+    p.add_argument("--diagnostic-factor", type=int, default=8,
+                   help="Geometric block means for variograms/spectra only; full-grid marginals are retained")
     p.add_argument("--permeability-convention", choices=("historical-training", "physical"),
                    default="historical-training")
     p.add_argument("--rho", type=float, default=1000.0)
     p.add_argument("--mu", type=float, default=1.0e-3)
     p.add_argument("--g", type=float, default=9.80665)
-    p.add_argument("--target-log10-mean", type=float, default=-3.0)
-    p.add_argument("--target-log10-std", type=float, default=0.5,
-                   help="Base-10 log-space standard deviation; 0.5 means variance 0.25")
-    p.add_argument("--target-lb-m-s", type=float, default=1.0e-4)
-    p.add_argument("--target-ub-m-s", type=float, default=5.0e-2)
-    p.add_argument("--minimum-interval-fraction", type=float, default=0.95)
+    add_distribution_target_arguments(p)
     p.add_argument("--output-dir", required=True)
     return p
 
@@ -107,14 +106,10 @@ def _field_checksum(values: np.ndarray) -> str:
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     root = Path(args.output_dir).expanduser().resolve()
-    root.mkdir(parents=True, exist_ok=True)
+    if args.diagnostic_factor <= 0:
+        raise ValueError("diagnostic_factor must be positive")
     fluid = FluidProperties(args.rho, args.mu, args.g)
-    target = Base10LognormalTarget(
-        args.target_log10_mean,
-        args.target_log10_std,
-        (args.target_lb_m_s, args.target_ub_m_s),
-        args.minimum_interval_fraction,
-    )
+    target = distribution_target_from_args(args)
     if bool(args.cnn1_command_line) != bool(args.cnn3_command_line):
         raise ValueError("provide both CNN1 and CNN3 command-line metadata, or neither")
 
@@ -140,8 +135,11 @@ def main(argv=None) -> int:
             raise ValueError(f"requested RUNs are not present in the dataset inventory: {unknown}")
         inventory = requested
 
+    profiled_training = [run for run in inventory if run in common_training]
+    if common_training and not profiled_training:
+        support_kind = "resolved_but_no_profiled_common_training_runs"
     all_accumulator = HydraulicConductivityValidationAccumulator(target)
-    training_accumulator = HydraulicConductivityValidationAccumulator(target) if common_training else None
+    training_accumulator = HydraulicConductivityValidationAccumulator(target) if profiled_training else None
     runs: dict[str, object] = {}
     for run in inventory:
         k = load_release25_raw_permeability_run(args.dataset_root, run, cell_size_m=args.cell_size_m)
@@ -167,18 +165,23 @@ def main(argv=None) -> int:
             "marginal": _summary(kh),
             "target_validation": validate_hydraulic_conductivity_marginal(kh, target),
         }
-        try:
-            entry["directional_variograms"] = directional_variograms(
-                np.log10(kh), cell_size_m=args.cell_size_m
-            )
-        except Exception as exc:
-            entry["directional_variograms_error"] = str(exc)
-        try:
-            entry["spectral"] = spatial_power_spectrum(
-                np.log10(kh), cell_size_m=args.cell_size_m
-            )
-        except Exception as exc:
-            entry["spectral_error"] = str(exc)
+        diagnostic = coarsen_reference(kh, args.diagnostic_factor)
+        if min(diagnostic.shape) < 3:
+            raise ValueError("diagnostic grid must have at least three cells in each direction")
+        spacing = args.cell_size_m * args.diagnostic_factor
+        curves = estimate_directional_variograms(diagnostic, cell_size_m=spacing)
+        entry["directional_variograms"] = {
+            label: {"distance_m": curves[direction][0].tolist(),
+                    "semivariance_log10": curves[direction][1].tolist()}
+            for direction, label in (("y", "row"), ("x", "column"), ("diag", "diagonal"))
+        }
+        entry["spectral"] = log_field_spectrum(diagnostic, cell_size_m=spacing)
+        entry["spectral"]["space"] = "centered_log10_hydraulic_conductivity"
+        entry["diagnostic_support"] = {
+            "shape": list(diagnostic.shape), "cell_size_m": spacing,
+            "factor": args.diagnostic_factor, "coarsening": "geometric_block_mean",
+            "axes": "array row/column; no geographic rotation assumed",
+        }
         runs[run] = entry
 
     report: dict[str, object] = {
@@ -193,8 +196,9 @@ def main(argv=None) -> int:
         "hydraulic_conversion": hydraulic_conversion_metadata(
             args.permeability_convention, fluid=fluid
         ),
-        "target": target.metadata,
+        "target": target.metadata if target is not None else None,
         "common_proven_training_runs": common_training,
+        "profiled_common_training_runs": profiled_training,
         "profiled_runs": inventory,
         "dataset_inventory_validation": all_accumulator.finalize(),
         "runs": runs,
@@ -217,6 +221,7 @@ def main(argv=None) -> int:
     if training_accumulator is not None:
         report["common_training_validation"] = training_accumulator.finalize()
 
+    root.mkdir(parents=True, exist_ok=True)
     (root / "training_support.yaml").write_text(
         yaml.safe_dump(report, sort_keys=False), encoding="utf-8"
     )

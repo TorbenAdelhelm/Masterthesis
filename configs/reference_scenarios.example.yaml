@@ -30,22 +30,22 @@ references:
 cell_size_m: 5.0
 permeability_convention: historical-training
 
-# Hydrogeological distribution assumption used for validation, not clipping.
-# The supplied geostatistics slides state sigma_log10 = 0.5. Consequently the
-# base-10 log variance is 0.25. If a variance of 0.5 is intended instead, replace
-# log10_std with `log10_variance: 0.5` explicitly.
-distribution_target:
-  distribution: base10_lognormal_hydraulic_conductivity
-  log10_mean: -3.0
-  log10_std: 0.5
-  interval_m_s: [1.0e-4, 5.0e-2]
-  minimum_interval_fraction: 0.95
-
-# Optional heuristic flags only; generated samples are never rejected/resampled.
-distribution_validation:
-  max_abs_log10_mean_error: 0.25
-  max_abs_log10_std_error: 0.15
-  max_qq_rmse_standardized: 0.35
+# Global histogram comparisons are opt-in. Fixed-location lognormal marginals
+# around a heterogeneous reference do not imply a lognormal pooled histogram.
+# Omit/null disables target comparisons while retaining descriptive statistics
+# and reference-relative spatial diagnostics. An explicit {} enables defaults.
+distribution_target: null
+distribution_validation: null
+# Example explicit diagnostic assumption (does not change the generated law):
+# distribution_target:
+#   log10_mean: -3.0
+#   log10_std: 0.5  # standard deviation; log10 variance is 0.25
+#   interval_m_s: [1.0e-4, 5.0e-2]  # validation interval, not hard support
+#   minimum_interval_fraction: 0.95
+# distribution_validation:
+#   max_abs_log10_mean_error: 0.25
+# Missing tolerance keys are unassessed (JSON null). Thresholds require an
+# explicit target and never reject/resample generated fields.
 
 # Used only for `permeability_convention: physical`. Historical-training uses
 # the historical k = K_h / 7.5e6 conversion exactly.

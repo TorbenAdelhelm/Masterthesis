@@ -39,3 +39,39 @@ def test_geometric_coarsening_and_conversion_convention_are_explicit():
     np.testing.assert_allclose(physical/historical, .7676985915176447)
     with pytest.raises(ValueError, match="convention"):
         hydraulic_conductivity_to_intrinsic_permeability(kh, permeability_convention="ambiguous")
+
+
+@pytest.mark.parametrize("option", ["--max-abs-log10-mean-error", "--max-abs-log10-std-error", "--max-qq-rmse-standardized"])
+def test_cli_partial_thresholds_are_json_safe_with_explicit_target(tmp_path, option):
+    source = tmp_path / "ref.npy"
+    np.save(source, 10 ** np.linspace(-10, -9.8, 64).reshape(8, 8))
+    common = ["--reference-npy", str(source), "--permeability-convention", "historical-training",
+              "--residual-std-log10-k", ".05", "--length-scale-row-m", "20", "--length-scale-col-m", "30",
+              "--n-modes", "3", "--n-samples", "2", option, ".25"]
+    with pytest.raises(ValueError, match="explicit distribution target"):
+        main([*common, "--output-dir", str(tmp_path / "disabled")])
+    assert not (tmp_path / "disabled").exists()
+    assert main([*common, "--distribution-target", "--output-dir", str(tmp_path / "enabled")]) == 0
+    validation = json.loads((tmp_path / "enabled/modes_3/distribution_validation.json").read_text())
+    assert validation["target"]["log10_std"] == .5
+    assert validation["sample_filtering"] is None
+    limits = validation["pooled"]["heuristic_assessment"]["tolerances"]
+    assert sum(v is None for v in limits.values()) == 2
+
+
+def test_cli_target_options_enable_only_requested_diagnostics(tmp_path):
+    source = tmp_path / "ref.npy"
+    np.save(source, 10 ** np.linspace(-10, -9.8, 64).reshape(8, 8))
+    common = ["--reference-npy", str(source), "--permeability-convention", "historical-training",
+              "--residual-std-log10-k", ".05", "--length-scale-row-m", "20", "--length-scale-col-m", "30",
+              "--n-modes", "3", "--n-samples", "2", "--seed", "33"]
+    fields = []
+    for name, flags in (("default", []), ("explicit", ["--target-log10-variance", ".5"])):
+        assert main([*common, *flags, "--output-dir", str(tmp_path / name)]) == 0
+        report = json.loads((tmp_path / name / "modes_3/distribution_validation.json").read_text())
+        if not flags:
+            assert report["target"] is None and report["pooled"]["heuristic_assessment"]["status"] == "not_assessed"
+        else:
+            assert report["target"]["log10_variance"] == pytest.approx(.5)
+        fields.append(np.load(tmp_path / name / "modes_3/generated_fields.npy", allow_pickle=False))
+    np.testing.assert_array_equal(*fields)

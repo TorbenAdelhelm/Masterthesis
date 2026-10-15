@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+import pytest
 import yaml
 
 from subsurface_uq.experiments.reference_scenarios import run_matrix
@@ -91,3 +92,50 @@ def test_matrix_writes_hydraulic_distribution_validation_without_filtering(tmp_p
     assert "qq_rmse_standardized" in validation["normality_deviation"]
     assert "spatial_support_deviation" in validation
     assert not (validation_path.parent / "generated_fields.npy").exists()
+
+
+def _small_matrix(tmp_path, **options):
+    reference = (10 ** np.linspace(-10, -9.8, 64)).reshape(8, 8)
+    np.save(tmp_path / "reference.npy", reference)
+    return {
+        "base": {"reference_run": "RUN_2", "sigma_R": .05,
+                 "ell_row_m": 20, "ell_col_m": 30, "n_modes": 3, "energy_threshold": None},
+        "references": {"RUN_2": "reference.npy"}, "cell_size_m": 5,
+        "permeability_convention": "historical-training", "n_samples": 4, "seed": 33,
+        "storage": {"retain_generated_fields": True}, **options,
+    }
+
+
+@pytest.mark.parametrize("target_config", [None, {}])
+def test_global_target_is_opt_in_and_does_not_change_generated_inputs(tmp_path, target_config):
+    outputs = []
+    for label, target in (("off", None), ("chosen", target_config)):
+        config = _small_matrix(tmp_path, distribution_target=target)
+        source = tmp_path / f"{label}.yaml"
+        source.write_text(yaml.safe_dump(config))
+        report = run_matrix(source, tmp_path / label)
+        row = report["scenarios"][0]
+        directory = tmp_path / label / row["scenario_id"]
+        validation = json.loads((directory / "distribution_validation.json").read_text())
+        assert (report["distribution_target"] is None) == (target is None)
+        assert (validation["normality_deviation"] is None) == (target is None)
+        assert validation["pooled"]["log10_std"] > 0
+        assert validation["sample_filtering"] is None
+        outputs.append(np.load(directory / "generated_fields.npy", allow_pickle=False))
+    np.testing.assert_array_equal(*outputs)
+
+
+def test_matrix_partial_thresholds_write_json_and_require_explicit_target(tmp_path):
+    config = _small_matrix(tmp_path, distribution_target={},
+                           distribution_validation={"max_abs_log10_mean_error": .25})
+    source = tmp_path / "config.yaml"
+    source.write_text(yaml.safe_dump(config))
+    report = run_matrix(source, tmp_path / "valid")
+    row = report["scenarios"][0]
+    validation = json.loads((tmp_path / "valid" / row["scenario_id"] / "distribution_validation.json").read_text())
+    assert validation["pooled"]["heuristic_assessment"]["tolerances"]["max_abs_log10_std_error"] is None
+    config["distribution_target"] = None
+    source.write_text(yaml.safe_dump(config))
+    with pytest.raises(ValueError, match="explicit distribution target"):
+        run_matrix(source, tmp_path / "invalid")
+    assert not (tmp_path / "invalid").exists()

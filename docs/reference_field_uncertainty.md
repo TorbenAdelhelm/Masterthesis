@@ -37,6 +37,13 @@ mean. Conditioning changes either center. Fixed-location marginals are
 lognormal; pooling over a spatially varying reference produces a mixture whose
 histogram need not be lognormal.
 
+Global histogram target comparisons are therefore opt-in: omit/null the matrix
+`distribution_target` or omit CLI target flags for descriptive diagnostics only.
+An explicit target adds discrepancy/interval checks without changing the input
+law. Scenario anchor mean/variance or quantile bounds remain separate,
+consistency-checked assumptions. See the
+[generation workflow](geostatistical_generation_workflow.md).
+
 ## Conditioning and data conventions
 
 At observation points, A evaluates the same retained residual KL basis. Use
@@ -70,8 +77,10 @@ a dependence argument and cannot count as independent validation.
 
 ## Generate and compare scenarios
 
-Install the package in the experiment environment with `pip install -e
-".[test,perlin]"`. In Git Bash on Windows, for example:
+Install the package in the experiment environment with
+`python -m pip install -e ".[geostat]"` (including `h5py` for the raw RUN files).
+The optional Perlin dependency is unnecessary for reference-field generation.
+In Git Bash on Windows, for example:
 
 ```bash
 python -m subsurface_uq.experiments.reference_field_permeability \

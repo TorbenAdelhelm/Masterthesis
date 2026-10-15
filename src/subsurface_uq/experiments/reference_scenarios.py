@@ -99,11 +99,13 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
     if config["permeability_convention"] not in {"historical-training", "physical"}:
         raise ValueError("explicit permeability convention required")
     permeability_convention = config["permeability_convention"]
-    target = Base10LognormalTarget.from_mapping(config.get("distribution_target"))
+    target_config = config.get("distribution_target")
+    target = Base10LognormalTarget.from_mapping(target_config) if target_config is not None else None
     fluid = _fluid_from_config(config.get("fluid_properties"))
     validation_tolerances = config.get("distribution_validation")
     if validation_tolerances is not None and not isinstance(validation_tolerances, dict):
         raise ValueError("distribution_validation must be a mapping of heuristic tolerances")
+    HydraulicConductivityValidationAccumulator(target, tolerances=validation_tolerances)
     cell = float(config["cell_size_m"])
     if not np.isfinite(cell) or cell <= 0:
         raise ValueError("cell_size_m must be positive and finite")
@@ -158,7 +160,7 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
               "seed": seed, "n_samples": count, "scenario_weights": weights,
               "weight_status": "explicit scenario assumptions, never inferred probabilities" if weights else "absent; results per scenario",
               "pooling": False,
-              "distribution_target": target.metadata,
+              "distribution_target": target.metadata if target is not None else None,
               "hydraulic_conversion": conversion,
               "storage": {"retain_generated_fields": retain_generated_fields},
               "scenarios": []}
@@ -169,7 +171,7 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
         source_metadata = {"reference_run": scenario.reference_run,
                            "reference_npy_sha256": reference_sha,
                            "permeability_convention": permeability_convention,
-                           "hydraulic_conductivity_validation_target": target.metadata,
+                           "hydraulic_conductivity_validation_target": target.metadata if target is not None else None,
                            "hydraulic_conversion": conversion}
         instance_id, instance_identity = _scenario_instance_identity(
             scenario, reference_sha256=reference_sha, reference_shape=reference.shape,

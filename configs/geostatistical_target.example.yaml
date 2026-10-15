@@ -1,4 +1,7 @@
-# Geostatistical marginal assumption used for reference-centered sensitivity studies.
+# Optional global histogram diagnostic assumption for sensitivity studies.
+# This standalone example does not select the reference-centered generation law.
+# In a matrix, copy `target` to an explicit `distribution_target` mapping to opt in.
+# Omitting that mapping or setting it to null keeps descriptive diagnostics only.
 # K_h is hydraulic conductivity [m/s], not intrinsic permeability k [m^2].
 # The LGCNN still receives k [m^2]; conversion parameters are recorded explicitly.
 

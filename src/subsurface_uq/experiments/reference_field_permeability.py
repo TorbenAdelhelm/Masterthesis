@@ -11,7 +11,6 @@ import yaml
 from ..sampling.darus_real import load_release25_raw_permeability_run
 from ..sampling.coordinates import GaussianCoordinatePermeabilitySampler
 from ..sampling.geostatistical_target import (
-    Base10LognormalTarget,
     HydraulicConductivityValidationAccumulator,
     validate_hydraulic_conductivity_marginal,
 )
@@ -22,6 +21,7 @@ from ..sampling.hydraulic_conductivity import (
 )
 from ..sampling.reference_field import save_reference_field_input_model
 from ..sampling.spatial_diagnostics import compare_reference_ensemble
+from .distribution_options import add_distribution_target_arguments, distribution_target_from_args
 
 
 def coarsen_reference(reference, factor):
@@ -63,15 +63,7 @@ def build_parser():
     parser.add_argument("--rho", type=float, default=1000.0)
     parser.add_argument("--mu", type=float, default=1.0e-3)
     parser.add_argument("--g", type=float, default=9.80665)
-    parser.add_argument("--target-log10-mean", type=float, default=-3.0)
-    spread = parser.add_mutually_exclusive_group()
-    spread.add_argument("--target-log10-std", type=float, default=None,
-                        help="Base-10 log-space standard deviation; teaching example uses 0.5")
-    spread.add_argument("--target-log10-variance", type=float, default=None,
-                        help="Explicit base-10 log-space variance; use only if variance, not sigma, is intended")
-    parser.add_argument("--target-lb-m-s", type=float, default=1.0e-4)
-    parser.add_argument("--target-ub-m-s", type=float, default=5.0e-2)
-    parser.add_argument("--minimum-interval-fraction", type=float, default=0.95)
+    add_distribution_target_arguments(parser)
     parser.add_argument("--max-abs-log10-mean-error", type=float)
     parser.add_argument("--max-abs-log10-std-error", type=float)
     parser.add_argument("--max-qq-rmse-standardized", type=float)
@@ -114,16 +106,7 @@ def main(argv=None):
             "observation_log10_k": observations["log10_permeability_m2"],
             "observation_std_log10_k": observations["std_log10"],
         }
-    target_payload = {
-        "log10_mean": args.target_log10_mean,
-        "interval_m_s": [args.target_lb_m_s, args.target_ub_m_s],
-        "minimum_interval_fraction": args.minimum_interval_fraction,
-    }
-    if args.target_log10_variance is not None:
-        target_payload["log10_variance"] = args.target_log10_variance
-    else:
-        target_payload["log10_std"] = 0.5 if args.target_log10_std is None else args.target_log10_std
-    target = Base10LognormalTarget.from_mapping(target_payload)
+    target = distribution_target_from_args(args)
     tolerances = {
         key: value for key, value in {
             "max_abs_log10_mean_error": args.max_abs_log10_mean_error,
@@ -131,6 +114,8 @@ def main(argv=None):
             "max_qq_rmse_standardized": args.max_qq_rmse_standardized,
         }.items() if value is not None
     } or None
+    # Validate diagnostic options before creating scenario outputs.
+    HydraulicConductivityValidationAccumulator(target, tolerances=tolerances)
     fluid = FluidProperties(args.rho, args.mu, args.g)
     conversion = hydraulic_conversion_metadata(args.permeability_convention, fluid=fluid)
     root = Path(args.output_dir).resolve()
@@ -143,12 +128,12 @@ def main(argv=None):
         "original_cell_size_m": args.cell_size_m, "generated_cell_size_m": cell_size,
         "diagnostic_factor": args.diagnostic_factor,
         "hydraulic_conversion": conversion,
-        "distribution_target": target.metadata,
+        "distribution_target": target.metadata if target is not None else None,
         "uncertainty_status": "explicit sensitivity assumption; not calibrated interpolation error",
     }
     summary = {"input_law": "reference-centered-lognormal", "source": source,
                "n_samples": args.n_samples, "seed": args.seed,
-               "distribution_target": target.metadata,
+               "distribution_target": target.metadata if target is not None else None,
                "truncation_sensitivity": []}
     choices = ([(None, n) for n in args.n_modes] if args.n_modes
                else [(e, None) for e in (args.energy_thresholds or [.95, .99, .999])])

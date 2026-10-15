@@ -33,3 +33,16 @@ def test_experiment_module_help_is_executable(module: str, expected_option: str)
     assert "--prepared-pki-dir" in completed.stdout
     assert "--fixed-run-id" in completed.stdout
     assert expected_option in completed.stdout
+
+
+@pytest.mark.parametrize("module, option", [
+    ("subsurface_uq.experiments.real_k_training_support", "--dataset-root"),
+    ("subsurface_uq.experiments.reference_field_permeability", "--distribution-target"),
+    ("subsurface_uq.experiments.reference_scenarios", "--config"),
+    ("subsurface_uq.visualization.reference_fields_cli", "--pilot-output"),
+])
+def test_reference_workflow_cli_help_executes(module, option):
+    completed = subprocess.run([sys.executable, "-m", module, "--help"],
+                               capture_output=True, text=True, check=False)
+    assert completed.returncode == 0, completed.stderr
+    assert option in completed.stdout

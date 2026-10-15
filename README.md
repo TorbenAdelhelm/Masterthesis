@@ -19,6 +19,11 @@ The [permeability input previews](docs/reference_field_previews.md) export selec
 generated fields beside their fixed reference, with PNG agreement maps and optional
 native arrays; completed-pilot inputs are verified against their model-query hashes.
 
+The [training-support and generation workflow](docs/geostatistical_generation_workflow.md)
+reports descriptive field statistics and reference-relative spatial diagnostics.
+Global histogram targets are optional diagnostic assumptions, enabled explicitly;
+they do not change the generated fields or filter samples.
+
 The [reduced native-grid pilot](docs/reference_pilot.md) prepares actual RUN arrays
 and a fixed real-K setup before the full scenario matrix is attempted.
 
