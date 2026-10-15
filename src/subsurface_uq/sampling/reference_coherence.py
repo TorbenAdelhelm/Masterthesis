@@ -92,6 +92,30 @@ def _curve_payload(reference, generated, *, cell_size_m, lags, correlation=False
     return payload
 
 
+def native_short_range_features(field, *, cell_size_m):
+    """Four native-grid descriptors that block averaging can otherwise erase.
+
+    Gradients and lag-one Pearson correlations describe the original cells.
+    Constant fields have zero gradients and undefined (JSON null) correlations.
+    These descriptors neither reject fields nor certify surrogate support.
+    """
+    if np.iscomplexobj(field):
+        raise ValueError("permeability field must be real-valued")
+    field = np.asarray(field, dtype=float)
+    if (field.ndim != 2 or min(field.shape, default=0) < 3
+            or not np.all(np.isfinite(field)) or np.any(field <= 0)):
+        raise ValueError("positive finite 2-D permeability with at least 3x3 native cells required")
+    if not np.isfinite(cell_size_m) or cell_size_m <= 0:
+        raise ValueError("positive finite cell_size_m required")
+    logs = np.log10(field)
+    return _safe({
+        "gradient_rms_row_log10_per_m": float(np.sqrt(np.mean(np.diff(logs, axis=0)**2)) / cell_size_m),
+        "gradient_rms_column_log10_per_m": float(np.sqrt(np.mean(np.diff(logs, axis=1)**2)) / cell_size_m),
+        "lag1_correlation_row": _directional_curves(logs, "row", [1], correlation=True)[0],
+        "lag1_correlation_column": _directional_curves(logs, "column", [1], correlation=True)[0],
+    })
+
+
 def reference_ensemble_coherence(reference, generated, *, cell_size_m, max_lag_cells=24):
     """Compare one fixed reference with its full, unfiltered matched-grid ensemble.
 

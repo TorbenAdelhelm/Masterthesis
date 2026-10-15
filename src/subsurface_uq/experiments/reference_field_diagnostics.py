@@ -18,7 +18,7 @@ from ..io import git_head, runtime_versions, sha256_file
 from ..sampling.input_model import load_conditional_kl_input_model
 from ..sampling.reference_field import ReferenceFieldLogGaussianPermeabilityMap
 from ..sampling.reference_coherence import (
-    reference_ensemble_coherence, reference_probe_law_diagnostics,
+    native_short_range_features, reference_ensemble_coherence, reference_probe_law_diagnostics,
 )
 from ..visualization.reference_fields import reference_field_agreement
 from ..visualization.reference_fields_cli import _coordinates
@@ -191,7 +191,7 @@ def validate_reference_fields(input_model_path, output_dir, *, generated_fields=
         source.update(mode="validation_design", coordinate_design_sha256=sha256(coordinates.tobytes()).hexdigest(),
                       design_provenance="Explicit reproducible validation design, not a replay of previously queried LGCNN inputs.")
         total_fields = n_samples
-    agreement, marginals, coarse, probes, hashes = [], [], [], [], []
+    agreement, marginals, short_range, coarse, probes, hashes = [], [], [], [], [], []
     for index, field in enumerate(fields):
         if not np.isrealobj(field) or not np.issubdtype(field.dtype, np.number):
             raise ValueError("generated permeability fields must contain real numeric values")
@@ -199,6 +199,7 @@ def validate_reference_fields(input_model_path, output_dir, *, generated_fields=
         # never statistically atypical draws from a valid declared law.
         agreement.append({"sample_index": index, **reference_field_agreement(reference, field)})
         marginals.append({"sample_index": index, **_native_marginal(field)})
+        short_range.append({"sample_index": index, **native_short_range_features(field, cell_size_m=cell_size)})
         hashes.append({"sample_index": index, "dtype": str(field.dtype),
                        "physical_field_sha256": sha256(np.ascontiguousarray(field).tobytes()).hexdigest()})
         coarse.append(coarsen_reference(field, diagnostic_factor))
@@ -234,6 +235,12 @@ def validate_reference_fields(input_model_path, output_dir, *, generated_fields=
                     "probe_indices_yx": indices.tolist(),
                     "axes": "array row/column, not inferred geographic orientation"},
         "native_marginals": {"reference": _native_marginal(reference), "generated_per_field": marginals},
+        "native_short_range": {
+            "reference": native_short_range_features(reference, cell_size_m=cell_size),
+            "generated_per_field": short_range,
+            "cell_size_m": cell_size,
+            "interpretation": "Native-grid gradient and lag-one descriptors expose fine-scale changes that geometric block averaging can hide; descriptive checks, not training-support certification.",
+        },
         "native_agreement": agreement, "coherence": coherence, "probe_law": probe_law,
         "assessment": {"status": "reference_review_required",
             "configured_reference_checks": _assess_criteria(criteria, coherence, agreement),

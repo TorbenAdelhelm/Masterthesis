@@ -242,6 +242,29 @@ def _native_tables(report):
     return lines
 
 
+def _native_short_range_table(report):
+    native = report.get("native_short_range")
+    if not native:
+        return []
+    spacing = _number(report.get("support", {}).get("native_cell_size_m"))
+    lines = ["### Native-grid short-range structure", "",
+             f"These descriptors use the native **{spacing} m** cell spacing without block averaging. "
+             "Geometric block averaging can hide fine-grid and checkerboard changes, so inspect these "
+             "gradients and one-cell correlations alongside the coarsened curves. "
+             "They describe the supplied fields; no acceptance threshold or LGCNN training-support "
+             "guarantee is implied.", "",
+             "| Field | Row gradient RMS (log10 K/m) | Column gradient RMS (log10 K/m) | Row lag-1 correlation | Column lag-1 correlation |",
+             "| --- | ---: | ---: | ---: | ---: |"]
+    keys = ("gradient_rms_row_log10_per_m", "gradient_rms_column_log10_per_m",
+            "lag1_correlation_row", "lag1_correlation_column")
+    rows = [("Fixed reference", native["reference"])]
+    rows.extend((f"Generated {row['sample_index']}", row) for row in native.get("generated_per_field", []))
+    for label, row in rows:
+        lines.append(f"| {label} | " + " | ".join(_number(row[key]) for key in keys) + " |")
+    lines.append("")
+    return lines
+
+
 def _markdown_report(report, outputs):
     coherence = report["coherence"]
     fidelity = coherence["reference_fidelity"]
@@ -268,6 +291,7 @@ def _markdown_report(report, outputs):
              f"![Distributional diagnostics]({outputs['distribution_png']})", "",
              *_native_tables(report),
              "## Spatial agreement", "",
+             *_native_short_range_table(report),
              "Read the directional variograms, spatial correlations and residual variograms together. "
              "Strong total-field correlation alone can be dominated by the fixed heterogeneous reference. "
              "The residual curves describe the actual perturbations around that reference. "

@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from subsurface_uq.sampling.reference_coherence import (
+    native_short_range_features,
     reference_ensemble_coherence,
     reference_probe_law_diagnostics,
 )
@@ -91,6 +92,38 @@ def test_field_envelopes_describe_spread_and_constants_are_json_safe():
     single = reference_ensemble_coherence(reference, reference[None], cell_size_m=5.)
     assert single["ensemble_envelope"]["status"] == "single_field_no_ensemble_spread"
     json.dumps(report, allow_nan=False)
+
+
+def test_native_short_range_descriptors_expose_checkerboard_erased_by_coarsening():
+    reference = _reference((24, 24))
+    yy, xx = np.indices(reference.shape)
+    perturbed = reference * 10. ** (.2 * (-1.)**(yy + xx))
+
+    def coarse(field):
+        return np.log10(field).reshape(3, 8, 3, 8).mean(axis=(1, 3))
+
+    np.testing.assert_allclose(coarse(reference), coarse(perturbed), atol=1e-14)
+    baseline = native_short_range_features(reference, cell_size_m=5.)
+    actual = native_short_range_features(perturbed, cell_size_m=5.)
+    for direction in ("row", "column"):
+        assert actual[f"gradient_rms_{direction}_log10_per_m"] > 5 * baseline[f"gradient_rms_{direction}_log10_per_m"]
+        assert abs(actual[f"lag1_correlation_{direction}"] - baseline[f"lag1_correlation_{direction}"]) > .25
+    json.dumps(actual, allow_nan=False)
+
+
+def test_native_short_range_descriptors_handle_constants_and_validate_inputs():
+    actual = native_short_range_features(np.full((4, 7), 1e-9), cell_size_m=5.)
+    assert actual == {"gradient_rms_row_log10_per_m": 0.,
+                      "gradient_rms_column_log10_per_m": 0.,
+                      "lag1_correlation_row": None, "lag1_correlation_column": None}
+    json.dumps(actual, allow_nan=False)
+    for field in (np.zeros((4, 7)), np.ones((2, 7)), np.full((4, 7), np.nan)):
+        with pytest.raises(ValueError, match="positive finite"):
+            native_short_range_features(field, cell_size_m=5.)
+    with pytest.raises(ValueError, match="real-valued"):
+        native_short_range_features(np.ones((4, 7), dtype=complex), cell_size_m=5.)
+    with pytest.raises(ValueError, match="cell_size_m"):
+        native_short_range_features(np.ones((4, 7)), cell_size_m=0.)
 
 
 @pytest.mark.parametrize("center", ["median", "arithmetic-mean"])

@@ -24,6 +24,10 @@ def _report(*, count=8, constant=False, method="RQMC"):
     generated = 10. ** logs
     probes = np.array([[0, 0], [3, 4], [7, 9]])
     coherence = reference_ensemble_coherence(reference, generated, cell_size_m=20, max_lag_cells=3)
+    short_range = {"gradient_rms_row_log10_per_m": .004,
+                   "gradient_rms_column_log10_per_m": .0015,
+                   "lag1_correlation_row": None if constant else 1.,
+                   "lag1_correlation_column": None if constant else 1.}
     marginals = []
     for row in coherence["per_field"]:
         features = row["field_features"]
@@ -40,6 +44,9 @@ def _report(*, count=8, constant=False, method="RQMC"):
                     "diagnostic_shape": [8, 10], "geometric_coarsening_factor": 1},
         "native_marginals": {"reference": {"pixel_count": 80}, "generated_per_field": marginals},
         "native_agreement": coherence["per_field"],
+        "native_short_range": {"reference": short_range,
+                               "generated_per_field": [{"sample_index": index, **short_range}
+                                                       for index in range(count)]},
         "coherence": coherence,
         "probe_law": reference_probe_law_diagnostics(model, logs[:, probes[:, 0], probes[:, 1]],
                                                        probes, sampling_method=method),
@@ -71,7 +78,10 @@ def test_report_renders_real_backend_diagnostics_without_mutating_metrics(tmp_pa
     markdown = (tmp_path / outputs["markdown"]).read_text(encoding="utf-8")
     for phrase in ("not confidence intervals", "do not reject or filter", "training support separately",
                    "scrambled Sobol points are not iid", "retained Gaussian/KL law", "RUN_1, RUN_2 and RUN_3",
-                   "native cells (no coarsening)", "reference_review_required", "validation.json", "a" * 64):
+                   "native cells (no coarsening)", "reference_review_required", "validation.json", "a" * 64,
+                   "native **20 m**", "checkerboard changes", "Row gradient RMS", "Column gradient RMS",
+                   "Row lag-1 correlation", "Column lag-1 correlation", "| Fixed reference | 0.004 | 0.0015 | 1 | 1 |",
+                   "| Generated 7 | 0.004 | 0.0015 | 1 | 1 |"):
         assert phrase in markdown
     assert all(f"]({name})" in markdown for key, name in outputs.items() if key.endswith("png"))
     assert json.dumps(report, sort_keys=True, allow_nan=False) == json.dumps(original, sort_keys=True, allow_nan=False)

@@ -74,7 +74,8 @@ reported support distinguishes three calculations:
 
 | Calculation | Support and meaning |
 | --- | --- |
-| Native marginals and field/reference agreement | All native pixels; physical ranges and quantiles, log-space mean and standard deviation, plus paired differences at matching locations. |
+| Native marginals and field/reference agreement | All native pixels; physical and log-space moments, ranges and quantiles, plus paired differences at matching locations. |
+| Native short-range structure | Row/column gradient RMS and lag-one correlation on the original cell size, before block averaging. This exposes fine-grid changes that can disappear at coarse support. |
 | Spatial texture | Matched geometric block means at the declared diagnostic factor; directional variograms and 2-D, radial and angular spectra. |
 | Pointwise law and dependence | Repeated generated values at predetermined native cells, combining global coverage with a local stencil at declared correlation scales, compared with the actual retained KL law. |
 
@@ -110,7 +111,10 @@ Review the diagnostics together:
    itself evidence of a broken generator, since the scenario intentionally
    adds uncertain residuals to a heterogeneous reference.
 2. **Correlational agreement:** compare directional variograms, spectral shape
-   and local texture. A pixel permutation can preserve every marginal quantile
+   and local texture, including native-grid gradient and lag-one descriptors.
+   A checkerboard perturbation can cancel exactly inside each geometric block;
+   the native descriptors reveal it even when the coarse spatial plots agree.
+   A pixel permutation can preserve every marginal quantile
    while destroying spatial structure. These diagnostics address that failure.
    A diagnostic factor larger than one cannot resolve texture below the block
    scale; decrease it before concluding that fine-scale structure agrees.

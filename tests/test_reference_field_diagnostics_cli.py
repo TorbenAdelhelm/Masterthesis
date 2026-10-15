@@ -279,3 +279,23 @@ def test_nonempty_output_is_rejected_without_overwriting(tmp_path, artifact, fas
             method="MC", diagnostic_factor=1)
     assert marker.read_text() == "preserve"
     assert list(output.iterdir()) == [marker]
+
+
+def test_native_structure_reveals_checkerboard_hidden_by_coarse_plots(tmp_path, artifact, fast_reports):
+    path, field_map = artifact
+    reference = field_map.reference_permeability
+    rows, columns = np.indices(reference.shape)
+    changed = reference * 10. ** (.2 * (-1.) ** (rows + columns))
+    source = tmp_path / "checkerboard.npy"
+    np.save(source, np.stack((reference, changed)))
+    report = diagnostics.validate_reference_fields(path, tmp_path / "coarse_plots",
+        generated_fields=source, diagnostic_factor=2)
+    assert report["coherence"]["reference_fidelity"]["marginal"]["wasserstein_distance_log10"] < 1e-13
+    native = report["native_short_range"]
+    assert native["cell_size_m"] == 5.
+    changed_metrics = native["generated_per_field"][1]
+    for direction in ("row", "column"):
+        gradient = f"gradient_rms_{direction}_log10_per_m"
+        correlation = f"lag1_correlation_{direction}"
+        assert changed_metrics[gradient] > 3 * native["reference"][gradient]
+        assert changed_metrics[correlation] < native["reference"][correlation] - .3
