@@ -24,6 +24,11 @@ reports descriptive field statistics and reference-relative spatial diagnostics.
 Global histogram targets are optional diagnostic assumptions, enabled explicitly;
 they do not change the generated fields or filter samples.
 
+The [reference-field validation report](docs/reference_field_diagnostics.md)
+checks all supplied fields against their fixed reference and the actual retained
+residual law. It exports distribution, correlation and spectral PNGs, empirical
+realization envelopes, native-cell moment/covariance checks and a review report.
+
 The [reduced native-grid pilot](docs/reference_pilot.md) prepares actual RUN arrays
 and a fixed real-K setup before the full scenario matrix is attempted.
 

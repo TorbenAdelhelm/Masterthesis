@@ -165,6 +165,15 @@ Pixels are spatially correlated. Therefore iid goodness-of-fit p-values are not 
 
 ## 7. Run the frozen LGCNN and evaluate QoIs
 
+Before model propagation, use the dedicated
+[reference-field validation command](reference_field_diagnostics.md) to turn
+existing generated arrays (or an explicit fresh validation design) into PNGs and
+a review report. It compares the full-field spatial distribution and directional
+structure to the fixed reference, adds empirical realization envelopes, and
+checks predetermined native-cell ensemble moments/correlations against the
+actual retained KL law. These are distinct supports: geometric block averages
+are used for tractable spatial plots, native cells for pointwise law checks.
+
 Assess the input scenario relative to its reference, available real-K support and
 any explicitly selected global target, then serialize the exact input model and
 propagate draws through the frozen real-K LGCNN. Keep reference scenario,

@@ -38,6 +38,7 @@ def test_experiment_module_help_is_executable(module: str, expected_option: str)
 @pytest.mark.parametrize("module, option", [
     ("subsurface_uq.experiments.real_k_training_support", "--dataset-root"),
     ("subsurface_uq.experiments.reference_field_permeability", "--distribution-target"),
+    ("subsurface_uq.experiments.reference_field_diagnostics", "--generated-fields"),
     ("subsurface_uq.experiments.reference_scenarios", "--config"),
     ("subsurface_uq.visualization.reference_fields_cli", "--pilot-output"),
 ])
