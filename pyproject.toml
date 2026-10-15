@@ -30,6 +30,7 @@ subsurface-uq-release25-gaussian-pce = "subsurface_uq.experiments.release25_gaus
 subsurface-uq-reference-field-permeability = "subsurface_uq.experiments.reference_field_permeability:main"
 subsurface-uq-reference-field-diagnostics = "subsurface_uq.experiments.reference_field_diagnostics:main"
 subsurface-uq-reference-scenarios = "subsurface_uq.experiments.reference_scenarios:main"
+subsurface-uq-reference-kernel-study = "subsurface_uq.experiments.reference_kernel_study:main"
 subsurface-uq-reference-kl-sensitivity = "subsurface_uq.experiments.reference_kl_sensitivity:main"
 subsurface-uq-real-k-training-support = "subsurface_uq.experiments.real_k_training_support:main"
 subsurface-uq-release25-grf = "subsurface_uq.experiments.release25_grf_mc:main"

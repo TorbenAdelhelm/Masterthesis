@@ -36,7 +36,11 @@ def _coordinates(dimension, count, seed, method):
 
 
 def pilot_preview_sources(pilot_output, *, reference_run=None, scenario_ids=None, include_kl=False):
-    """Read frozen coordinate designs and expected model-input hashes."""
+    """Read frozen pilot/screen designs and expected model-input hashes.
+
+    Legacy pilots default to primary scenarios. Kernel screens default to all
+    recorded scenario rows, including any explicitly requested KL comparisons.
+    """
     root = Path(pilot_output).resolve()
     context_path, summary_path = root / "run_context.json", root / "summary.json"
     recorded = json.loads(context_path.read_text(encoding="utf-8"))
@@ -47,14 +51,37 @@ def pilot_preview_sources(pilot_output, *, reference_run=None, scenario_ids=None
     if summary["context_id"] != recorded["context_id"]:
         raise ValueError("pilot summary belongs to a different run context")
     artifacts = {row["scenario_id"]: row for row in context["artifacts"]}
-    paired_path = root / "qoi_truncation.json"
-    paired = json.loads(paired_path.read_text(encoding="utf-8"))
-    if paired["context_id"] != recorded["context_id"]:
-        raise ValueError("paired KL record belongs to a different run context")
-    paired_ids = set(paired["scenario_ids"])
-    paired_dimension = summary["paired_anchor_reuse"]["coordinate_dimension"]
-    selected = set(scenario_ids or [])
+    screen = context.get("study_mode") == "kernel-screen"
+    if screen and summary.get("study_mode") != "kernel-screen":
+        raise ValueError("pilot summary study mode disagrees with its run context")
     known = {row["scenario_id"] for row in summary["scenarios"]}
+    paired_path = root / "qoi_truncation.json"
+    paired_ids, paired_dimension, grouped_dimensions = set(), None, {}
+    if screen:
+        # Kernel screens need no KL companion. Where explicit same-law groups
+        # exist, they share mode-prefix designs; other scenarios use their own
+        # recorded design dimension, even if the random seed is identical.
+        if paired_path.exists():
+            paired = json.loads(paired_path.read_text(encoding="utf-8"))
+            if paired["context_id"] != recorded["context_id"]:
+                raise ValueError("paired KL record belongs to a different run context")
+            for group in paired["groups"]:
+                if group["context_id"] != recorded["context_id"]:
+                    raise ValueError("paired KL group belongs to a different run context")
+                dimension = group["coordinate_dimension"]
+                if isinstance(dimension, bool) or not isinstance(dimension, int) or dimension <= 0:
+                    raise ValueError("paired KL coordinate dimension must be a positive integer")
+                for sid in group["scenario_ids"]:
+                    if sid not in known or sid in grouped_dimensions:
+                        raise ValueError("paired KL groups require distinct known scenario IDs")
+                    grouped_dimensions[sid] = dimension
+    else:
+        paired = json.loads(paired_path.read_text(encoding="utf-8"))
+        if paired["context_id"] != recorded["context_id"]:
+            raise ValueError("paired KL record belongs to a different run context")
+        paired_ids = set(paired["scenario_ids"])
+        paired_dimension = summary["paired_anchor_reuse"]["coordinate_dimension"]
+    selected = set(scenario_ids or [])
     if selected - known:
         raise ValueError(f"unknown scenario IDs: {sorted(selected - known)}")
     sources = []
@@ -62,7 +89,7 @@ def pilot_preview_sources(pilot_output, *, reference_run=None, scenario_ids=None
         sid = row["scenario_id"]
         if selected and sid not in selected:
             continue
-        if not selected and not include_kl and row["role"] != "primary":
+        if not screen and not selected and not include_kl and row["role"] != "primary":
             continue
         if reference_run and row["config"]["reference_run"] != reference_run:
             continue
@@ -77,12 +104,20 @@ def pilot_preview_sources(pilot_output, *, reference_run=None, scenario_ids=None
         indices = [r["sample_index"] for r in diagnostics]
         if sorted(indices) != list(range(context["n_samples"])):
             raise ValueError(f"missing or duplicated pilot sample indices: {sid}")
+        dimension = paired_dimension if sid in paired_ids else row["dimension"]
+        if screen:
+            dimension = row.get("coordinate_dimension", grouped_dimensions.get(sid, row["dimension"]))
+            if (isinstance(dimension, bool) or not isinstance(dimension, int)
+                    or dimension < row["dimension"]):
+                raise ValueError(f"invalid pilot coordinate dimension: {sid}")
+            if sid in grouped_dimensions and dimension != grouped_dimensions[sid]:
+                raise ValueError(f"pilot coordinate dimension disagrees with paired KL group: {sid}")
         sources.append({
             "scenario_id": sid, "input_model": str(path),
             "input_model_sha256": artifact["sha256"],
             "config": row["config"], "method": context["method"],
             "seed": context["seed"], "n_samples": context["n_samples"],
-            "coordinate_dimension": paired_dimension if sid in paired_ids else row["dimension"],
+            "coordinate_dimension": dimension,
             "expected_fields": {r["sample_index"]: r["physical_field_sha256"] for r in diagnostics},
             "pilot_context_id": recorded["context_id"],
             "source_diagnostics_sha256": sha256_file(diagnostics_path),
@@ -217,7 +252,7 @@ def main(argv=None):
     parser.add_argument("--save-arrays", action="store_true", help="Also retain selected float32 NPY inputs and their nominal reference")
     parser.add_argument("--reference-run", help="Pilot scenario filter, e.g. RUN_2")
     parser.add_argument("--scenario-ids", nargs="+", help="Explicit pilot scenario IDs; may include KL variants")
-    parser.add_argument("--include-kl", action="store_true", help="Include extra KL variants when selecting pilot scenarios by reference RUN")
+    parser.add_argument("--include-kl", action="store_true", help="Include extra KL variants for legacy pilots; kernel screens include all recorded variants by default")
     parser.add_argument("--n-samples", type=int, help="Original full standalone design size, not the number of exported images")
     parser.add_argument("--seed", type=int)
     parser.add_argument("--method", choices=("MC", "RQMC"))

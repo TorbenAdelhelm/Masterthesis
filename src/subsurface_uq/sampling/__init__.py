@@ -57,6 +57,7 @@ from .geospatial import (
 from .kl import (
     KLLogGaussianPermeabilityMap,
     exponential_correlation_matrix,
+    gaussian_correlation_matrix,
     matern32_correlation_matrix,
 )
 from .kriging import (
@@ -182,6 +183,7 @@ __all__ = [
     "estimate_directional_variograms",
     "exact_simple_kriging_posterior",
     "exponential_correlation_matrix",
+    "gaussian_correlation_matrix",
     "historical_perlin_v2_field",
     "load_empirical_fields",
     "load_pflotran_permeability_h5",

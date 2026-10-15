@@ -293,10 +293,10 @@ def load_rq1_config(
         covariance_model = str(
             grf.get("covariance_model", "matern32")
         ).strip().lower()
-        if covariance_model not in {"matern32", "exponential"}:
+        if covariance_model not in {"matern32", "exponential", "gaussian"}:
             raise ValueError(
-                "RQ1 factorized-KL covariance_model must be 'matern32' or "
-                "'exponential'"
+                "RQ1 factorized-KL covariance_model must be 'matern32', "
+                "'exponential' or 'gaussian'"
             )
         ly = float(grf["length_scale_y_m"])
         lx = float(grf["length_scale_x_m"])

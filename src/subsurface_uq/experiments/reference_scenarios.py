@@ -13,7 +13,7 @@ import yaml
 from ..io import sha256_file
 from ..sampling.scenarios import (
     reference_scenario_from_config,
-    scenario_matrix,
+    scenario_matrix_with_metadata,
     scenario_weights,
 )
 from ..sampling.reference_field import save_reference_field_input_model
@@ -84,7 +84,9 @@ def _fluid_from_config(payload):
     return FluidProperties(**payload)
 
 
-def run_matrix(config_path, output_dir, *, rq1_config=None):
+def run_matrix(config_path, output_dir, *, rq1_config=None, prepare_only=False):
+    if not isinstance(prepare_only, bool) or (prepare_only and rq1_config is not None):
+        raise ValueError("prepare_only must be boolean and cannot request RQ1 propagation")
     source = Path(config_path).resolve()
     config = yaml.safe_load(source.read_text(encoding="utf-8"))
     allowed = {"base", "axes", "references", "cell_size_m", "permeability_convention",
@@ -92,7 +94,7 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
                "storage", "distribution_target", "distribution_validation", "fluid_properties"}
     if not isinstance(config, dict) or not set(config) <= allowed:
         raise ValueError("unknown matrix config keys")
-    scenarios = scenario_matrix(
+    scenarios, setting_metadata = scenario_matrix_with_metadata(
         reference_scenario_from_config(config["base"]), config.get("axes", {})
     )
     weights = scenario_weights([s.scenario_id for s in scenarios], config.get("scenario_weights"))
@@ -157,12 +159,14 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
     root.mkdir(parents=True, exist_ok=True)
     conversion = hydraulic_conversion_metadata(permeability_convention, fluid=fluid)
     report = {"schema_version": 3, "config_sha256": sha256_file(source),
-              "seed": seed, "n_samples": count, "scenario_weights": weights,
+              "seed": seed, "n_samples": count, "diagnostic_factor": factor, "scenario_weights": weights,
               "weight_status": "explicit scenario assumptions, never inferred probabilities" if weights else "absent; results per scenario",
               "pooling": False,
               "distribution_target": target.metadata if target is not None else None,
               "hydraulic_conversion": conversion,
               "storage": {"retain_generated_fields": retain_generated_fields},
+              "execution": "artifacts_only" if prepare_only else "generated_input_ensembles",
+              "parameter_sets": setting_metadata,
               "scenarios": []}
     for scenario in scenarios:
         reference_path = paths[scenario.reference_run]
@@ -178,6 +182,8 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
             cell_size_m=cell, permeability_convention=permeability_convention)
         directory = root / scenario.scenario_id
         _guard_scenario_directory(directory, instance_id)
+        if prepare_only and directory.exists() and any(directory.iterdir()):
+            raise ValueError("prepare-only requires fresh scenario directories; reuse the existing manifest instead")
         directory.mkdir(exist_ok=True)
         unconditional, field_map = scenario.build_maps(reference, cell_size_m=cell)
         artifact = directory / "stochastic_input_model.yaml"
@@ -187,6 +193,21 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
                 for p in support["reference_npy"]]}}} if profile else {})
         save_reference_field_input_model(artifact, unconditional, source_metadata=source_metadata,
                                          **support_metadata)
+        manifest = scenario.manifest()
+        variance = unconditional.prior.pointwise_log10_variance()
+        manifest.update(scenario_instance_id=instance_id, instance_identity=instance_identity,
+                        source_metadata=source_metadata, cell_size_m=cell, seed=seed, n_samples=count,
+                        dimension=field_map.dimension, retained_energy=unconditional.prior.retained_energy_fraction,
+                        retained_log10_variance={"min": float(variance.min()), "mean": float(variance.mean()), "max": float(variance.max())},
+                        input_model_sha256=sha256_file(artifact), input_model=str(artifact))
+        if scenario.scenario_id in setting_metadata:
+            manifest["parameter_set"] = setting_metadata[scenario.scenario_id]
+        if prepare_only:
+            manifest.update(execution="artifacts_only", storage={
+                "retain_generated_fields": False, "generated_fields": None})
+            (directory / "manifest.json").write_text(json.dumps(manifest, indent=2, allow_nan=False), encoding="utf-8")
+            report["scenarios"].append(manifest)
+            continue
         diagnostics = TrainingPatchCompatibilityDiagnostics(profile) if profile else None
         sampler = GaussianCoordinatePermeabilitySampler(field_map=field_map, n_samples=count, batch_size=1, seed=seed)
         generated_path = directory / "generated_fields.npy"
@@ -252,13 +273,7 @@ def run_matrix(config_path, output_dir, *, rq1_config=None):
             json.dumps(distribution_report, indent=2, allow_nan=False), encoding="utf-8"
         )
 
-        manifest = scenario.manifest()
-        variance = unconditional.prior.pointwise_log10_variance()
-        manifest.update(scenario_instance_id=instance_id, instance_identity=instance_identity,
-                        source_metadata=source_metadata, cell_size_m=cell, seed=seed, n_samples=count,
-                        dimension=field_map.dimension, retained_energy=unconditional.prior.retained_energy_fraction,
-                        retained_log10_variance={"min": float(variance.min()), "mean": float(variance.mean()), "max": float(variance.max())},
-                        distribution_validation=str(directory / "distribution_validation.json"),
+        manifest.update(distribution_validation=str(directory / "distribution_validation.json"),
                         generated_full_field_log10_std=distribution_report["pooled"]["log10_std"],
                         generated_full_field_log10_std_error=distribution_report["pooled"]["log10_std_error"],
                         generated_interval_fraction=distribution_report["pooled"]["fraction_inside_interval"],
@@ -281,9 +296,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True)
     parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--prepare-only", action="store_true", help="Write portable input artifacts and representation metadata without generating fields or querying the model")
     parser.add_argument("--rq1-config", help="Fixed-model/QoI template; the matrix overrides its entire grf block, and reference RUN does not change fixed sources")
     args = parser.parse_args(argv)
-    report = run_matrix(args.config, args.output_dir, rq1_config=args.rq1_config)
+    report = run_matrix(args.config, args.output_dir, rq1_config=args.rq1_config, prepare_only=args.prepare_only)
     print(f"Saved {len(report['scenarios'])} separate reference scenarios")
     return 0
 

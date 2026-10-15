@@ -111,7 +111,7 @@ class ReferenceScenario:
             raise ValueError("reference_run and lognormal marginal required")
         if self.center not in {"median", "arithmetic-mean"}:
             raise ValueError("unknown centering convention")
-        if self.covariance_family not in {"matern32", "exponential"}:
+        if self.covariance_family not in {"gaussian", "matern32", "exponential"}:
             raise ValueError("unsupported separable covariance family")
         if any(not math.isfinite(v) or v <= 0 for v in (self.ell_x, self.ell_y)):
             raise ValueError("correlation lengths must be finite and positive")
@@ -217,33 +217,139 @@ def reference_scenario_from_config(config: dict[str, object]) -> ReferenceScenar
     return ReferenceScenario(**params)
 
 
-def scenario_matrix(base, axes):
-    """Cartesian product of explicit axes; no weights or pooling by default."""
+def correlation_range_to_length_scale(correlation_range_m, covariance_family):
+    """Convert an axial rho=1/e distance to the implemented kernel length.
+
+    The separable Gaussian kernel is exp(-h**2/(2*ell**2)); exponential is
+    exp(-abs(h)/ell); Matern-3/2 is (1+sqrt(3)*abs(h)/ell)*exp(-sqrt(3)*abs(h)/ell).
+    Ranges and lengths are model-form assumptions, not fitted quantities.
+    """
+    if (isinstance(correlation_range_m, bool)
+            or not isinstance(correlation_range_m, (int, float))
+            or not math.isfinite(correlation_range_m) or correlation_range_m <= 0):
+        raise ValueError("effective correlation range must be positive and finite")
+    if covariance_family == "gaussian":
+        factor = math.sqrt(2.)
+    elif covariance_family == "exponential":
+        factor = 1.
+    elif covariance_family == "matern32":
+        # With u=sqrt(3)*h/ell, solve u-log1p(u)=1. A fixed bisection
+        # gives deterministic conversion without an optimizer tolerance.
+        lo, hi = 0., 4.
+        for _ in range(64):
+            mid = (lo + hi) / 2
+            if mid - math.log1p(mid) < 1.:
+                lo = mid
+            else:
+                hi = mid
+        factor = ((lo + hi) / 2) / math.sqrt(3.)
+    else:
+        raise ValueError("unsupported separable covariance family")
+    return float(correlation_range_m) / factor
+
+
+def _matrix_parameters(params):
+    """Resolve existing axis aliases and one explicit truncation choice."""
+    params = dict(params)
+    for alias, legacy in (("ell_row_m", "ell_y"), ("ell_col_m", "ell_x")):
+        if alias in params:
+            if legacy in params and not math.isclose(float(params[legacy]), float(params[alias])):
+                raise ValueError(f"{alias} conflicts with {legacy} in matrix")
+            params[legacy] = params.pop(alias)
+    if "truncation" in params:
+        truncation = params.pop("truncation")
+        if not isinstance(truncation, dict) or set(truncation) not in ({"n_modes"}, {"energy_threshold"}):
+            raise ValueError("truncation axis entries require exactly one truncation choice")
+        params.update(n_modes=None, energy_threshold=None)
+        params.update(truncation)
+    return params
+
+
+def _parameter_set_fields(entry):
+    """Validate a coupled parameter entry and identify its physical axes."""
+    allowed = {"label", "sigma_R", "ell_x", "ell_y", "ell_row_m", "ell_col_m",
+               "correlation_range_row_m", "correlation_range_col_m", "truncation"}
+    if not isinstance(entry, dict) or not set(entry) <= allowed:
+        raise ValueError("parameter_sets entries must be mappings with supported parameters")
+    if not isinstance(entry.get("label"), str) or not entry["label"].strip():
+        raise ValueError("each parameter set requires a non-empty label")
+    if len(entry) == 1:
+        raise ValueError("parameter sets must declare at least one parameter")
+    physical_axes = set()
+    for key in entry:
+        axis = {"ell_row_m": "ell_y", "correlation_range_row_m": "ell_y",
+                "ell_col_m": "ell_x", "correlation_range_col_m": "ell_x"}.get(key, key)
+        physical_axes.add(axis)
+    for direction, legacy in (("row", "ell_y"), ("col", "ell_x")):
+        if (f"correlation_range_{direction}_m" in entry
+                and (legacy in entry or f"ell_{direction}_m" in entry)):
+            raise ValueError("parameter set cannot declare both correlation range and kernel length for one axis")
+    return physical_axes - {"label"}
+
+
+def scenario_matrix_with_metadata(base, axes):
+    """Expand independent axes and coupled parameter sets, retaining label provenance.
+
+    Labels are outside the scientific scenario configuration, so changing a
+    display label cannot alter a scenario ID. Independent axes remain Cartesian;
+    every mapping in ``parameter_sets`` is one complete, coupled setting.
+    """
     allowed = {"reference_run", "sigma_R", "covariance_family", "ell_x", "ell_y",
-               "ell_row_m", "ell_col_m", "truncation"}
-    if not set(axes) <= allowed or any(not values for values in axes.values()):
+               "ell_row_m", "ell_col_m", "truncation", "parameter_sets"}
+    if (not isinstance(axes, dict) or not set(axes) <= allowed
+            or any(not isinstance(values, (list, tuple)) or not values for values in axes.values())):
         raise ValueError("unknown or empty scenario matrix axis")
-    scenarios = []
+    parameter_sets = axes.get("parameter_sets", [])
+    labels = []
+    independent = {key: value for key, value in axes.items() if key != "parameter_sets"}
+    independent_fields = {"ell_row_m": "ell_y", "ell_col_m": "ell_x"}
+    independent_fields = {independent_fields.get(key, key) for key in independent}
+    for entry in parameter_sets:
+        overlap = _parameter_set_fields(entry) & independent_fields
+        if overlap:
+            raise ValueError(f"parameter_sets conflict with independent matrix axes: {sorted(overlap)}")
+        labels.append(entry["label"])
+    if len(set(labels)) != len(labels):
+        raise ValueError("parameter_sets labels must be unique")
+    scenarios, metadata = [], {}
     for values in product(*axes.values()):
         params = dict(zip(axes, values))
-        if "ell_row_m" in params:
-            if "ell_y" in params and not math.isclose(float(params["ell_y"]), float(params["ell_row_m"])):
-                raise ValueError("ell_row_m conflicts with ell_y in matrix")
-            params["ell_y"] = params.pop("ell_row_m")
-        if "ell_col_m" in params:
-            if "ell_x" in params and not math.isclose(float(params["ell_x"]), float(params["ell_col_m"])):
-                raise ValueError("ell_col_m conflicts with ell_x in matrix")
-            params["ell_x"] = params.pop("ell_col_m")
-        if "truncation" in params:
-            truncation = params.pop("truncation")
-            if not isinstance(truncation, dict) or set(truncation) not in ({"n_modes"}, {"energy_threshold"}):
-                raise ValueError("truncation axis entries require exactly one truncation choice")
-            params.update(n_modes=None, energy_threshold=None)
-            params.update(truncation)
-        scenarios.append(replace(base, **params))
+        entry = params.pop("parameter_sets", None)
+        if entry is not None:
+            coupled = {key: value for key, value in entry.items() if key != "label"}
+            family = params.get("covariance_family", base.covariance_family)
+            for direction in ("row", "col"):
+                range_key = f"correlation_range_{direction}_m"
+                if range_key in coupled:
+                    coupled[f"ell_{direction}_m"] = correlation_range_to_length_scale(
+                        coupled.pop(range_key), family)
+            params.update(coupled)
+        scenario = replace(base, **_matrix_parameters(params))
+        scenarios.append(scenario)
+        if entry is not None:
+            metadata[scenario.scenario_id] = {
+                "label": entry["label"],
+                "declared_parameters": {key: value for key, value in entry.items() if key != "label"},
+                "resolved_parameters": {
+                    "sigma_R": scenario.sigma_R, "covariance_family": scenario.covariance_family,
+                    "ell_row_m": scenario.ell_row_m, "ell_col_m": scenario.ell_col_m,
+                    "n_modes": scenario.n_modes, "energy_threshold": scenario.energy_threshold,
+                },
+                "assumed_effective_range_m": {
+                    direction: entry[f"correlation_range_{direction}_m"]
+                    for direction in ("row", "col") if f"correlation_range_{direction}_m" in entry
+                },
+                "effective_range_definition": "axial distance where prior kernel correlation rho = exp(-1)",
+                "assumption_status": "explicit coupled model-form/sensitivity setting; not calibrated",
+            }
     if len(set(scenarios)) != len(scenarios):
         raise ValueError("duplicate scenarios in matrix")
-    return scenarios
+    return scenarios, metadata
+
+
+def scenario_matrix(base, axes):
+    """Expand explicit axes and coupled settings; no weights or pooling by default."""
+    return scenario_matrix_with_metadata(base, axes)[0]
 
 
 def scenario_weights(ids, weights=None):

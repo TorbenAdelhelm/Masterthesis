@@ -32,6 +32,11 @@ realization envelopes, native-cell moment/covariance checks and a review report.
 The [reduced native-grid pilot](docs/reference_pilot.md) prepares actual RUN arrays
 and a fixed real-K setup before the full scenario matrix is attempted.
 
+The [kernel comparison study](docs/reference_kernel_study.md) prepares 27 separate
+RUN/kernel/range assumptions, resumes input diagnostics and compares an explicit
+shortlist with nominal outputs from the frozen LGCNN. Gaussian, Matérn-3/2 and
+exponential kernels share declared effective ranges; none is treated as calibrated truth.
+
 The implementation is designed around interchangeable components:
 
 ```text

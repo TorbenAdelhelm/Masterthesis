@@ -66,6 +66,34 @@ def exponential_correlation_matrix(
     return np.exp(-scaled_distance)
 
 
+def gaussian_correlation_matrix(
+    size: int,
+    domain_length_m: float,
+    length_scale_m: float,
+) -> Array:
+    """Return the 1-D Gaussian/RBF correlation matrix on cell centers.
+
+    The canonical convention is ``rho(d) = exp(-0.5 * (d / ell)**2)``.
+    Thus the distance at which correlation falls to ``1/e`` is
+    ``sqrt(2) * ell``; ``ell`` is not itself that effective distance.
+    """
+
+    size = int(size)
+    domain_length_m = float(domain_length_m)
+    length_scale_m = float(length_scale_m)
+    if size <= 0:
+        raise ValueError("size must be positive")
+    if not np.isfinite(domain_length_m) or domain_length_m <= 0.0:
+        raise ValueError("domain_length_m must be finite and positive")
+    if not np.isfinite(length_scale_m) or length_scale_m <= 0.0:
+        raise ValueError("length_scale_m must be finite and positive")
+
+    spacing = domain_length_m / size
+    locations = (np.arange(size, dtype=np.float64) + 0.5) * spacing
+    scaled_distance = np.abs(locations[:, None] - locations[None, :]) / length_scale_m
+    return np.exp(-0.5 * scaled_distance**2)
+
+
 def _correlation_matrix(
     covariance_model: str,
     size: int,
@@ -76,8 +104,11 @@ def _correlation_matrix(
         return matern32_correlation_matrix(size, domain_length_m, length_scale_m)
     if covariance_model == "exponential":
         return exponential_correlation_matrix(size, domain_length_m, length_scale_m)
+    if covariance_model == "gaussian":
+        return gaussian_correlation_matrix(size, domain_length_m, length_scale_m)
     raise ValueError(
-        "covariance_model must be 'matern32' or 'exponential' for the factorized KL map"
+        "covariance_model must be 'matern32', 'exponential' or 'gaussian' "
+        "for the factorized KL map"
     )
 
 
@@ -101,7 +132,8 @@ class KLLogGaussianPermeabilityMap:
 
     ``sigma^2 * C_y ⊗ C_x``
 
-    where each one-dimensional factor is either Matérn-3/2 or exponential. This
+    where each one-dimensional factor is Matérn-3/2, exponential or Gaussian/RBF.
+    The Gaussian convention is ``rho(d)=exp(-0.5*(d/ell)**2)``. This
     avoids constructing the full ``(H*W) x (H*W)`` covariance matrix. If
     ``C_y u_i = lambda_i^y u_i`` and ``C_x v_j = lambda_j^x v_j``, the two-
     dimensional eigenpairs are outer products with eigenvalues
@@ -156,9 +188,10 @@ class KLLogGaussianPermeabilityMap:
         if not np.isfinite(self.energy_threshold) or not (0.0 < self.energy_threshold <= 1.0):
             raise ValueError("energy_threshold must lie in (0, 1]")
         self.covariance_model = str(self.covariance_model).strip().lower()
-        if self.covariance_model not in {"matern32", "exponential"}:
+        if self.covariance_model not in {"matern32", "exponential", "gaussian"}:
             raise ValueError(
-                "factorized KL covariance_model must be 'matern32' or 'exponential'"
+                "factorized KL covariance_model must be 'matern32', "
+                "'exponential' or 'gaussian'"
             )
 
         self.shape = (int(self.shape[0]), int(self.shape[1]))
@@ -348,6 +381,8 @@ class KLLogGaussianPermeabilityMap:
             scaled = np.asarray(distance, dtype=np.float64) / float(length_scale)
             if self.covariance_model == "exponential":
                 return np.exp(-scaled)
+            if self.covariance_model == "gaussian":
+                return np.exp(-0.5 * scaled**2)
             root3 = np.sqrt(3.0) * scaled
             return (1.0 + root3) * np.exp(-root3)
 

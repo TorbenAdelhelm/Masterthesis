@@ -52,7 +52,7 @@ def build_parser():
                         type=float, required=True, help="Correlation length along array rows")
     parser.add_argument("--length-scale-col-m", "--length-scale-x-m", dest="length_scale_col_m",
                         type=float, required=True, help="Correlation length along array columns")
-    parser.add_argument("--covariance-model", choices=("matern32", "exponential"), default="matern32")
+    parser.add_argument("--covariance-model", choices=("matern32", "exponential", "gaussian"), default="matern32")
     truncation = parser.add_mutually_exclusive_group()
     truncation.add_argument("--energy-thresholds", type=float, nargs="+", default=None)
     truncation.add_argument("--n-modes", type=int, nargs="+", help="Explicit representation sensitivity dimensions")
