@@ -27,6 +27,8 @@ jobs:
         run: |
           subsurface-uq-reference-kernel-study --help
           python examples/reference_pilot/run_temperature_pilot.py --help
+          python examples/reference_pilot/run_matched_kernel_study.py --help
+          python examples/reference_pilot/fit_reference_kernel_models.py --help
       - name: Save test results
         if: always()
         uses: actions/upload-artifact@v4

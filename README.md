@@ -37,6 +37,10 @@ RUN/kernel/range assumptions, resumes input diagnostics and compares an explicit
 shortlist with nominal outputs from the frozen LGCNN. Gaussian, Matérn-3/2 and
 exponential kernels share declared effective ranges; none is treated as calibrated truth.
 
+The [matched fitted-kernel selection](docs/matched_kernel_selection.md) compares
+GSTools-fitted radial laws on the native grid, checks numerical covariance
+accuracy, and screens every kernel family through the fixed LGCNN context.
+
 The implementation is designed around interchangeable components:
 
 ```text
