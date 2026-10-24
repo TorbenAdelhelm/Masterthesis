@@ -28,6 +28,7 @@ jobs:
           subsurface-uq-reference-kernel-study --help
           subsurface-uq-reference-conditioning --help
           subsurface-uq-conditioning-temperature --help
+          python -m subsurface_uq.experiments.conditioning_deviation --help
           python examples/reference_pilot/run_temperature_pilot.py --help
           python examples/reference_pilot/run_matched_kernel_study.py --help
           python examples/reference_pilot/fit_reference_kernel_models.py --help

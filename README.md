@@ -53,6 +53,10 @@ severity/area metrics and paired density comparisons. Start with the reduced
 72-field pilot; references remain separate and no RQ5 information-value ranking
 or training-support certificate is implied.
 
+The [native permeability-deviation study](docs/conditioning_deviation.md) compares
+reference error and differences between samples at 0/1/4/16/32 measurements,
+with paired full-resolution draws, exact GP expectations and shared-scale PNGs.
+
 The implementation is designed around interchangeable components:
 
 ```text

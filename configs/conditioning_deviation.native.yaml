@@ -1,0 +1,3 @@
+conditioning_config: reference_conditioning.deviation.yaml
+measurement_counts: [0, 1, 4, 16, 32]
+sample_budgets: [8, 16, 32]
