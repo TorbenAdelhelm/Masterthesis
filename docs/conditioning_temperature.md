@@ -2,6 +2,8 @@
 
 This study connects the native conditional FFT generator directly to the actual
 pretrained release25 LGCNN. It advances RQ1 and supplies initial RQ2 metrics.
+The [completed native pilot and audit](conditioning_temperature_results.md)
+record 72 generated-input evaluations across the three separate references.
 No new KL approximation is needed for direct MC. Existing KL/RQMC/PCE workflows
 remain available; this command does not interpret an FFT manifest as a KL artifact.
 
@@ -99,6 +101,8 @@ sequence. Under each `n-NNNN/`:
   width/exceedance. `sample-NNNN.png` displays the generated permeability and
   actual model temperature beside their references, with shared pairwise color
   scales and symmetric difference scales. Native selected arrays are also saved.
+  Probability color bars use [0,1]; SD/interval-width bars use nonnegative ranges,
+  including constant-output cases. These display limits never change raw metrics.
 - `reference_diagnostics.json` retains distributional, directional variogram/
   correlation, radial/angular/2-D spectral comparisons on the declared diagnostic
   point-stride grid. Every sample also records full-grid agreement, native short-

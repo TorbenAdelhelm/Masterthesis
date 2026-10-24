@@ -80,7 +80,7 @@ def _mean_sem(values):
             "n_designs": len(values)}
 
 
-def _figure(path, arrays, titles, *, symmetric=(), shared_pairs=(), cell_size_m=5.):
+def _figure(path, arrays, titles, *, symmetric=(), shared_pairs=(), cell_size_m=5., limits=None):
     fig, axes = plt.subplots(2,3,figsize=(13,7.5),layout="constrained")
     for i,(ax,values,title) in enumerate(zip(axes.flat,arrays,titles)):
         stride = max(1,int(np.ceil(max(values.shape)/640)))
@@ -92,9 +92,11 @@ def _figure(path, arrays, titles, *, symmetric=(), shared_pairs=(), cell_size_m=
         if i in symmetric:
             limit = max(float(np.abs(values).max()),1e-7)
             options = {"cmap":"RdBu_r", "vmin":-limit, "vmax":limit}
+        if limits is not None and i in limits:
+            options.update(vmin=limits[i][0],vmax=limits[i][1])
         extent = (0,values.shape[1]*cell_size_m/1000,0,values.shape[0]*cell_size_m/1000)
         artist = ax.imshow(values[::stride,::stride],origin="lower",extent=extent,**options)
-        ax.set_title(title)
+        ax.set_title(title,fontsize=10)
         ax.set(xlabel="Local column distance [km]",ylabel="Local row distance [km]")
         fig.colorbar(artist,ax=ax,shrink=.8)
     try:
@@ -118,9 +120,10 @@ def _summarize_case(directory, store, accumulator, reference_temperature, model,
     difference = stats.mean-reference_temperature
     _figure(directory/"temperature_uncertainty.png",
         (reference_temperature,stats.mean,difference,stats.std,width,probability),
-        ("Reference temperature [°C]","Conditional MC mean [°C]","Mean minus reference [°C]",
+        ("Reference temperature [°C]","MC mean [°C]","Mean − reference [°C]",
          "Conditional temperature SD [°C]","Temperature q95 − q05 [°C]",
-         f"P(ΔT {cfg['threshold_comparison']} {cfg['risk_thresholds_C'][0]} °C)"),symmetric=(2,))
+         f"P(ΔT {cfg['threshold_comparison']} {cfg['risk_thresholds_C'][0]} °C)"),symmetric=(2,),
+        limits={3:(0.,max(float(stats.std.max()),1e-12)),4:(0.,max(float(width.max()),1e-12)),5:(0.,1.)})
     return {"field_statistics": global_uncertainty_metrics(stats.std), "field_convergence":convergence,
             "mean_temperature_shift_rmse_C":float(np.sqrt(np.mean(difference**2))),
             "quantile_probabilities":[.05,.5,.95], "risk_summary":"risk.json",

@@ -17,6 +17,9 @@ attribution, source-connected plume geometry and temperature-based RQ5 EVR
 remain separate work. The existing Hermite PCE CLI already accepts serialized
 Gaussian/KL artifacts; this does not establish that it represents the new native
 radial FFT law. Model-form parameters remain assumptions, and RUNs are separate.
+The [completed native pilot](conditioning_temperature_results.md) evaluated 72
+generated fields plus three references through the actual frozen LGCNN. It
+demonstrates execution and saved-output consistency, not statistical convergence.
 
 ## Implemented pipeline
 
