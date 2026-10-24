@@ -1,6 +1,8 @@
 # Permeability deviation versus measurement count
 
 This input-only study uses all three original 2560 × 2560, 5 m reference arrays.
+The [completed native study](conditioning_deviation_results.md) contains the
+audited numerical results and an overview figure for all three RUNs.
 It compares two quantities for each fixed location/reading design and count n:
 
 \[
