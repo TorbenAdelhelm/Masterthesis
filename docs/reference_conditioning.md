@@ -197,5 +197,10 @@ reference/prior hierarchy. Retained fields can be used as explicit inputs to the
 existing frozen LGCNN workflow; this command does not itself query the network
 or establish a temperature-based generator recommendation.
 
+For direct propagation of all conditional draws, nested measurement-density
+comparisons and initial temperature-risk products, use the separate
+[conditional temperature study](conditioning_temperature.md). It reuses this
+sampler and frozen reading prefixes without requiring a KL approximation for MC.
+
 Each reference's `reference_descriptors.json` supplies the matching nominal
 native-gradient and patch descriptors for comparing the per-sample records.

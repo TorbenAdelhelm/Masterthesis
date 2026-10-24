@@ -1,0 +1,22 @@
+# Assets resolve relative to this file unless model_asset_root is set in the
+# temperature-study YAML. Existing RQ1 YAML can also supply these three blocks.
+release25:
+  repo: ../external/release25-repo/Heat-Plume-Prediction
+  cnn1_dir: ../models/LGCNN_step1_realK
+  cnn2_dir: ../models/LGCNN_step3_realK
+  prepared_pki_dir: ../data/reference_pilot/prepared_pki
+  fixed_run_id: RUN_2  # pressure, material and sources fixed across references
+  device: cpu
+  cell_size_m: 5.0
+  background_temperature: 10.6
+  random_k: false
+qoi:
+  # Examples refer to the actual valid OUTPUT crop; replace for the chosen case.
+  receptors: [[312, 532], [372, 532], [301, 489]]
+  mean_anomaly_roi: [296, 596, 456, 636]
+streamlines:
+  mode: bounded
+  method: RK45
+  max_nfev: 100000
+  diagnostics: false
+  slow_seconds: 2.0

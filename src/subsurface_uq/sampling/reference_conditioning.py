@@ -142,6 +142,24 @@ class SyntheticReferenceMeasurements:
             getattr(self, name).setflags(write=False)
         object.__setattr__(self, "metadata", deepcopy(self.metadata))
 
+    def prefix(self, count):
+        """Freeze a nested subset, including the original simulated reading noise.
+
+        Zero measurements are represented by ``None`` in the field sampler.
+        Redrawing readings for each budget would change the information state.
+        """
+        count = _positive_integer(count, "prefix count")
+        if count > len(self.indices):
+            raise ValueError("prefix count exceeds the frozen design")
+        metadata = deepcopy(self.metadata)
+        metadata.update({"maximum_design_count": len(self.indices), "prefix_count": count})
+        if "preselection_variance_log10" in metadata:
+            metadata["preselection_variance_log10"] = metadata["preselection_variance_log10"][:count]
+        return SyntheticReferenceMeasurements(
+            self.indices[:count], self.reference_log10_k[:count], self.observed_log10_k[:count],
+            self.observation_std_log10_k[:count], self.selection_probabilities[:count], metadata,
+        )
+
 
 def draw_reference_measurements(reference, *, covariance, n_measurements, location_seed,
                                 observation_seed, cell_size_m=5., location_prior=None,
@@ -253,15 +271,16 @@ class ConditionalReferenceFFTSampler:
     covariance tolerance; no empirical realization normalization is performed.
     """
 
-    def __init__(self, reference, covariance, observations, *, cell_size_m=5.,
+    def __init__(self, reference, covariance, observations=None, *, cell_size_m=5.,
                  mean_mode="reference_median", workers=1, chunk_size=8192, prior_sampler=None):
         self.reference = np.array(_reference(reference), copy=True)
         self.reference.setflags(write=False)
         if not isinstance(covariance, GSToolsReferenceSpec) or covariance.center != "median":
             raise ValueError("conditional mean modes require a median-centered GSToolsReferenceSpec")
-        if not isinstance(observations, SyntheticReferenceMeasurements):
-            raise ValueError("observations must be SyntheticReferenceMeasurements")
-        self.indices = _indices(observations.indices, self.reference.shape)
+        if observations is not None and not isinstance(observations, SyntheticReferenceMeasurements):
+            raise ValueError("observations must be SyntheticReferenceMeasurements or None")
+        self.indices = (np.empty((0, 2), dtype=np.int64) if observations is None
+                        else _indices(observations.indices, self.reference.shape))
         self.observations, self.covariance = observations, covariance
         if not math.isfinite(cell_size_m) or cell_size_m <= 0:
             raise ValueError("cell_size_m must be finite and positive")
@@ -273,20 +292,21 @@ class ConditionalReferenceFFTSampler:
         self.mean_mode = mean_mode
         logs = np.log10(self.reference)
         self._mean = logs if mean_mode == "reference_median" else np.full(logs.shape, logs.mean())
-        if not np.allclose(observations.reference_log10_k, logs[tuple(self.indices.T)], rtol=0, atol=1e-12):
+        if observations is not None and not np.allclose(observations.reference_log10_k, logs[tuple(self.indices.T)], rtol=0, atol=1e-12):
             raise ValueError("observations do not belong to the supplied reference")
         self._mean_d = self._mean[tuple(self.indices.T)]
-        self._system = _covariance(covariance, self.indices, self.indices, cell_size_m) + np.diag(observations.observation_std_log10_k**2)
-        self._solver = _ObservationSystem(self._system)
-        self._innovation = observations.observed_log10_k-self._mean_d
-        projected = self._solver.project(self._innovation)
-        if np.max(np.abs(projected-self._innovation)) > max(covariance.sigma_R*1e-6, 1e-10):
+        noise_std = np.empty(0) if observations is None else observations.observation_std_log10_k
+        self._system = _covariance(covariance, self.indices, self.indices, cell_size_m) + np.diag(noise_std**2)
+        self._solver = None if observations is None else _ObservationSystem(self._system)
+        self._innovation = np.empty(0) if observations is None else observations.observed_log10_k-self._mean_d
+        projected = self._innovation if self._solver is None else self._solver.project(self._innovation)
+        if np.max(np.abs(projected-self._innovation), initial=0) > max(covariance.sigma_R*1e-6, 1e-10):
             raise ValueError("observations incompatible with numerical covariance rank; revise spacing/noise/kernel")
-        self._whitened_innovation = self._solver.transform(self._innovation)
+        self._whitened_innovation = (np.empty(0) if self._solver is None else self._solver.transform(self._innovation))
         # Exact data should be resolved numerically, not silently weakened to
         # constraints on a smaller eigenspace. Positive-noise designs also must
         # retain their declared independent noise directions.
-        if self._solver.rank < len(self.indices):
+        if self._solver is not None and self._solver.rank < len(self.indices):
             raise ValueError("observation covariance loses numerical rank; increase spacing, use fewer observations, or declare positive measurement noise")
         if prior_sampler is None:
             prior_sampler = GSToolsReferenceFFTSampler(covariance, self.reference.shape, cell_size_m=cell_size_m, workers=workers)
@@ -299,10 +319,10 @@ class ConditionalReferenceFFTSampler:
                          "conditional_law": "Gaussian log10 field for one fixed observation design",
                          "physical_law": "untruncated pointwise lognormal; units as reference",
                          "conditioning": "Matheron update including independent likelihood-noise realization",
-                         "observation_count": len(self.indices), "observation_covariance_rank": self._solver.rank,
-                         "observation_covariance_condition_number": self._solver.condition_number,
+                         "observation_count": len(self.indices), "observation_covariance_rank": 0 if self._solver is None else self._solver.rank,
+                         "observation_covariance_condition_number": None if self._solver is None else self._solver.condition_number,
                          "rank_relative_tolerance": 1e-12, "added_nugget": None,
-                         "location_design": observations.metadata, "prior": prior_sampler.metadata,
+                         "location_design": None if observations is None else observations.metadata, "prior": prior_sampler.metadata,
                          "sample_filtering": None, "histogram_normalization": None,
                          "assumption_status": "reference-guided covariance; original kriging uncertainty not recovered"}
 
@@ -319,6 +339,8 @@ class ConditionalReferenceFFTSampler:
         queries = _indices(indices, self.reference.shape)
         if len(queries) > 4096:
             raise ValueError("dense query covariance limited to 4096 points; use posterior_moments for grids")
+        if self._solver is None:
+            return self._mean[tuple(queries.T)].copy(), _covariance(self.covariance, queries, queries, self.cell_size_m)
         cross = _covariance(self.covariance, queries, self.indices, self.cell_size_m)
         whitened = self._solver.whiten(cross)
         mean = self._mean[tuple(queries.T)] + whitened @ self._whitened_innovation
@@ -332,6 +354,8 @@ class ConditionalReferenceFFTSampler:
 
     def posterior_moments(self):
         """Return analytic mean and marginal variance of log10 permeability."""
+        if self._solver is None:
+            return self._mean.copy(), np.full(self.field_shape, self.covariance.sigma_R**2)
         mean = self._mean.copy().ravel()
         variance = np.empty(self.reference.size)
         for start, queries in self._blocks():
@@ -349,6 +373,8 @@ class ConditionalReferenceFFTSampler:
         prior_seed, noise_seed = np.random.SeedSequence(seed).spawn(2)
         seed_value = int(prior_seed.generate_state(1, dtype=np.uint64)[0])
         residual = self.prior_sampler.sample_residual(seed_value)
+        if self._solver is None:
+            return self._mean + residual
         noise = np.random.default_rng(noise_seed).standard_normal(len(self.indices))*self.observations.observation_std_log10_k
         innovation = self._innovation-residual[tuple(self.indices.T)]-noise
         transformed = self._solver.transform(innovation)

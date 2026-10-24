@@ -4,6 +4,20 @@ This file is a concise snapshot of what the repository implements *now*. It is
 intended to prevent design notes and old baseline plans from being mistaken for
 current functionality.
 
+## Conditional temperature studies (2026-10-24)
+
+The [measurement-density workflow](conditioning_temperature.md) now connects the
+native conditional FFT law directly to the frozen LGCNN. It uses nested frozen
+measurement prefixes, an unconditioned baseline, repeated designs and field-
+sample checkpoints. Outputs include per-design temperature uncertainty,
+reference/input diagnostics and initial warming exceedance/severity/area and
+receptor-risk products. The original conditioning command remains input-only.
+Direct MC requires no KL bridge. A matched reduced representation, Sobol mode
+attribution, source-connected plume geometry and temperature-based RQ5 EVR
+remain separate work. The existing Hermite PCE CLI already accepts serialized
+Gaussian/KL artifacts; this does not establish that it represents the new native
+radial FFT law. Model-form parameters remain assumptions, and RUNs are separate.
+
 ## Implemented pipeline
 
 ```text
@@ -437,8 +451,8 @@ The following remain planned thesis layers or scientific experiments:
 - add additional smooth scalar QoIs such as monitoring-point temperatures;
 - calibrate/select the final GRF covariance model and hyperparameters on the
   real DaRUS permeability fields, including held-out reconstruction;
-- connect the KL/GRF coordinate law to the PCE workflow (Hermite rather than
-  Legendre basis);
+- validate a covariance-matched reduced representation of the selected native
+  radial law before applying the existing Hermite PCE workflow;
 - quantify Perlin-to-GRF distribution shift before interpreting LGCNN output;
 - plume length/area QoIs;
 - systematic comparison of geostatistical uncertainty models;

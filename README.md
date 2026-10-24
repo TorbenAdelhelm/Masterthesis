@@ -46,6 +46,13 @@ synthetic observation locations under explicit spatial priors, conditions the
 native Gaussian field, and separates fixed-design uncertainty from variation
 across location designs. Real borehole-to-RUN georeferencing is not inferred.
 
+The [conditional temperature/density study](docs/conditioning_temperature.md)
+propagates nested measurement budgets through the frozen LGCNN with direct FFT
+Monte Carlo. It reports per-design temperature uncertainty, initial exceedance/
+severity/area metrics and paired density comparisons. Start with the reduced
+72-field pilot; references remain separate and no RQ5 information-value ranking
+or training-support certificate is implied.
+
 The implementation is designed around interchangeable components:
 
 ```text

@@ -18,6 +18,37 @@ from subsurface_uq.sampling.reference_conditioning import (
 )
 
 
+def test_unconditioned_baseline_and_nested_reading_prefixes_share_the_prior_draw():
+    reference = _reference()
+    spec = GSToolsReferenceSpec("exponential_radial", 2.3, 1.7, sigma_R=.2)
+    maximum = _observations(reference, spec, measurement_mode="noisy", observation_std_log10_k=.04)
+    prefix = maximum.prefix(2)
+    np.testing.assert_array_equal(prefix.indices, maximum.indices[:2])
+    np.testing.assert_array_equal(prefix.observed_log10_k, maximum.observed_log10_k[:2])
+    assert not prefix.observed_log10_k.flags.writeable
+    with pytest.raises(ValueError, match="exceeds"):
+        maximum.prefix(4)
+    with pytest.raises(ValueError):
+        maximum.prefix(0)
+    baseline = ConditionalReferenceFFTSampler(reference, spec, cell_size_m=1.)
+    mean, variance = baseline.posterior_moments()
+    np.testing.assert_array_equal(mean, np.log10(reference))
+    np.testing.assert_allclose(variance, spec.sigma_R**2)
+    query = np.array([[0,0],[4,3],[9,8]])
+    point_mean, point_cov = baseline.posterior_at_indices(query)
+    np.testing.assert_array_equal(point_mean, mean[tuple(query.T)])
+    np.testing.assert_allclose(point_cov, _covariance(spec, query, query))
+    # Exact conditional Matheron correction under the identical FFT draw.
+    exact = _observations(reference,spec).prefix(2)
+    conditioned = ConditionalReferenceFFTSampler(reference,spec,exact,cell_size_m=1.,prior_sampler=baseline.prior_sampler)
+    unconditioned = baseline.sample_log10(123)
+    residual = unconditioned-np.log10(reference)
+    indices = np.column_stack(np.unravel_index(np.arange(reference.size),reference.shape))
+    expected = unconditioned.ravel()-_covariance(spec,indices,exact.indices) @ np.linalg.solve(
+        _covariance(spec,exact.indices,exact.indices),residual[tuple(exact.indices.T)])
+    np.testing.assert_allclose(conditioned.sample_log10(123),expected.reshape(reference.shape),atol=1e-10)
+
+
 def _reference(shape=(10, 9)):
     row, col = np.indices(shape)
     return 10. ** (-10 + .035 * row - .05 * col + .12 * np.sin(col))
