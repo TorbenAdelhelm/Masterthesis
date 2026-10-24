@@ -1,0 +1,65 @@
+# Synthetic reference-cell readings; not the real Munich borehole workbook.
+# Run from the repository root using the Git Bash commands in the documentation.
+references:
+  RUN_1: ../data/reference_pilot/RUN_1.reference.npy
+  RUN_2: ../data/reference_pilot/RUN_2.reference.npy
+  RUN_3: ../data/reference_pilot/RUN_3.reference.npy
+permeability_units: m2
+cell_size_m: 5.0
+
+# Every covariance and amplitude is a declared model-form assumption.
+# Replace lengths with the selected per-reference matched-fit values when known.
+covariance:
+  family: gaussian
+  ell_row_m: 800.0
+  ell_col_m: 500.0
+  sigma_R: 0.05
+  center: median
+  angle_deg: 0.0  # Explicit covariance rotation; does not rotate the reference array.
+# Optional overrides preserve separate reference laws, e.g.:
+# covariance_by_reference:
+#   RUN_1: {ell_row_m: 1200.0, ell_col_m: 900.0}
+
+mean_mode: reference_median
+measurement_mode: exact
+observation_std_log10_k: 0.0
+# To simulate uncertain readings instead, explicitly use both:
+# measurement_mode: noisy
+# observation_std_log10_k: 0.03
+
+n_measurements: 16
+n_designs: 4
+n_samples: 8
+seed: 4901
+workers: 4
+chunk_size: 8192
+# These point subsets control location candidates, not generated field resolution.
+location_priors:
+  uniform:
+    kind: uniform
+    candidate_stride_cells: 16
+    margin_cells: 8
+    min_spacing_m: 100.0
+  variance:
+    kind: variance
+    variance_power: 1.0
+    exploration_fraction: 0.05
+    candidate_stride_cells: 16
+    margin_cells: 8
+    min_spacing_m: 100.0
+  structure_and_variance:
+    kind: hybrid
+    gradient_power: 1.0
+    variance_power: 1.0
+    exploration_fraction: 0.05
+    candidate_stride_cells: 16
+    margin_cells: 8
+    min_spacing_m: 100.0
+# Optional nonnegative NPY weights; zero excludes a cell from location selection.
+# location_weights:
+#   RUN_1: ../data/location_priors/RUN_1.weights.npy
+
+# All generated fields contribute to diagnostics; only fixed picture indices persist.
+retained_sample_indices: [0]
+diagnostic_factor: 8
+max_lag_cells: 24

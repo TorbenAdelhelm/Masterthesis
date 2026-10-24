@@ -41,6 +41,11 @@ The [matched fitted-kernel selection](docs/matched_kernel_selection.md) compares
 GSTools-fitted radial laws on the native grid, checks numerical covariance
 accuracy, and screens every kernel family through the fixed LGCNN context.
 
+The [conditional reference generator](docs/reference_conditioning.md) draws
+synthetic observation locations under explicit spatial priors, conditions the
+native Gaussian field, and separates fixed-design uncertainty from variation
+across location designs. Real borehole-to-RUN georeferencing is not inferred.
+
 The implementation is designed around interchangeable components:
 
 ```text

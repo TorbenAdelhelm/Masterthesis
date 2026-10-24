@@ -23,12 +23,15 @@ class GSToolsReferenceSpec:
     ell_col_m: float
     sigma_R: float = .05
     center: str = "median"
+    angle_deg: float = 0.
 
     def __post_init__(self):
         if self.family not in {"gaussian", "matern32_radial", "exponential_radial"}:
             raise ValueError("unsupported radial covariance family")
         if self.center not in {"median", "arithmetic-mean"}:
             raise ValueError("unknown centering convention")
+        if not math.isfinite(self.angle_deg):
+            raise ValueError("angle_deg must be finite")
         if any(not math.isfinite(x) or x <= 0 for x in
                (self.ell_row_m, self.ell_col_m, self.sigma_R)):
             raise ValueError("lengths and sigma_R must be positive finite numbers")
@@ -38,7 +41,7 @@ class GSToolsReferenceSpec:
             import gstools as gs
         except ImportError as exc:
             raise ImportError("GSTools covariance verification requires subsurface-uq[geostat]") from exc
-        args = dict(dim=2, var=1., nugget=0., angles=0.,
+        args = dict(dim=2, var=1., nugget=0., angles=np.deg2rad(self.angle_deg),
                     len_scale=[self.ell_col_m, self.ell_row_m])
         if self.family == "gaussian":
             return gs.Gaussian(**args, rescale=1 / np.sqrt(2.))
@@ -47,8 +50,11 @@ class GSToolsReferenceSpec:
         return gs.Exponential(**args, rescale=1.)
 
     def correlation(self, row_offset_m, col_offset_m):
-        radius = np.hypot(np.asarray(row_offset_m) / self.ell_row_m,
-                          np.asarray(col_offset_m) / self.ell_col_m)
+        dy, dx = np.asarray(row_offset_m), np.asarray(col_offset_m)
+        if self.angle_deg != 0:
+            angle = np.deg2rad(self.angle_deg)
+            dx, dy = np.cos(angle) * dx + np.sin(angle) * dy, -np.sin(angle) * dx + np.cos(angle) * dy
+        radius = np.hypot(dy / self.ell_row_m, dx / self.ell_col_m)
         if self.family == "gaussian":
             return np.exp(-.5 * radius**2)
         if self.family == "matern32_radial":
@@ -58,7 +64,8 @@ class GSToolsReferenceSpec:
 
     def metadata(self):
         return {**asdict(self), "sigma_R_units": "log10_permeability",
-                "covariance_geometry": "radial anisotropic; zero rotation",
+                "covariance_geometry": "radial anisotropic; zero rotation" if self.angle_deg == 0 else "radial anisotropic; explicit rotation",
+                "angle_convention": "degrees from positive column axis toward positive row axis",
                 "gstools_model": str(self.gstools_model()),
                 "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
                 "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
@@ -101,7 +108,10 @@ class GSToolsReferenceFFTSampler:
             del spectrum
             gc.collect()
             # Grow the relatively least-extended correlation direction first.
-            axis = int(np.argmax(np.array([spec.ell_row_m, spec.ell_col_m]) / np.array(embedding)))
+            angle = np.deg2rad(spec.angle_deg)
+            projected_lengths = np.sqrt([spec.ell_row_m**2 * np.cos(angle)**2 + spec.ell_col_m**2 * np.sin(angle)**2,
+                                         spec.ell_col_m**2 * np.cos(angle)**2 + spec.ell_row_m**2 * np.sin(angle)**2])
+            axis = int(np.argmax(projected_lengths / np.array(embedding)))
             embedding = tuple(n * (2 if i == axis else 1) for i, n in enumerate(embedding))
         else:
             raise ValueError(f"no PSD embedding within memory bound; attempts={attempts}")
@@ -110,7 +120,8 @@ class GSToolsReferenceFFTSampler:
         checks = [(0, 0), (1, 0), (0, 1), (1, 1),
                   (self.shape[0] - 1, 0), (0, self.shape[1] - 1),
                   (self.shape[0] - 1, self.shape[1] - 1)]
-        actual = np.array([represented[r, c] for r, c in checks])
+        checks.extend([(1, -1), (self.shape[0] - 1, 1 - self.shape[1])])
+        actual = np.array([represented[r % embedding[0], c % embedding[1]] for r, c in checks])
         exact = spec.correlation(np.array(checks)[:, 0] * self.cell_size_m,
                                  np.array(checks)[:, 1] * self.cell_size_m)
         error = float(np.max(np.abs(actual - exact)))
@@ -139,9 +150,11 @@ class GSToolsReferenceFFTSampler:
 
     def _embedding(self, embedding):
         m, n = embedding
-        offsets = [np.minimum(np.arange(k), k - np.arange(k)) * self.cell_size_m for k in embedding]
+        # Rotated anisotropic covariance is even under joint reversal only.
+        # Retain signed lags; independently mirroring axes changes that kernel.
+        offsets = [np.where(np.arange(k) <= k // 2, np.arange(k), np.arange(k) - k) * self.cell_size_m for k in embedding]
         limits = (np.array(self.shape) - 1) * self.cell_size_m
-        tapers = [1 - betainc(5, 5, np.clip((offset - limit) / (k * self.cell_size_m / 2 - limit), 0, 1))
+        tapers = [1 - betainc(5, 5, np.clip((np.abs(offset) - limit) / (k * self.cell_size_m / 2 - limit), 0, 1))
                   for offset, limit, k in zip(offsets, limits, embedding)]
         cov = np.empty(embedding, dtype=np.float64)
         for start in range(0, m, 64):

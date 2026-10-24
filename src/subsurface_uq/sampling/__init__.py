@@ -1,5 +1,11 @@
 from .base import PermeabilitySampler
 from .boreholes import BoreholeObservationSet, sample_borehole_observations
+from .reference_conditioning import (
+    ConditionalReferenceFFTSampler,
+    LocationPriorSpec,
+    SyntheticReferenceMeasurements,
+    draw_reference_measurements,
+)
 from .calibration import (
     SUPPORTED_CALIBRATION_MODELS,
     CovarianceCalibrationResult,
@@ -110,6 +116,10 @@ from .training_compatibility import (
 from .radial_exponential import RadialExponentialPermeabilitySampler
 
 __all__ = [
+    "ConditionalReferenceFFTSampler",
+    "LocationPriorSpec",
+    "SyntheticReferenceMeasurements",
+    "draw_reference_measurements",
     "select_new_lgcnn_domain",
     "NewLGCNNDomain",
     "EmpiricalNormalScoreTransform",

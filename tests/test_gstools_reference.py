@@ -52,3 +52,19 @@ def test_non_psd_embedding_is_not_silently_used():
     with pytest.raises(ValueError, match="no PSD embedding"):
         GSToolsReferenceFFTSampler(GSToolsReferenceSpec("exponential_radial", 200., 150.),
                                    (12, 10), cell_size_m=1., workers=1, max_embedding_points=2048)
+
+
+@pytest.mark.parametrize("family", ["gaussian", "matern32_radial", "exponential_radial"])
+def test_rotated_fft_preserves_signed_off_axis_covariance(family):
+    spec = GSToolsReferenceSpec(family, 2.5, .7, angle_deg=37.)
+    sampler = GSToolsReferenceFFTSampler(spec, (9, 8), cell_size_m=1., workers=1)
+    assert not np.isclose(spec.correlation(1., 1.), spec.correlation(1., -1.))
+    represented = np.fft.irfft2(sampler.sqrt_spectrum**2, s=sampler.embedding_shape)
+    for row, column in ((1, -1), (8, -7), (-3, 2), (4, 3)):
+        np.testing.assert_allclose(represented[row % represented.shape[0], column % represented.shape[1]],
+                                   spec.correlation(row, column), rtol=0, atol=1.e-11)
+    probes = np.array([[0, 0], [1, 1], [0, 2], [2, 0]])
+    values = np.array([sampler.sample_residual(seed)[tuple(probes.T)] for seed in range(1600)])
+    offsets = probes[:, None] - probes[None, :]
+    expected = spec.sigma_R**2 * spec.correlation(offsets[..., 0], offsets[..., 1])
+    np.testing.assert_allclose(np.cov(values, rowvar=False), expected, atol=.00025, rtol=0)
