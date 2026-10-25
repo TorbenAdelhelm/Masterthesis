@@ -1,0 +1,24 @@
+# Full-domain, point-sampled benchmark. No reference mean or gradient in placement.
+references:
+  RUN_1: ../data/reference_pilot/RUN_1.reference.npy
+  RUN_2: ../data/reference_pilot/RUN_2.reference.npy
+  RUN_3: ../data/reference_pilot/RUN_3.reference.npy
+native_cell_size_m: 5.0
+evaluation_stride_cells: 8  # 320x320 point grid at 40 m, no block averaging.
+candidate_stride_cells: 4  # 160 m candidate lattice, same for every count.
+covariance: {family: gaussian, center: median, angle_deg: 0.0}
+covariance_by_reference:
+  RUN_1: {ell_row_m: 2084.4356806046167, ell_col_m: 1714.601109918931}
+  RUN_2: {ell_row_m: 2243.9732110679447, ell_col_m: 2021.0830702420951}
+  RUN_3: {ell_row_m: 842.7866038928736, ell_col_m: 650.3068117994725}
+# Total GP standard-deviation assumptions, not the old calibrated residual law.
+sigma_log10: [0.1, 0.2, 0.3]
+measurement_counts: [1, 2, 4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 700]
+n_designs: 2
+n_samples: 128
+error_limits_log10_rms: [0.02, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.5]
+probability: 0.95
+seed: 20261025
+workers: 4
+chunk_size: 2048
+pivot_floor: 1.0e-7

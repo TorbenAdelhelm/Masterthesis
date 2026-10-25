@@ -57,6 +57,11 @@ The [native permeability-deviation study](docs/conditioning_deviation.md) compar
 reference error and differences between samples at 0/1/4/16/32 measurements,
 with paired full-resolution draws, exact GP expectations and shared-scale PNGs.
 
+The [covariance-only reconstruction benchmark](docs/covariance_reconstruction.md)
+selects synthetic sites without inspecting reference values or the full mean.
+Ordinary kriging estimates an unknown mean from revealed readings and reports
+stochastic error versus count, separately from uncertainty around its prediction.
+
 The implementation is designed around interchangeable components:
 
 ```text
