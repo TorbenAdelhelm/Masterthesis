@@ -4,6 +4,116 @@ This file is a concise snapshot of what the repository implements *now*. It is
 intended to prevent design notes and old baseline plans from being mistaken for
 current functionality.
 
+## Complete spatial density study at 32–512 observations (2026-10-26)
+
+The [spatial study and atlas index](conditional_density_visual_results.md)
+contains eight native permeability inputs and eight LGCNN outputs at each of
+32, 64, 128, 256 and 512 nested exact synthetic observations. All 40 conditional
+queries and one hidden-reference query completed under the fixed RUN 2
+structural law and model context. Matched Gaussian driving draws pair the
+counts. Blocked exact conditioning avoids a 25 GiB geometry cache; the
+512-observation matrix is numerically stable without a nugget.
+
+The offline gallery includes all fields, reference errors, deviations from
+the empirical eight-draw means, common/detail scales, observation overlays
+and native-array links. PNG atlases and a static report provide the same
+all-sample coverage. From 32 to 512 observations, temperature SD RMS falls
+from 0.0544 to 0.0244 C and ensemble-mean temperature RMSE from 0.0501 to
+0.0301 C in this single-truth case; the mean error has a small increase at 64.
+
+The 654-test full suite and independent native equations/provenance audit pass.
+Offline gallery code checks exercise controls and verify image/array links;
+browser rendering was not automated because local-file URLs are blocked in
+the in-app browser. Source references and earlier studies remain unchanged.
+This is a spatial illustration, not a calibration or geological validation.
+
+## Map-informed structural profiles and sensitivity (2026-10-26)
+
+The primary input laws are now the [RUN 1/2/3 structural profiles](structural_profiles.md),
+with native directional-variogram fits, anisotropic Matérn-3/2 correlation,
+observed log means and finite-map-corrected total variance. Parameters, source
+hashes, fitting criteria, roughness/connectivity departures and all 48 retained
+diagnostic draws are documented. These are synthetic processed-map priors;
+they have no calibrated geological probability weights.
+
+The [completed sensitivity pilot](structural_profile_results.md) contains 204
+actual LGCNN evaluations: three profiles, four paired independent trials,
+eight draws per case, and zero versus 32 balanced exact readings. RUN 3's prior
+temperature variance is about 35% below RUN 2's. Analytical full-input variance
+reductions range from 33% to 77%, while estimated temperature variance reductions
+are 22–29%. Local receptor uncertainty does not follow a universal profile
+ranking. Four-versus-eight draw differences and outer-trial errors remain
+material, so precise tail-risk and conditional-profile rankings are not established.
+
+Independent audits passed 156 source/model hash checks, 648 artifact checks,
+conditioning/statistics calculations and source-map variance identities. The
+full suite passed 649 tests; the final 24-test focused run also verifies portable
+catalog paths and unambiguous Gaussian driving-field metadata. The original
+hashed execution sources remain archived. The 7728-evaluation profile matrix
+is freshly planned/densely validated with final code; its model propagation
+has not run. Earlier illustrative-law matrices below are historical records.
+
+## Measurement-derived model assessment (2026-10-26)
+
+The [measurement-only validation](measurement_model_validation.md) retains 524
+real conductivity records at 523 locations. It freezes 12 occupied 8 km test
+blocks and a 1 km buffer, leaving 274 development records, 196 test records and
+54 buffer exclusions. Buffered development CV compares the existing variogram
+families, constant/linear-mean REML alternatives and a non-spatial baseline.
+Model choices are persisted before the outer test is scored.
+
+The selected radial-exponential model does not improve regional test scores over
+the non-spatial baseline: equal-block CRPS is 2.4% worse, and nominal 90%
+observation coverage is 88.3% by points but 69.3% by equally weighted blocks.
+It fails the predeclared exploratory observation checks. A separately labelled
+post-primary 2 km CV diagnostic suggests modest gains within 500 m of data;
+this does not replace the frozen assessment or validate a joint geological law.
+Observation and latent uncertainty remain separate, and the residual nugget is
+not identified as instrument noise. No native fields or LGCNN queries were made.
+Independent covariance/score checks passed; the local full suite passes 640 tests.
+
+## Main controlled experiment and separate realism challenge (2026-10-26)
+
+The main [controlled conditional-field benchmark](controlled_field_benchmark.md)
+uses a proper known-mean Gaussian prior, independent hidden truths and exact
+synthetic readings. Conditional fields use matched native FFT draws and
+Matheron's update. The workflow includes an unconditioned baseline, nested
+counts, broad/clustered layouts, independent dense marginal checks, resumable
+frozen LGCNN queries, finite-ensemble calibration ranks with randomized ties,
+CRPS, risk maps and MC checkpoints. Scenario and layout identities remain separate.
+The pilot and larger main matrix have separate configurations; completing the
+pilot does not establish convergence or completion of the larger matrix.
+
+The RUN-based validation below remains the empirical realism challenge. Success
+under a synthetic known law does not revise its failed adequacy assessment.
+Known geological parameters, frozen model weights and simulator discrepancy are
+separate uncertainty components. Only conditional permeability uncertainty is
+propagated in this first controlled experiment.
+
+The [completed pilot](controlled_field_results.md) contains 82 actual LGCNN
+evaluations, independent conditioning/statistics checks and archived execution
+sources. The final local suite passes 630 tests; one actual-model regression
+reproduces the pilot truth temperature bit for bit. The main 28,736-evaluation
+matrix has completed planning/dense validation, with model propagation pending.
+
+## Sparse-reading reconstruction validation (2026-10-25)
+
+The RUN realism [measurement-density study](measurement_density.md) now reserves
+spatial test blocks before drawing observations, selects a declared covariance
+using spatial CV of only the smallest reading prefix, and freezes it across
+larger counts. Withheld error, coverage and standardized residuals are evaluated
+before native field generation or model loading. Failed exploratory adequacy
+checks produce a report and stop the validation workflow. Repeated layouts,
+per-count native recovery and verified prediction recovery are implemented.
+The earlier texture-fit screen remains a labelled reference-informed benchmark.
+Reference-centered perturbations, measurement-derived site models and sparse
+synthetic reconstruction answer different information-state questions; older
+production-default descriptions below retain historical context.
+The [completed withheld assessment](measurement_density_results.md) passes its
+declared exploratory checks in 15 of 54 cases. The study records
+`validation_failed`, so no native ensembles or temperature predictions were
+generated from its selected laws.
+
 ## Conditional temperature studies (2026-10-24)
 
 The [measurement-density workflow](conditioning_temperature.md) now connects the
@@ -74,7 +184,7 @@ using an external release25 checkout and external model/data assets. The current
 release25 input-UQ experiments vary permeability only; pressure and heat-pump
 locations are fixed by the selected prepared scenario.
 
-The finalized RQ1 experiment is implemented as
+The earlier RQ1 experiment remains implemented as
 `python -m subsurface_uq.experiments.release25_rq1 --config <yaml>`. It reuses
 the same frozen release25 runtime and propagation interfaces for four variants:
 an iid Perlin-coordinate MC baseline, unconditional GRF/KL MC, conditional
@@ -163,7 +273,7 @@ variance/energy fraction. `GaussianCoordinatePermeabilitySampler` samples
 independent standard-normal coordinates and adapts the map to the existing
 `PermeabilitySampler` interface.
 
-For the production RQ1 path, KL parameters no longer need to be copied into
+For the earlier KL-based RQ1 path, KL parameters do not need to be copied into
 the RQ1 configuration manually. The realistic-permeability workflow calibrates
 the prior from exactly the three complete fields in the DaRUS-5065
 real-permeability training dataset that were used for the DaRUS-5082 real-K
@@ -200,7 +310,7 @@ reference table.
 
 ### Training-informed, measurement-conditioned new LGCNN domain
 
-The production workflow now distinguishes geostatistical replication from the
+The earlier measurement-derived workflow distinguishes geostatistical replication from the
 CNN training sample population. The real-permeability training fields come from
 DaRUS-5065; the pretrained model artifacts are published separately as
 DaRUS-5082. Three of the four standard 12.8 km fields are used for training and
@@ -209,8 +319,10 @@ training, release25 `SimulationDatasetCuts` presents overlapping patches to the
 CNN; the published best settings for both Step 1 and Step 3 are a 1280-cell box
 and skip 8.
 
-The production default is now **measurement-derived kriging represented through
-a finite KL basis**. The real Munich observations determine the mean,
+That workflow uses **measurement-derived kriging represented through
+a finite KL basis**. It is a separate earlier experiment, not the current main
+controlled benchmark or evidence of an empirically calibrated site posterior.
+The real Munich observations determine the mean,
 structured variance, nugget and directional correlation lengths through
 irregular-point variograms plus spatial block cross-validation. After converting
 hydraulic conductivity to intrinsic permeability, those parameters define the

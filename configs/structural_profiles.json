@@ -1,0 +1,621 @@
+{
+  "cell_size_m": 5.0,
+  "code_commit": "f7eba670a9d9d41b460f43a683bcd7d6f41dd0a1",
+  "configuration_sha256": "f1b7726578d6135e6df9fea85aa4c971e3a77091f5ff1df97d8015306a9bb498",
+  "family": "matern32_radial",
+  "fit_criterion": "equal-weight squared log-semivariogram residuals at all declared directions and lags; no iid-pixel likelihood",
+  "interpretation": "separate stationary synthetic-map priors informed by processed-map structure; not geological reconstruction-error models",
+  "mean_estimator": "full-map spatial log10 mean, treated as a fixed generative-prior parameter",
+  "native_shape": [
+    2560,
+    2560
+  ],
+  "profile_probability_weights": null,
+  "profile_set_id": "structural-7372b21f1bbd78d1d5a8",
+  "profiles": {
+    "RUN_1_structural": {
+      "empirical_variograms": {
+        "column": [
+          5.728877658673749e-07,
+          2.278340370260287e-06,
+          8.980803936909562e-06,
+          3.503303121274813e-05,
+          0.0001361381289813819,
+          0.0005257685239536031,
+          0.0019177883785215972,
+          0.005913871719334509,
+          0.011857882920831755,
+          0.01665945934095991
+        ],
+        "diagonal_negative": [
+          8.469615988280788e-07,
+          3.339786468484944e-06,
+          1.290594353243241e-05,
+          4.898765280650135e-05,
+          0.00018534622071963823,
+          0.000699710257869127,
+          0.0024823542841847556,
+          0.0071963126859677035,
+          0.013187075635662366,
+          0.02343214711788235
+        ],
+        "diagonal_positive": [
+          8.799416779168265e-07,
+          3.472144285390273e-06,
+          1.3424393419956542e-05,
+          5.080783585208386e-05,
+          0.00019041094281023243,
+          0.0007014912617652104,
+          0.0023235380673842284,
+          0.006041033917547513,
+          0.01107004160692526,
+          0.013336170782113221
+        ],
+        "row": [
+          2.9182210789999315e-07,
+          1.1416862528302764e-06,
+          4.312049986487191e-06,
+          1.5628250818928862e-05,
+          5.6520442196546376e-05,
+          0.00021210023030316977,
+          0.0007768332140056247,
+          0.0026376512196975223,
+          0.007517888227561268,
+          0.015228561367919674
+        ]
+      },
+      "expected_grid_mean_variance_log10": 0.004019836579972087,
+      "expected_grid_spatial_variance_log10": 0.03346552645370711,
+      "expected_native_gradient_rms": {
+        "column": 0.00020753251750705253,
+        "row": 0.00013847248209774456
+      },
+      "fitted_variograms": {
+        "column": [
+          5.383718227851882e-07,
+          2.145798019543674e-06,
+          8.522047991369643e-06,
+          3.3604901696138266e-05,
+          0.0001306452284022011,
+          0.000493799572012064,
+          0.001765846969749292,
+          0.005674683530198407,
+          0.014969010676407338,
+          0.028492324359817738
+        ],
+        "diagonal_negative": [
+          7.900126461637301e-07,
+          3.146384277104153e-06,
+          1.2477003069968344e-05,
+          4.9052329218462784e-05,
+          0.00018956046659963693,
+          0.0007080489422212236,
+          0.0024742481287790383,
+          0.007611472210031286,
+          0.018593131418598304,
+          0.031681498261188455
+        ],
+        "diagonal_positive": [
+          7.644014746208779e-07,
+          3.0445985681503796e-06,
+          1.2075081293432493e-05,
+          4.7485610566275785e-05,
+          0.00018360891785072778,
+          0.0006865781511649007,
+          0.002404388790014616,
+          0.00742658000930775,
+          0.018269350021571307,
+          0.03143325429465604
+        ],
+        "row": [
+          2.3968285372887737e-07,
+          9.564467942573896e-07,
+          3.8075836336078008e-06,
+          1.5085873119888994e-05,
+          5.920622475568577e-05,
+          0.00022801379445321917,
+          0.0008459219946338873,
+          0.0029173690018082735,
+          0.008755918489809595,
+          0.020502422257077074
+        ]
+      },
+      "grid_mean_unit_variance": 0.10723749897687836,
+      "interpretation": "stationary synthetic-map structure fit; total heterogeneity, not reconstruction-error or instrument-noise calibration",
+      "law": {
+        "covariance": {
+          "angle_deg": 88.7701858907613,
+          "center": "median",
+          "ell_col_m": 2419.5514281495543,
+          "ell_row_m": 1612.7708172379264,
+          "family": "matern32_radial",
+          "sigma_R": 0.19361137113733584
+        },
+        "mean_log10_k": -9.291893306559812
+      },
+      "length_at_bound": false,
+      "local_coordinate_convention": "angle from positive column toward positive row; no historical geographic registration inferred",
+      "log_variogram_rmse": 0.21786323786747175,
+      "maximum_multiplicative_variogram_mismatch": 2.356992483690674,
+      "optimization_attempts": [
+        {
+          "cost": 0.9492877689682551,
+          "evaluations": 10,
+          "initial_angle_deg": 0.0,
+          "message": "`ftol` termination condition is satisfied.",
+          "success": true
+        },
+        {
+          "cost": 0.949287768963668,
+          "evaluations": 15,
+          "initial_angle_deg": 45.0,
+          "message": "`ftol` termination condition is satisfied.",
+          "success": true
+        },
+        {
+          "cost": 0.949287769237162,
+          "evaluations": 18,
+          "initial_angle_deg": -45.0,
+          "message": "`xtol` termination condition is satisfied.",
+          "success": true
+        }
+      ],
+      "pointwise_sd_log10": 0.19361137113733584,
+      "quadrature_grid_mean_unit_variance": 0.10723748311386296,
+      "source_features": {
+        "gradient_rms_column_log10_per_m": 0.00021408180975830243,
+        "gradient_rms_row_log10_per_m": 0.00015279322181300926,
+        "high_fraction": 0.066103515625,
+        "high_largest_component_fraction": 0.026630859375,
+        "high_spans_columns": false,
+        "high_spans_rows": false,
+        "low_fraction": 0.0844921875,
+        "low_largest_component_fraction": 0.0615234375,
+        "low_spans_columns": false,
+        "low_spans_rows": false,
+        "q05_log10": -9.583979985893263,
+        "q50_log10": -9.285746268115687,
+        "q95_log10": -8.993632629328891,
+        "spatial_mean_log10": -9.291893306559812,
+        "spatial_variance_log10": 0.03346552645370711
+      },
+      "source_map": "RUN_1",
+      "spatial_sd_log10": 0.1829358533850243,
+      "spatial_variance_log10": 0.03346552645370711
+    },
+    "RUN_2_structural": {
+      "empirical_variograms": {
+        "column": [
+          5.31817079272828e-07,
+          2.1130016035657417e-06,
+          8.309227780925767e-06,
+          3.229159533093464e-05,
+          0.00012521594962401769,
+          0.0004845173088350654,
+          0.0017656656684302847,
+          0.0054228134849125175,
+          0.010631255533683789,
+          0.016080974500489058
+        ],
+        "diagonal_negative": [
+          8.25799970743631e-07,
+          3.2540831619623405e-06,
+          1.2552327256777151e-05,
+          4.7533814075899445e-05,
+          0.00017980650825714245,
+          0.0006847225088285778,
+          0.002435028719908196,
+          0.0070029493564326166,
+          0.01242049240015401,
+          0.024844777476628627
+        ],
+        "diagonal_positive": [
+          7.987015000203773e-07,
+          3.141200117268393e-06,
+          1.2047859586331495e-05,
+          4.510941312598929e-05,
+          0.0001684045564594257,
+          0.0006231350028254586,
+          0.002063347363226183,
+          0.00525852778375816,
+          0.008947070953822668,
+          0.01338840303310536
+        ],
+        "row": [
+          2.817834789732508e-07,
+          1.1001651168740778e-06,
+          4.13097448339553e-06,
+          1.4798278376307982e-05,
+          5.311571322630678e-05,
+          0.00020236556925632492,
+          0.0007506291514368246,
+          0.0025790121114474627,
+          0.007447472332219461,
+          0.015191061452378285
+        ]
+      },
+      "expected_grid_mean_variance_log10": 0.005473506361229787,
+      "expected_grid_spatial_variance_log10": 0.037291247657265165,
+      "expected_native_gradient_rms": {
+        "column": 0.00019630707076736406,
+        "row": 0.00013477379427575257
+      },
+      "fitted_variograms": {
+        "column": [
+          4.81705825415786e-07,
+          1.920729956745739e-06,
+          7.634432855569506e-06,
+          3.015395559594355e-05,
+          0.00011761037882766267,
+          0.0004473982584383478,
+          0.0016201678396427896,
+          0.005333122455062801,
+          0.014690061101635968,
+          0.029887810318993117
+        ],
+        "diagonal_negative": [
+          7.591621196907119e-07,
+          3.024594822092484e-06,
+          1.2002594862852146e-05,
+          4.7254307166549234e-05,
+          0.00018312831557487763,
+          0.0006878460603688687,
+          0.0024298657359842183,
+          0.007629437685482567,
+          0.019314354045523032,
+          0.03460449966234812
+        ],
+        "diagonal_positive": [
+          6.569320905178905e-07,
+          2.6180250424086694e-06,
+          1.0394956573347314e-05,
+          4.0970325353209444e-05,
+          0.0001591251574146194,
+          0.0006002919499937007,
+          0.00213863467508134,
+          0.006823837864034081,
+          0.017773008068450464,
+          0.033192900690383734
+        ],
+        "row": [
+          2.2704969529353592e-07,
+          9.062266075260991e-07,
+          3.609186802898055e-06,
+          1.4311908781175949e-05,
+          5.626344754173993e-05,
+          0.00021740704033371158,
+          0.0008119110953374423,
+          0.0028361663003108172,
+          0.008718913464610022,
+          0.021273353452405955
+        ]
+      },
+      "grid_mean_unit_variance": 0.12799106382940023,
+      "interpretation": "stationary synthetic-map structure fit; total heterogeneity, not reconstruction-error or instrument-noise calibration",
+      "law": {
+        "covariance": {
+          "angle_deg": 84.31569631887129,
+          "center": "median",
+          "ell_col_m": 2669.817156899003,
+          "ell_row_m": 1816.9078476336545,
+          "family": "matern32_radial",
+          "sigma_R": 0.2067964071701802
+        },
+        "mean_log10_k": -9.32061091661667
+      },
+      "length_at_bound": false,
+      "local_coordinate_convention": "angle from positive column toward positive row; no historical geographic registration inferred",
+      "log_variogram_rmse": 0.2550232517638547,
+      "maximum_multiplicative_variogram_mismatch": 2.4792277770775204,
+      "optimization_attempts": [
+        {
+          "cost": 1.3007371335064772,
+          "evaluations": 17,
+          "initial_angle_deg": 0.0,
+          "message": "`xtol` termination condition is satisfied.",
+          "success": true
+        },
+        {
+          "cost": 1.3007371308923847,
+          "evaluations": 15,
+          "initial_angle_deg": 45.0,
+          "message": "`ftol` termination condition is satisfied.",
+          "success": true
+        },
+        {
+          "cost": 1.300737130967129,
+          "evaluations": 17,
+          "initial_angle_deg": -45.0,
+          "message": "`xtol` termination condition is satisfied.",
+          "success": true
+        }
+      ],
+      "pointwise_sd_log10": 0.2067964071701802,
+      "quadrature_grid_mean_unit_variance": 0.12799104653646357,
+      "source_features": {
+        "gradient_rms_column_log10_per_m": 0.0002062652814746734,
+        "gradient_rms_row_log10_per_m": 0.00015014219366274114,
+        "high_fraction": 0.0632421875,
+        "high_largest_component_fraction": 0.02822265625,
+        "high_spans_columns": false,
+        "high_spans_rows": false,
+        "low_fraction": 0.078662109375,
+        "low_largest_component_fraction": 0.06212890625,
+        "low_spans_columns": false,
+        "low_spans_rows": false,
+        "q05_log10": -9.6340531386835,
+        "q50_log10": -9.313202899172374,
+        "q95_log10": -9.01690638132772,
+        "spatial_mean_log10": -9.32061091661667,
+        "spatial_variance_log10": 0.03729124765726517
+      },
+      "source_map": "RUN_2",
+      "spatial_sd_log10": 0.19310941887247543,
+      "spatial_variance_log10": 0.03729124765726517
+    },
+    "RUN_3_structural": {
+      "empirical_variograms": {
+        "column": [
+          1.4429397237208007e-06,
+          5.73330975549191e-06,
+          2.2553394093190863e-05,
+          8.76458374157304e-05,
+          0.0003388610674593949,
+          0.0013008834044242962,
+          0.004639203689380259,
+          0.013582474394969662,
+          0.020858609450900383,
+          0.01942254287302044
+        ],
+        "diagonal_negative": [
+          2.0380200111506487e-06,
+          8.028907943943414e-06,
+          3.0951530262139315e-05,
+          0.00011718573808441548,
+          0.0004443137723100737,
+          0.0016964185641441323,
+          0.006011339298033373,
+          0.016736844850788822,
+          0.021748380327541034,
+          0.02371517807636006
+        ],
+        "diagonal_positive": [
+          2.2931529957514205e-06,
+          9.046548508619334e-06,
+          3.4965960569126785e-05,
+          0.0001326235913619196,
+          0.0005028141624726851,
+          0.0018965897197016077,
+          0.006422850073579167,
+          0.01596552684287529,
+          0.016444930410071983,
+          0.017750612981106455
+        ],
+        "row": [
+          7.2480301871161e-07,
+          2.8327013866501716e-06,
+          1.0664610774333312e-05,
+          3.844422053355845e-05,
+          0.000139629298871493,
+          0.000539566576602256,
+          0.0020431560661681573,
+          0.007156682796769681,
+          0.018812275030267396,
+          0.02413198021219915
+        ]
+      },
+      "expected_grid_mean_variance_log10": 0.0009105629009990916,
+      "expected_grid_spatial_variance_log10": 0.026693084958724914,
+      "expected_native_gradient_rms": {
+        "column": 0.00034957203719477887,
+        "row": 0.00023281465843757315
+      },
+      "fitted_variograms": {
+        "column": [
+          1.5275076148563483e-06,
+          6.0672344098931834e-06,
+          2.393060386947541e-05,
+          9.307904390381644e-05,
+          0.00035214310188082747,
+          0.001261604520162138,
+          0.004068540075667692,
+          0.010799938009666683,
+          0.020753015189777367,
+          0.02680930451168475
+        ],
+        "diagonal_negative": [
+          2.0923104406412696e-06,
+          8.300650277751058e-06,
+          3.266143186688696e-05,
+          0.0001264346260785272,
+          0.0004738570569101235,
+          0.0016667833179077377,
+          0.005191307849187519,
+          0.012957079854433912,
+          0.022750319772994687,
+          0.027243080141727324
+        ],
+        "diagonal_positive": [
+          2.3083255497046453e-06,
+          9.15382494691258e-06,
+          3.598868353782185e-05,
+          0.00013908552041689358,
+          0.0005195798833659713,
+          0.0018160969555096078,
+          0.0055893995850812015,
+          0.013664592165938497,
+          0.023309239582780087,
+          0.027330420529290685
+        ],
+        "row": [
+          6.775333147925481e-07,
+          2.6974854363899885e-06,
+          1.0689554429719461e-05,
+          4.196767810941264e-05,
+          0.00016174216163475884,
+          0.0006009138987023692,
+          0.0020781404347047974,
+          0.006269458767362518,
+          0.014809993413809279,
+          0.02412247498832012
+        ]
+      },
+      "grid_mean_unit_variance": 0.032987049596719345,
+      "interpretation": "stationary synthetic-map structure fit; total heterogeneity, not reconstruction-error or instrument-noise calibration",
+      "law": {
+        "covariance": {
+          "angle_deg": -86.3655418051892,
+          "center": "median",
+          "ell_col_m": 1236.3124059383958,
+          "ell_row_m": 819.3881749539624,
+          "family": "matern32_radial",
+          "sigma_R": 0.16614345566324304
+        },
+        "mean_log10_k": -9.157023847565199
+      },
+      "length_at_bound": false,
+      "local_coordinate_convention": "angle from positive column toward positive row; no historical geographic registration inferred",
+      "log_variogram_rmse": 0.14084439066811186,
+      "maximum_multiplicative_variogram_mismatch": 1.5396888298100389,
+      "optimization_attempts": [
+        {
+          "cost": 0.39674284170417806,
+          "evaluations": 5,
+          "initial_angle_deg": 0.0,
+          "message": "`ftol` termination condition is satisfied.",
+          "success": true
+        },
+        {
+          "cost": 0.3967428417071849,
+          "evaluations": 9,
+          "initial_angle_deg": 45.0,
+          "message": "`ftol` termination condition is satisfied.",
+          "success": true
+        },
+        {
+          "cost": 0.39674284170419627,
+          "evaluations": 10,
+          "initial_angle_deg": -45.0,
+          "message": "`ftol` termination condition is satisfied.",
+          "success": true
+        }
+      ],
+      "pointwise_sd_log10": 0.16614345566324304,
+      "quadrature_grid_mean_unit_variance": 0.032987040854593724,
+      "source_features": {
+        "gradient_rms_column_log10_per_m": 0.0003397575280956465,
+        "gradient_rms_row_log10_per_m": 0.00024079917254203514,
+        "high_fraction": 0.072763671875,
+        "high_largest_component_fraction": 0.026220703125,
+        "high_spans_columns": false,
+        "high_spans_rows": false,
+        "low_fraction": 0.058505859375,
+        "low_largest_component_fraction": 0.018251953125,
+        "low_spans_columns": false,
+        "low_spans_rows": false,
+        "q05_log10": -9.379556335157696,
+        "q50_log10": -9.14834202780511,
+        "q95_log10": -8.893282630655767,
+        "spatial_mean_log10": -9.157023847565199,
+        "spatial_variance_log10": 0.026693084958724914
+      },
+      "source_map": "RUN_3",
+      "spatial_sd_log10": 0.16338018533079499,
+      "spatial_variance_log10": 0.026693084958724914
+    }
+  },
+  "runtime": {
+    "packages": {
+      "noise": null,
+      "numpy": "2.2.4",
+      "scipy": "1.15.1",
+      "torch": "2.6.0"
+    },
+    "platform": "Windows-10-10.0.19045-SP0",
+    "python": "3.12.9",
+    "python_implementation": "CPython"
+  },
+  "sample_filtering": null,
+  "schema_version": 1,
+  "settings": {
+    "cell_size_m": 5.0,
+    "diagnostic_stride_cells": 8,
+    "lags_cells": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "length_bounds_m": [
+      50.0,
+      12800.0
+    ],
+    "paired_embedding_shape": [
+      8192,
+      8192
+    ],
+    "permeability_units": "m2",
+    "preparation_manifest": "../data/reference_pilot/preparation_manifest.json",
+    "quadrature_order": 48,
+    "references": {
+      "RUN_1": "../data/reference_pilot/RUN_1.reference.npy",
+      "RUN_2": "../data/reference_pilot/RUN_2.reference.npy",
+      "RUN_3": "../data/reference_pilot/RUN_3.reference.npy"
+    },
+    "seed": 2026102603,
+    "structural_samples": 16,
+    "workers": 4
+  },
+  "source_code_sha256": {
+    "src/subsurface_uq/sampling/gstools_reference.py": "3d9849e85355ef7f2cd8b1acc3b41ad684e4f0c840471b12f966beb578d6e6b3",
+    "src/subsurface_uq/sampling/structural_profiles.py": "53cc4f7d801b55b3757c285fc3aa8d646c6db8798c43e6e51dc56093815625ee",
+    "src\\subsurface_uq\\experiments\\structural_profiles.py": "7587f77a80febb13ad3f04ff3b6f1f7c3ddf4ce2891bc84c1bfa49491be96f36"
+  },
+  "source_independence": "RUN maps may share one parent raster; not independent geological realizations",
+  "source_maps": {
+    "RUN_1": {
+      "dtype": "float32",
+      "path": "..\\data\\reference_pilot\\RUN_1.reference.npy",
+      "sha256": "2cad1c713db29727ea24a6d773753360fcaad6c99c1fb6581ff7ac630412d2ee",
+      "shape": [
+        2560,
+        2560
+      ],
+      "units": "m2"
+    },
+    "RUN_2": {
+      "dtype": "float32",
+      "path": "..\\data\\reference_pilot\\RUN_2.reference.npy",
+      "sha256": "bddb5167d7730d30b7575baa1871fe6b70c047b116e68102fa152b40e2ebf69e",
+      "shape": [
+        2560,
+        2560
+      ],
+      "units": "m2"
+    },
+    "RUN_3": {
+      "dtype": "float32",
+      "path": "..\\data\\reference_pilot\\RUN_3.reference.npy",
+      "sha256": "c717e8db2d6a1f70bfc9aca2e5333b7a8f0cb35aa56004f96faa26a07d76736a",
+      "shape": [
+        2560,
+        2560
+      ],
+      "units": "m2"
+    }
+  },
+  "supporting_files": [
+    {
+      "path": "..\\data\\reference_pilot\\preparation_manifest.json",
+      "role": "native-map preparation provenance",
+      "sha256": "1cab6085b085296778e370b86569aec48c19dd2e8663f0098a270ce6ceb8379c"
+    }
+  ],
+  "variance_estimator": "sigma\u00b2 = observed population spatial variance/(1-q); q is the exact discrete correlation of a grid average"
+}

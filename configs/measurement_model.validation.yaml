@@ -1,0 +1,52 @@
+measurements: C:/Users/Torbe/Desktop/MT/Daten/Messdaten/kf-Werte München/kf_werte_190201.xlsx
+sheet_name: kf_werte_180223
+stratigraphy: q
+groundwater_state: ungespannt
+coordinate_assumption: "Rechtswert=easting, Hochwert=northing in metres; working GK4 interpretation, authoritative workbook CRS declaration missing"
+coordinate_bounds_xy_m: [[4000000, 5000000], [5000000, 6000000]]
+units_assumption: hydraulic_conductivity_m_per_s
+models:
+- iid_normal
+- legacy_matern32
+- legacy_exponential
+- legacy_radial_exponential
+- reml_exponential_constant
+- reml_exponential_linear
+- reml_matern32_constant
+- reml_matern32_linear
+holdout:
+  block_size_m: 8000.0
+  fraction: 0.25
+  buffer_m: 1000.0
+  seed: 20261026
+development:
+  block_size_m: 4000.0
+  buffer_m: 1000.0
+  folds: 4
+  seed: 2026102601
+variogram:
+  lag_bin_m: 250.0
+  max_lag_m: 3000.0
+  angle_tolerance_deg: 22.5
+  min_pairs_per_bin: 8
+  fit_nugget: true
+  pair_count_weighted_fit: true
+reml:
+  length_bounds_m: [100.0, 50000.0]
+  structured_std_bounds_log10: [0.01, 3.0]
+  nugget_std_bounds_log10: [0.0001, 3.0]
+  initial_lengths_m: [500.0, 2500.0, 10000.0]
+  maxiter: 150
+bootstrap:
+  replicates: 4000
+  seed: 2026102602
+rules:
+  minimum_test_blocks: 8
+  coverage90_min: 0.8
+  coverage90_max: 0.98
+  standardized_rmse_min: 0.75
+  standardized_rmse_max: 1.5
+  absolute_standardized_bias_max: 0.35
+  minimum_relative_crps_improvement: 0.05
+  require_paired_bootstrap_improvement: true
+distance_bins_m: [0, 2000, 5000, 10000]

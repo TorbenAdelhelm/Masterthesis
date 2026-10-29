@@ -1,0 +1,14 @@
+# One predeclared synthetic truth; 40 conditional queries + 1 reference query.
+structural_profile_file: structural_profiles.json
+profile_name: RUN_2_structural
+measurement_counts: [32, 64, 128, 256, 512]
+n_samples: 8
+candidate_stride_cells: 32
+seed: 2026102606
+embedding_shape: [8192, 8192]
+workers: 4
+chunk_size: 8192
+model_config: ../run_output/reference_pilot/rq1.local.yaml
+model_asset_root: ..
+torch_threads: 8
+plot_stride_cells: 4

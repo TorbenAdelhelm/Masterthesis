@@ -2,9 +2,17 @@
 
 This document describes the legacy/comparison measurement-kriging and empirical
 texture workflows. Their command defaults remain available for reproducibility.
-The primary computational input family is now the
-[reference-centered lognormal scenario family](reference_field_uncertainty.md),
-whose residual amplitude and covariance are explicit model-form assumptions.
+The main computational experiment is the
+[controlled conditional-field benchmark](controlled_field_benchmark.md), whose
+mean and covariance are explicit known-law assumptions. The
+[map-informed structural profiles](structural_profiles.md) now replace the
+illustrative parameters for that benchmark; their
+[completed sensitivity pilot](structural_profile_results.md) keeps profiles
+separate and quantifies the dependence of LGCNN outputs on those assumptions.
+The
+[real-measurement validation](measurement_model_validation.md) assesses the
+measurement-derived model separately and does not validate it as a regional
+geological field law. Reference-centered scenarios remain comparisons.
 References to production calibration below concern the legacy measurement model;
 they do not identify the residual law around a realistic RUN reference.
 

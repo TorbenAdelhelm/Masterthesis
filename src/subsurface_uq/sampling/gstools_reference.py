@@ -81,7 +81,8 @@ class GSToolsReferenceFFTSampler:
     """
 
     def __init__(self, spec, shape, *, cell_size_m=5., workers=8,
-                 covariance_tolerance=1.e-11, max_embedding_points=268435456):
+                 covariance_tolerance=1.e-11, max_embedding_points=268435456,
+                 embedding_shape=None):
         if not isinstance(spec, GSToolsReferenceSpec):
             raise ValueError("GSToolsReferenceSpec required")
         if (len(shape) != 2 or any(isinstance(n, bool) or int(n) != n or n < 3 for n in shape)
@@ -98,13 +99,21 @@ class GSToolsReferenceFFTSampler:
                             [spec.ell_row_m, spec.ell_col_m]])
         expected = spec.gstools_model().cov_spatial(offsets[:, ::-1].T)
         np.testing.assert_allclose(spec.correlation(*offsets.T), expected, rtol=1.e-12, atol=2.e-15)
-        embedding = tuple(2 ** math.ceil(math.log2(3 * n)) for n in self.shape)
+        if embedding_shape is not None:
+            if (len(embedding_shape)!=2 or any(isinstance(n,bool) or not isinstance(n,(int,np.integer))
+                    or n<3*m or n&(n-1) for n,m in zip(embedding_shape,self.shape))):
+                raise ValueError("explicit embedding must be two powers of two at least three times the crop")
+            embedding=tuple(map(int,embedding_shape))
+        else:
+            embedding = tuple(2 ** math.ceil(math.log2(3 * n)) for n in self.shape)
         attempts = []
         while math.prod(embedding) <= max_embedding_points:
             spectrum, record = self._embedding(embedding)
             attempts.append(record)
             if record["negative_covariance_mass"] <= covariance_tolerance:
                 break
+            if embedding_shape is not None:
+                raise ValueError(f"explicit common embedding is not PSD within tolerance: {record}")
             del spectrum
             gc.collect()
             # Grow the relatively least-extended correlation direction first.

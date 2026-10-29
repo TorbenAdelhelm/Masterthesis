@@ -1,0 +1,3563 @@
+{
+  "density": [
+    {
+      "between_trial_variance_estimate_sem_C2": 0.0006615510505812248,
+      "design": "balanced-000",
+      "mean_spatial_temperature_variance_C2": 0.010395093281164414,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "paired_reduction_sem_C2": 0.0004846041935299529,
+      "paired_variance_reduction_from_prior_C2": -0.0003565278573263884,
+      "scenario": "matern32_known",
+      "analytic_input_rms_sd_log10": 0.24176471548835154,
+      "temperature_rms_sd_C": 0.10195633026528766
+    },
+    {
+      "between_trial_variance_estimate_sem_C2": 0.0018188513398828103,
+      "design": "balanced-000",
+      "mean_spatial_temperature_variance_C2": 0.008210916732210048,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "paired_reduction_sem_C2": 0.0006726960957716327,
+      "paired_variance_reduction_from_prior_C2": 0.001827648691627977,
+      "scenario": "matern32_known",
+      "analytic_input_rms_sd_log10": 0.2044124686644602,
+      "temperature_rms_sd_C": 0.09061410890258784
+    },
+    {
+      "between_trial_variance_estimate_sem_C2": 0.0009299525351488266,
+      "design": "clustered-000",
+      "mean_spatial_temperature_variance_C2": 0.010029994053674541,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "paired_reduction_sem_C2": 0.000216202708962351,
+      "paired_variance_reduction_from_prior_C2": 8.571370163483819e-06,
+      "scenario": "matern32_known",
+      "analytic_input_rms_sd_log10": 0.2378915389987309,
+      "temperature_rms_sd_C": 0.10014985798129991
+    },
+    {
+      "between_trial_variance_estimate_sem_C2": 0.0006406240914517422,
+      "design": "clustered-000",
+      "mean_spatial_temperature_variance_C2": 0.009324699282306687,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "paired_reduction_sem_C2": 0.0005055311526594355,
+      "paired_variance_reduction_from_prior_C2": 0.0007138661415313392,
+      "scenario": "matern32_known",
+      "analytic_input_rms_sd_log10": 0.21741543549001802,
+      "temperature_rms_sd_C": 0.09656448250939208
+    },
+    {
+      "between_trial_variance_estimate_sem_C2": 0.0011461552441111777,
+      "design": "prior",
+      "mean_spatial_temperature_variance_C2": 0.010038565423838026,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "paired_reduction_sem_C2": 0.0,
+      "paired_variance_reduction_from_prior_C2": 0.0,
+      "scenario": "matern32_known",
+      "analytic_input_rms_sd_log10": 0.25,
+      "temperature_rms_sd_C": 0.10019264156532667
+    }
+  ],
+  "input_probe_calibration": [
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.10911911502235105,
+      "mean_error_rmse": 0.18671240768340638,
+      "mean_predictive_variance": 0.07258048980676092,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 0,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.2694076647142039,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.04367358465690385,
+      "mean_error_rmse": 0.08175734428499076,
+      "mean_predictive_variance": 0.046113254734569266,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 1,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.2147399700441659,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.17642266946935653,
+      "mean_error_rmse": 0.2987989973747567,
+      "mean_predictive_variance": 0.1309210203002425,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 2,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.36183009866544064,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.1644944776946896,
+      "mean_error_rmse": 0.23327735411646988,
+      "mean_predictive_variance": 0.047124625886162695,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 3,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.21708207177508393,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.1708221022878766,
+      "mean_error_rmse": 0.28922957448451947,
+      "mean_predictive_variance": 0.07524432849380461,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 4,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.27430699680067333,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.2367332586056996,
+      "mean_error_rmse": 0.30528837033139183,
+      "mean_predictive_variance": 0.04526009197257244,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 5,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.2127441937458516,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.18168775311383045,
+      "mean_error_rmse": 0.3037453206557703,
+      "mean_predictive_variance": 0.10456753672878163,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 6,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.32336904107966435,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.4125473794091161,
+      "mean_error_rmse": 0.5798370528178985,
+      "mean_predictive_variance": 0.13073825198764583,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 7,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "rms_predictive_sd": 0.3615774495009967,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.06350134463621881,
+      "mean_error_rmse": 0.09523568577390974,
+      "mean_predictive_variance": 0.07077636739557075,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 0,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.266038281823445,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.06836363341822593,
+      "mean_error_rmse": 0.11350251607373528,
+      "mean_predictive_variance": 0.018982535315320136,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 1,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.13777712188647337,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.15083582636193898,
+      "mean_error_rmse": 0.25045943776101925,
+      "mean_predictive_variance": 0.10352670259877865,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 2,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.32175565666943395,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.05624516832967075,
+      "mean_error_rmse": 0.04643524207959467,
+      "mean_predictive_variance": 0.03209987394660832,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 3,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.1791643768906317,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.06431086994342411,
+      "mean_error_rmse": 0.1042003574988486,
+      "mean_predictive_variance": 0.02863475624327769,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 4,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.16921807303972497,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.18350111769753563,
+      "mean_error_rmse": 0.2583201213994297,
+      "mean_predictive_variance": 0.03865591570124452,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 5,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.19661107725976307,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.2155992535287395,
+      "mean_error_rmse": 0.28214295616246765,
+      "mean_predictive_variance": 0.0642071743142261,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 6,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.25339134617075243,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.1687456464583209,
+      "mean_error_rmse": 0.25413994291973163,
+      "mean_predictive_variance": 0.03413117284253019,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 7,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0
+      ],
+      "rms_predictive_sd": 0.18474623904840443,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.11207199426989711,
+      "mean_error_rmse": 0.18786842183972063,
+      "mean_predictive_variance": 0.07364046761367778,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 0,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.27136777187735056,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.043415266467414115,
+      "mean_error_rmse": 0.08126931063510169,
+      "mean_predictive_variance": 0.05207536162664245,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 1,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.22820026649117317,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.1694194520179324,
+      "mean_error_rmse": 0.28461523522819987,
+      "mean_predictive_variance": 0.13544937221371295,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 2,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.3680344715019409,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.14602586169271448,
+      "mean_error_rmse": 0.21158380600204055,
+      "mean_predictive_variance": 0.046639500043196336,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 3,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.21596180227807957,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.16793485830010574,
+      "mean_error_rmse": 0.2804431452314218,
+      "mean_predictive_variance": 0.07506706840771032,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 4,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.27398370098914704,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.23712557288171016,
+      "mean_error_rmse": 0.30725090366135493,
+      "mean_predictive_variance": 0.048808291532473194,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 5,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.22092598654860227,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.18951310252893205,
+      "mean_error_rmse": 0.3077033397879009,
+      "mean_predictive_variance": 0.10591774581888576,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 6,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.3254500665522835,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.40093557140487274,
+      "mean_error_rmse": 0.5622434716608511,
+      "mean_predictive_variance": 0.12141054943263285,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "probe": 7,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "rms_predictive_sd": 0.34844016621599877,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.10658026778786256,
+      "mean_error_rmse": 0.1816289286299519,
+      "mean_predictive_variance": 0.07368982614678415,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 0,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.2714587006282616,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.047557342925723056,
+      "mean_error_rmse": 0.08003776710448701,
+      "mean_predictive_variance": 0.03699990459361784,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 1,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.19235359261947213,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.14112005407492723,
+      "mean_error_rmse": 0.22980326250421987,
+      "mean_predictive_variance": 0.12294411527886398,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 2,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.3506338763993918,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.0690896802370154,
+      "mean_error_rmse": 0.09570566147013611,
+      "mean_predictive_variance": 0.04104413237101362,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 3,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.20259351512576512,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.14692431485391289,
+      "mean_error_rmse": 0.2609252933069422,
+      "mean_predictive_variance": 0.07745192686409708,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 4,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.27830186284697606,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.2274238484638556,
+      "mean_error_rmse": 0.30755131451394785,
+      "mean_predictive_variance": 0.0385534239165906,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 5,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.19635025825445354,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.16676714220579636,
+      "mean_error_rmse": 0.2690592718425693,
+      "mean_predictive_variance": 0.08138101368882256,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 6,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.2852735769201602,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.39340787460498233,
+      "mean_error_rmse": 0.5553046191251687,
+      "mean_predictive_variance": 0.12202487741382159,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "probe": 7,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "rms_predictive_sd": 0.3493205940305003,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.11114064726068101,
+      "mean_error_rmse": 0.18658575974397057,
+      "mean_predictive_variance": 0.07367841249149047,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "probe": 0,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.27143767699324733,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.04358262489702042,
+      "mean_error_rmse": 0.0803795231375945,
+      "mean_predictive_variance": 0.046093823354651474,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "probe": 1,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.21469472130132,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.1689513123678435,
+      "mean_error_rmse": 0.2878320288577163,
+      "mean_predictive_variance": 0.13128046010104424,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "probe": 2,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.3623264551492814,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.16433385732098788,
+      "mean_error_rmse": 0.2342388234685767,
+      "mean_predictive_variance": 0.04596755052596995,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "probe": 3,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.21440044432316355,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.17306918274199456,
+      "mean_error_rmse": 0.28552107345439703,
+      "mean_predictive_variance": 0.07752825338877332,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "probe": 4,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.2784389581017235,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.2381443012846896,
+      "mean_error_rmse": 0.30749496305693197,
+      "mean_predictive_variance": 0.04852620104056475,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "probe": 5,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.22028663382185662,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.19100332900131195,
+      "mean_error_rmse": 0.3105589498790393,
+      "mean_predictive_variance": 0.10521626321292969,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "probe": 6,
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.32437056465241987,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.40470234183627546,
+      "mean_error_rmse": 0.5697756249441449,
+      "mean_predictive_variance": 0.13135670813704953,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "probe": 7,
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "rms_predictive_sd": 0.3624316599540519,
+      "scenario": "matern32_known"
+    }
+  ],
+  "interpretation": "controlled known-law conditional input UQ; exact data; same frozen LGCNN for truth and draws",
+  "limits": "separate scenarios/layouts; outer trial intervals include finite MC error; no geological or PFLOTRAN validation; no claim of tail convergence",
+  "study_id": "controlled-4d110227778ffdf9b8e9",
+  "temperature_calibration": [
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.09567347168922424,
+      "mean_error_rmse": 0.15410026197030913,
+      "mean_predictive_variance": 0.0424928044300259,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "receptor_001",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.20613782872152772,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.07332274317741394,
+      "mean_error_rmse": 0.12274687789435679,
+      "mean_predictive_variance": 0.07299675160444016,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "receptor_002",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.27017911022956637,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.06486359238624573,
+      "mean_error_rmse": 0.11250989505966427,
+      "mean_predictive_variance": 0.011675946220710404,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "receptor_003",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.10805529242341813,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.028971619019354633,
+      "mean_error_rmse": 0.046834214402528454,
+      "mean_predictive_variance": 0.0014391995180639838,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "mean_temperature_anomaly",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.037936783180232664,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.12194085121154785,
+      "mean_error_rmse": 0.19827460488637133,
+      "mean_predictive_variance": 0.0672805837332362,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "roi_maximum_anomaly_C",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.25938501061787705,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 122996.875,
+      "mean_error_rmse": 270132.7816585068,
+      "mean_predictive_variance": 150689007031.25,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "warming_area_gt_0.1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 388186.8197546769,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 4128.90625,
+      "mean_error_rmse": 12772.242394397705,
+      "mean_predictive_variance": 611432369.7916666,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "warming_area_gt_1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 24727.15854666012,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.08892872184515,
+      "mean_error_rmse": 0.1324592321487789,
+      "mean_predictive_variance": 0.038035428127086233,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "receptor_001",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.1950267369544141,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.05971767008304596,
+      "mean_error_rmse": 0.09376256653229328,
+      "mean_predictive_variance": 0.055610700917035114,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "receptor_002",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.2358192123577617,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.059179313480854034,
+      "mean_error_rmse": 0.09973025287252738,
+      "mean_predictive_variance": 0.03406723414860836,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "receptor_003",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.18457311328741344,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.01779260456396567,
+      "mean_error_rmse": 0.03301803615393867,
+      "mean_predictive_variance": 0.0009751084354778531,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "mean_temperature_anomaly",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.03122672630100461,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.13063474744558334,
+      "mean_error_rmse": 0.20518797837704572,
+      "mean_predictive_variance": 0.04854263841135012,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "roi_maximum_anomaly_C",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.22032393971457145,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 207185.7421875,
+      "mean_error_rmse": 353031.8193500875,
+      "mean_predictive_variance": 193218215574.7768,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "warming_area_gt_0.1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 439565.939962114,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 2193.359375,
+      "mean_error_rmse": 7346.863701607645,
+      "mean_predictive_variance": 311814553.5714286,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "warming_area_gt_1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 17658.27153408364,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.049926578998565674,
+      "mean_error_rmse": 0.07230011477639671,
+      "mean_predictive_variance": 0.01532233632436449,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "receptor_001",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.12378342507930733,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.12050583958625793,
+      "mean_error_rmse": 0.177503183847653,
+      "mean_predictive_variance": 0.027196704514722107,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "receptor_002",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.16491423381479875,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.061097919940948486,
+      "mean_error_rmse": 0.0786308860090646,
+      "mean_predictive_variance": 0.025951115491428325,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "receptor_003",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.16109349922150282,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.02474327279627403,
+      "mean_error_rmse": 0.0342180572689138,
+      "mean_predictive_variance": 0.000565423221475281,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "mean_temperature_anomaly",
+      "rank_coverage": 0.0,
+      "rank_coverage_ci95": [
+        0.0,
+        0.841886116991607
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.02377862951213297,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.026606231927871704,
+      "mean_error_rmse": 0.03949755310910445,
+      "mean_predictive_variance": 0.0051077140699741595,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "roi_maximum_anomaly_C",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        2,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.07146827317050664,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 311821.09375,
+      "mean_error_rmse": 371598.7977697267,
+      "mean_predictive_variance": 494992031015.62494,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "warming_area_gt_0.1C_m2",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 703556.7006401296,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 1846.09375,
+      "mean_error_rmse": 3841.2059670434232,
+      "mean_predictive_variance": 95660494.79166667,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "warming_area_gt_1C_m2",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 9780.618323586023,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.04948784410953522,
+      "mean_error_rmse": 0.07066296647401162,
+      "mean_predictive_variance": 0.010829455321040116,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "receptor_001",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.10406466893734932,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.12758280336856842,
+      "mean_error_rmse": 0.18748781191049133,
+      "mean_predictive_variance": 0.016602588088029994,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "receptor_002",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.1288510306052303,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.0515441820025444,
+      "mean_error_rmse": 0.07701398973649848,
+      "mean_predictive_variance": 0.02466659191339561,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "receptor_003",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.15705601520921003,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.012130961365170292,
+      "mean_error_rmse": 0.018384324339682682,
+      "mean_predictive_variance": 0.00112919750452364,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "mean_temperature_anomaly",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.03360353410764469,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.04239910840988159,
+      "mean_error_rmse": 0.07314445596510909,
+      "mean_predictive_variance": 0.027106211799735193,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "roi_maximum_anomaly_C",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.16463964224856417,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 367971.09375,
+      "mean_error_rmse": 602933.1186106616,
+      "mean_predictive_variance": 367067615390.625,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "warming_area_gt_0.1C_m2",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 605861.0528748527,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "balanced-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 1733.984375,
+      "mean_error_rmse": 4254.861649484034,
+      "mean_predictive_variance": 96863995.53571428,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "warming_area_gt_1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 9841.950799293516,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.08619463443756104,
+      "mean_error_rmse": 0.1536816744355672,
+      "mean_predictive_variance": 0.03918573273585935,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "receptor_001",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.19795386517029503,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.07342374324798584,
+      "mean_error_rmse": 0.15562945535245584,
+      "mean_predictive_variance": 0.04183387982379827,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "receptor_002",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.2045333220377508,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.06977048516273499,
+      "mean_error_rmse": 0.12351465238347388,
+      "mean_predictive_variance": 0.069535280924318,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "receptor_003",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.26369543212637947,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.02528214573473897,
+      "mean_error_rmse": 0.04586835122974963,
+      "mean_predictive_variance": 0.0023109079354198684,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "mean_temperature_anomaly",
+      "rank_coverage": 0.0,
+      "rank_coverage_ci95": [
+        0.0,
+        0.841886116991607
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.04807190380482001,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.06436887383460999,
+      "mean_error_rmse": 0.1197459828127048,
+      "mean_predictive_variance": 0.0277122604405046,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "roi_maximum_anomaly_C",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.16646999861988526,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 213878.90625,
+      "mean_error_rmse": 107154.32659034934,
+      "mean_predictive_variance": 360821136119.7916,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "warming_area_gt_0.1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 600683.8903448232,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 4272.65625,
+      "mean_error_rmse": 14303.19907944548,
+      "mean_predictive_variance": 951553098.9583331,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 4,
+      "qoi": "warming_area_gt_1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        2,
+        0
+      ],
+      "rms_predictive_sd": 30847.2543179832,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.06792421638965607,
+      "mean_error_rmse": 0.1119634792922861,
+      "mean_predictive_variance": 0.04666860083813974,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "receptor_001",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.2160291666376088,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.06302516162395477,
+      "mean_error_rmse": 0.08801157287636072,
+      "mean_predictive_variance": 0.050831122792893826,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "receptor_002",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.22545758535230928,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.05994982272386551,
+      "mean_error_rmse": 0.11129544253718607,
+      "mean_predictive_variance": 0.07324069593956242,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "receptor_003",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.2706301829795827,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.012925797225011068,
+      "mean_error_rmse": 0.028767043688047955,
+      "mean_predictive_variance": 0.001525986242333626,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "mean_temperature_anomaly",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.039063873877709904,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.08565269410610199,
+      "mean_error_rmse": 0.12325657570952958,
+      "mean_predictive_variance": 0.044910661061521744,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "roi_maximum_anomaly_C",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.2119213558410802,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 122433.203125,
+      "mean_error_rmse": 53617.816480537746,
+      "mean_predictive_variance": 207463841149.5536,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "warming_area_gt_0.1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 455481.9877333829,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 2225.5859375,
+      "mean_error_rmse": 8896.377477746912,
+      "mean_predictive_variance": 457811222.09821427,
+      "n_independent_truths": 2,
+      "n_measurements": 8,
+      "n_samples": 8,
+      "qoi": "warming_area_gt_1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 21396.52359843099,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.07794693112373352,
+      "mean_error_rmse": 0.12970061984873904,
+      "mean_predictive_variance": 0.03640416532967568,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "receptor_001",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.1907987561009654,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.0629500150680542,
+      "mean_error_rmse": 0.15018271488524065,
+      "mean_predictive_variance": 0.06631337626019256,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "receptor_002",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.25751383702665875,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.05685201287269592,
+      "mean_error_rmse": 0.09133554259973221,
+      "mean_predictive_variance": 0.04366026216102151,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "receptor_003",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.20895038205521785,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.02621645684650742,
+      "mean_error_rmse": 0.04258684885697957,
+      "mean_predictive_variance": 0.0014569538856256123,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "mean_temperature_anomaly",
+      "rank_coverage": 0.0,
+      "rank_coverage_ci95": [
+        0.0,
+        0.841886116991607
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.03817006530811301,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.08298322558403015,
+      "mean_error_rmse": 0.1423982026864719,
+      "mean_predictive_variance": 0.048907336183181854,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "roi_maximum_anomaly_C",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.22115003093642527,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 231388.28125,
+      "mean_error_rmse": 52386.91037755758,
+      "mean_predictive_variance": 593632758515.625,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "warming_area_gt_0.1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 770475.670294413,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 2828.125,
+      "mean_error_rmse": 6899.912250347826,
+      "mean_predictive_variance": 220588489.5833333,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 4,
+      "qoi": "warming_area_gt_1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 14852.22170529828,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.04895477741956711,
+      "mean_error_rmse": 0.05742240954112403,
+      "mean_predictive_variance": 0.04266861960496727,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "receptor_001",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.20656383905458203,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.05046400427818298,
+      "mean_error_rmse": 0.08858617966876012,
+      "mean_predictive_variance": 0.04916629184520259,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "receptor_002",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.2217347330600296,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.04830490052700043,
+      "mean_error_rmse": 0.0752827378986214,
+      "mean_predictive_variance": 0.048583883935927066,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "receptor_003",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.22041752184417432,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.017333974484906853,
+      "mean_error_rmse": 0.030320442031778257,
+      "mean_predictive_variance": 0.0010727999636756915,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "mean_temperature_anomaly",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.03275362519898662,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.09278129041194916,
+      "mean_error_rmse": 0.12679266352215457,
+      "mean_predictive_variance": 0.05103114680267546,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "roi_maximum_anomaly_C",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.22590074546728584,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 162672.0703125,
+      "mean_error_rmse": 148165.17415711362,
+      "mean_predictive_variance": 379439305396.2053,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "warming_area_gt_0.1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 615986.4490361824,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "clustered-000",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 1959.5703125,
+      "mean_error_rmse": 5324.171462097413,
+      "mean_predictive_variance": 129638253.3482143,
+      "n_independent_truths": 2,
+      "n_measurements": 32,
+      "n_samples": 8,
+      "qoi": "warming_area_gt_1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 11385.879559709663,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.0766986608505249,
+      "mean_error_rmse": 0.14861834843151178,
+      "mean_predictive_variance": 0.03719890008134523,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 4,
+      "qoi": "receptor_001",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.19287016379249858,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.0886002779006958,
+      "mean_error_rmse": 0.17293569358722885,
+      "mean_predictive_variance": 0.05042020546003792,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 4,
+      "qoi": "receptor_002",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.22454443983327202,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.06432878971099854,
+      "mean_error_rmse": 0.11803867691043445,
+      "mean_predictive_variance": 0.06306908848985888,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 4,
+      "qoi": "receptor_003",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.25113559781492323,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.025715021195235777,
+      "mean_error_rmse": 0.04646039289837371,
+      "mean_predictive_variance": 0.0023999667507722403,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 4,
+      "qoi": "mean_temperature_anomaly",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        0,
+        1
+      ],
+      "rms_predictive_sd": 0.04898945550597843,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.0603337287902832,
+      "mean_error_rmse": 0.11301273532119731,
+      "mean_predictive_variance": 0.02845966088458833,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 4,
+      "qoi": "roi_maximum_anomaly_C",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.16869991370652307,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 234661.71875,
+      "mean_error_rmse": 316459.3028053232,
+      "mean_predictive_variance": 266041330078.125,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 4,
+      "qoi": "warming_area_gt_0.1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 515791.94456498156,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.6,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 3326.5625,
+      "mean_error_rmse": 10556.153788785952,
+      "mean_predictive_variance": 477770989.5833334,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 4,
+      "qoi": "warming_area_gt_1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 21857.97313529627,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.07401125133037567,
+      "mean_error_rmse": 0.10314040391565903,
+      "mean_predictive_variance": 0.05876325924792321,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "qoi": "receptor_001",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.24241134306777645,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.07446452230215073,
+      "mean_error_rmse": 0.10455595451278658,
+      "mean_predictive_variance": 0.055934672962808116,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "qoi": "receptor_002",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.23650512248745928,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.048457369208335876,
+      "mean_error_rmse": 0.10488165515163832,
+      "mean_predictive_variance": 0.0696352017666056,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "qoi": "receptor_003",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.26388482670779995,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.013875210159907211,
+      "mean_error_rmse": 0.02981757411643871,
+      "mean_predictive_variance": 0.0015558898361192862,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "qoi": "mean_temperature_anomaly",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "rms_predictive_sd": 0.039444769439296846,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 0.08515811711549759,
+      "mean_error_rmse": 0.11666708802308501,
+      "mean_predictive_variance": 0.04395343209917459,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "qoi": "roi_maximum_anomaly_C",
+      "rank_coverage": 0.5,
+      "rank_coverage_ci95": [
+        0.01257911709367899,
+        0.987420882906321
+      ],
+      "rank_histogram": [
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 0.20965073837021084,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 184493.75,
+      "mean_error_rmse": 236262.94561918982,
+      "mean_predictive_variance": 176176327477.67856,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "qoi": "warming_area_gt_0.1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 419733.6387254166,
+      "scenario": "matern32_known"
+    },
+    {
+      "attainable_rank_coverage": 0.7777777777777778,
+      "ci_unit": "independent hidden-truth trial at this fixed scalar/layout/count; no pixel or layout pooling",
+      "design": "prior",
+      "interpretation": "model-conditional consistency diagnostic; not empirical geological or simulator validation",
+      "mean_crps": 1995.703125,
+      "mean_error_rmse": 6093.440697278509,
+      "mean_predictive_variance": 244731852.67857143,
+      "n_independent_truths": 2,
+      "n_measurements": 0,
+      "n_samples": 8,
+      "qoi": "warming_area_gt_1C_m2",
+      "rank_coverage": 1.0,
+      "rank_coverage_ci95": [
+        0.15811388300839305,
+        1.0
+      ],
+      "rank_histogram": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "rms_predictive_sd": 15643.907845502397,
+      "scenario": "matern32_known"
+    }
+  ],
+  "executed_configuration": {
+    "candidate_stride_cells": 32,
+    "cell_size_m": 5.0,
+    "chunk_size": 16384,
+    "cluster_scale_fraction": 0.1,
+    "coverage_scenarios": [
+      "balanced",
+      "clustered"
+    ],
+    "diagnostic_stride_cells": 32,
+    "measurement_counts": [
+      0,
+      8,
+      32
+    ],
+    "model_asset_root": "..",
+    "model_config": "../run_output/reference_pilot/rq1.local.yaml",
+    "n_designs": 1,
+    "n_samples": 8,
+    "n_truths": 2,
+    "permeability_units": "m2",
+    "quantile_chunk_rows": 16,
+    "risk_thresholds_C": [
+      0.1,
+      1.0
+    ],
+    "sample_budgets": [
+      4,
+      8
+    ],
+    "scenarios": {
+      "matern32_known": {
+        "covariance": {
+          "angle_deg": 0.0,
+          "center": "median",
+          "ell_col_m": 1000.0,
+          "ell_row_m": 1000.0,
+          "family": "matern32_radial",
+          "sigma_R": 0.25
+        },
+        "mean_log10_k": -9.3
+      }
+    },
+    "seed": 20261026,
+    "shape": [
+      2560,
+      2560
+    ],
+    "torch_threads": 8,
+    "validation_probes": 8,
+    "validation_replicates": 256,
+    "workers": 4
+  },
+  "executed_source_sha256": {
+    "configs\\controlled_field.pilot.yaml": "ff7b0bbcaf0ecb1e26d4eeccaf616e1abd728f467ddef8787facdc11bc977e6b",
+    "run_output\\reference_pilot\\rq1.local.yaml": "5f6c46fecaeb8e4e27a125c8d9099a04ffb302aa934e9eec82a79f7aa34e2179",
+    "src\\subsurface_uq\\__init__.py": "da99b8f9fb610424016b10241f182ed6239a7f603507613f8d97c08d9da5aa0d",
+    "src\\subsurface_uq\\experiments\\__init__.py": "db3f88ba9702126893c10c8d6a025b456d05aa8c305fba368a309c8f9fa6e045",
+    "src\\subsurface_uq\\experiments\\conditioning_deviation.py": "f3534cf98031cc0d64378799d98d9eca71b72185ca19b40dcd884115e47da4eb",
+    "src\\subsurface_uq\\experiments\\conditioning_temperature.py": "3bcca0e5474541e7539813fa227d531729d970e6e9ab13190f340f5bf2f98cdf",
+    "src\\subsurface_uq\\experiments\\controlled_field_benchmark.py": "e5a2efa6b74a2855e06116c17176bf8182174f16ab6c620aba497d319145091e",
+    "src\\subsurface_uq\\experiments\\covariance_reconstruction.py": "871e5116fcf6a16ff56027d596aa49fdd26b2d3dd726c6c669443dbccbbe503c",
+    "src\\subsurface_uq\\experiments\\distribution_options.py": "4e3f1dfb0a74d0bb99a6893a2594efa764c39a191fe320353f03bf499eb122a1",
+    "src\\subsurface_uq\\experiments\\historical_realistic_reconstruction.py": "91c33ef8346b4b554f8fc30bff11426827e5f58f4c2b49a277af8ccb8ac975e8",
+    "src\\subsurface_uq\\experiments\\measurement_density.py": "c9b99e3668395e055d60a990b0c008232a16c68b536aeb7d0ca0693385c71d52",
+    "src\\subsurface_uq\\experiments\\measurement_density_validation.py": "fda2d7206302aa32b83086df20265eb4cce9ab00b4e0c85e003879d381cc6c28",
+    "src\\subsurface_uq\\experiments\\parent_measurement_audit.py": "18534f41848b65812bbe44410c482c08cf441a6bfc83e1f3ae8dfa55fad99c40",
+    "src\\subsurface_uq\\experiments\\real_k_training_support.py": "5791a8ba92d7d9d33d784422d0e54846e657a014c5fda23e5898b6d9a0ed1ad3",
+    "src\\subsurface_uq\\experiments\\realistic_permeability.py": "10a0c7b68eeadb8be4ebfc274e3ba1a62332ea980b537194cb233876e721369c",
+    "src\\subsurface_uq\\experiments\\reference_conditioning.py": "91486c7600e942b8d95546c94419e07726e769387819ef3ea6c54f3a18491572",
+    "src\\subsurface_uq\\experiments\\reference_field_diagnostics.py": "5dbced212d216065358650d16a49517517faf2599b1d47d74e2e164d18d1b65d",
+    "src\\subsurface_uq\\experiments\\reference_field_permeability.py": "46bd08c3d909536dc21ff712950fcf205cc1bf4c5477598a62213c6d0279923a",
+    "src\\subsurface_uq\\experiments\\reference_field_validation.py": "770f35fa08139af6064f0d1de39a7bf3416d95673249a53ba5997c25f3adb492",
+    "src\\subsurface_uq\\experiments\\reference_kernel_study.py": "85299f93d8d2e22fa0977733a540699959289359e087e1365ee48a59ecc3128c",
+    "src\\subsurface_uq\\experiments\\reference_kl_sensitivity.py": "90c63f489a36b919f86512aea334fcfcb19f07ee8bd5c092cc788c2d56dcd6bd",
+    "src\\subsurface_uq\\experiments\\reference_scenarios.py": "e00a61e9f6efdff1273ace9e69637302c4eadf763e5cb95000c3531620416c8b",
+    "src\\subsurface_uq\\experiments\\release25_empirical.py": "261f9ccc748cf505838c927f0ba71e8db6409c7a49253aeb4602be88ff7abfff",
+    "src\\subsurface_uq\\experiments\\release25_gaussian_pce.py": "8716e6e8c6b80a22dceccdf682f524b279bc22d4d5f5c0bbe3d3dc92322833d2",
+    "src\\subsurface_uq\\experiments\\release25_grf_mc.py": "4e88317d4ebac3793e1c1467a6226e8d314db3fd7fc12e6f33290b50b5c09252",
+    "src\\subsurface_uq\\experiments\\release25_perlin.py": "d6ce39e8654451fc56e1da67f2c5e33a77a7e5c9a3d7e632b554840931f401ec",
+    "src\\subsurface_uq\\experiments\\release25_perlin_pce.py": "a82a82e347422e303d4c7bc7330854fed5275b7851773394fbfa1ac7414f4dbc",
+    "src\\subsurface_uq\\experiments\\release25_rq1.py": "f0b2ff0b50c19d8f7cd901faeed35fa3172ea9a43507e179f6edc21e8c22a37d",
+    "src\\subsurface_uq\\experiments\\release25_streamline_equivalence.py": "e24075bb0efaedd1efd1e85f4de2f3ecf56a08fad86b2c7ff1beec8fbbf10458",
+    "src\\subsurface_uq\\experiments\\training_provenance.py": "72b8a6de3c8239073b825d922ce6610e57ad714ab83f3827287f63ac8605cc44",
+    "src\\subsurface_uq\\io\\__init__.py": "fed395e27e4ec81f33f59a076323425addc12ff2d88a182d2c301648ae467f5c",
+    "src\\subsurface_uq\\io\\darus.py": "178ef2e532f75fff01ddaf7d15af70344964c3cd5f44377b3777ccf1531cffc6",
+    "src\\subsurface_uq\\io\\provenance.py": "94b85ce5abe329a69f1aa3711744da0f0d8dd2d530b4adfe23912df02d07534c",
+    "src\\subsurface_uq\\io\\results.py": "d50829de3691a8085607b2ae65681d156da408ad69480841ea7f58dc74a68832",
+    "src\\subsurface_uq\\pce\\__init__.py": "87a5d1462e4a47ecec0695992fa50479aa118d420886840f174c5017d7529398",
+    "src\\subsurface_uq\\pce\\basis.py": "8b6620364cf2f6ff800372d65bef8d8f401ebb504fcd4f12af64baf11bd5b13a",
+    "src\\subsurface_uq\\pce\\design.py": "0625075d944a21518615bdb08623a0531554dc4f81aa9a5d83799d39e973924e",
+    "src\\subsurface_uq\\pce\\io.py": "87c809ebef226dae62278c6d99cff4494e3ce1d4128fb1eaf04a3603bd4d743c",
+    "src\\subsurface_uq\\pce\\qoi.py": "b77a2a04d30edf774f2aff527d056d03a2f22672010d180733781ad7e2cc445f",
+    "src\\subsurface_uq\\pce\\regression.py": "cd5084a7e5a331f206f558b5fb676ca2565abf6c1d75368182c74bf9d3680fc9",
+    "src\\subsurface_uq\\pce\\workflow.py": "fed3bedbc762218c6ab38e10c18c0c03752975792ac4a4224d0ea3dead45ed93",
+    "src\\subsurface_uq\\propagation\\__init__.py": "9d4918ef2a90d43b09f4cbf17dee44c511a9e03c6079c53a22a5c2f2fecb442f",
+    "src\\subsurface_uq\\propagation\\monte_carlo.py": "41aa1de794f722c00775a8f091fd91d8ae5047ecd8d2a8928d7bec22c1795192",
+    "src\\subsurface_uq\\rq1\\__init__.py": "35a0c0a7afb27e58712f2f9856b213114c3de8e72f0d59d917cd5f3880c35d3c",
+    "src\\subsurface_uq\\rq1\\accumulators.py": "379541ff135c54e755b9ca39294fdd42ad689c65fb8014c7729796b82c3ff70c",
+    "src\\subsurface_uq\\rq1\\analysis.py": "ee0aca2cf4e42822eaf091a854d1ba0468c2879150ad5f732bfc8356619eb9c0",
+    "src\\subsurface_uq\\rq1\\config.py": "db6ceb70b6ba227e3d61b0d857a1aa47cb80e9900a14cb242eba6894fc959369",
+    "src\\subsurface_uq\\rq1\\io.py": "eda1e054ec2a3c67e285ba1ca058f4180deb88a7d1d6c6780472ade826d6af76",
+    "src\\subsurface_uq\\rq1\\workflow.py": "07175e6f460c841d5074eeecd479f6884647391270a10ebd3b35384280db6075",
+    "src\\subsurface_uq\\sampling\\__init__.py": "da7bc9f26ebfac920b315000062ad7c7bcddc6f19ac5082f8b93352710f6c1a8",
+    "src\\subsurface_uq\\sampling\\base.py": "f07cec2503c03f9e3fd797b615832e09a3b0827308b37bb1a709714f0a37442b",
+    "src\\subsurface_uq\\sampling\\boreholes.py": "eeeeb5254d077068a6799366929937753a119749ad67d5b777b85f69aa909d0f",
+    "src\\subsurface_uq\\sampling\\calibration.py": "6be78441f0da51bfd9653ec10162428ed8b0f96de5cf9bca6f508b4b4857c4ec",
+    "src\\subsurface_uq\\sampling\\controlled_fields.py": "d21a7ac228ae1c0488e4c60720fc66e9a542aab2d9a6bc6119d49d4fdbd48c84",
+    "src\\subsurface_uq\\sampling\\coordinates.py": "ec90801ab17e341972600228f1da3cf8b098224317baa6f42e543fc73d698cf2",
+    "src\\subsurface_uq\\sampling\\covariance_reconstruction.py": "1b9b7d604ea83d47cf73bb73a754488a29adb2710dd3865afb869d92ebd255f5",
+    "src\\subsurface_uq\\sampling\\darus_real.py": "cb7374cbd5c13c2f2ccebef2c2e0e3729afea6259db5e499df361288773e61ac",
+    "src\\subsurface_uq\\sampling\\diagnostics.py": "47a6ac1189cb6b37f4593df6a3e6780cedf6cc9f67fb0334bc8363baf86d6b19",
+    "src\\subsurface_uq\\sampling\\empirical.py": "58adeb2d8be0d161350f8dc42887cba053896943dcd07cb80f141db70ea9e396",
+    "src\\subsurface_uq\\sampling\\exact_kriging.py": "96ccc5dbc6661c24f2c4b27e24471778a2e4d8d3e522e28b3ab8bb7cefe8dd4c",
+    "src\\subsurface_uq\\sampling\\geospatial.py": "f92db781712f16e410deb35dc4d3c04324786c3cb5bebce8f6a9bad8a62cfb71",
+    "src\\subsurface_uq\\sampling\\geostatistical_target.py": "3eef3769d92074edfeae5b2f7f66d3d5130afddcaba383497965b1a3c0c62741",
+    "src\\subsurface_uq\\sampling\\gstools_reference.py": "6ee7c8e6565c82bfaa5ec3b013659b4db95602e9348fb35359d12a323271a81e",
+    "src\\subsurface_uq\\sampling\\historical_realistic.py": "d8d6950e027000cb85136a00d9d609f69bba1d1fdfc20cb87102c2ca963072df",
+    "src\\subsurface_uq\\sampling\\hydraulic_conductivity.py": "761317ad09be64cef31c12bbda564f3dcf59fe568fe7d146a1f1d9131e83625c",
+    "src\\subsurface_uq\\sampling\\input_model.py": "5bd357587bd624acca7b8c3c8d9463aa7b9c249a3333cf9c6f145bda939352b3",
+    "src\\subsurface_uq\\sampling\\kl.py": "7e0de13f476518a0a5eb9b073096481af1696903f72f5ccec85568ef8d5554bc",
+    "src\\subsurface_uq\\sampling\\kriging.py": "b1c82dc9b997f73d2af8c95c4b6b3bcad78319ad9184ec0777d94bcb8730e1bb",
+    "src\\subsurface_uq\\sampling\\measurement_density.py": "cb4fd637d1152a8e722e8e724101b72c4c236c1d6650bc56cdf434a43bfcc35b",
+    "src\\subsurface_uq\\sampling\\munich_measurements.py": "e69cb5451cea648f71c5e7dcecca17584b8e8ab24e487f14aac2f011531cac1e",
+    "src\\subsurface_uq\\sampling\\new_domain.py": "0d5426f0738c18a855ee42e1f3863b35ccee98b10f66bb6171345e12fd4442a0",
+    "src\\subsurface_uq\\sampling\\normal_score.py": "8de430a86b778ac74530c7c55532022ff7443a1abf9dcd5d897f154928ec3acb",
+    "src\\subsurface_uq\\sampling\\perlin.py": "3fc38f39bff1ba1cbafd058b0bfddc64357179e45c2c644dd69b6fee532cfd28",
+    "src\\subsurface_uq\\sampling\\perlin_coordinates.py": "e087faa85aef9173b298f4064691e8ca3421d9668301ed76273de68b6dee4ca7",
+    "src\\subsurface_uq\\sampling\\qmc.py": "4fa28cd3f0916308fc6b6d741be33032770a2832cdbc79d93a1e23f7c02cf70a",
+    "src\\subsurface_uq\\sampling\\radial_exponential.py": "30b129c15b21cadf2faff8af5196dec8dfb579e1f7ac0993aca57057836adbaf",
+    "src\\subsurface_uq\\sampling\\reference_coherence.py": "7f8b02c40a78b05665dc12fab4b0f0c928f97f522a2d3ec99eea2dfde13c3f49",
+    "src\\subsurface_uq\\sampling\\reference_conditioning.py": "963c6fd7b6598837f092c8cdbfc2147cdeef20a879167f78f2691354f90fb963",
+    "src\\subsurface_uq\\sampling\\reference_field.py": "33d999b7d960617d1b89d58065e0a73d909a561fed4c8bbb0c97ea4c11206703",
+    "src\\subsurface_uq\\sampling\\scenarios.py": "c4e56ea1657cde062f7aef3ae174b66e6ab756c32116c6c7b6e5cb8179438c1b",
+    "src\\subsurface_uq\\sampling\\spatial_diagnostics.py": "25963a106f82699c338c94cf9eaf99790765e7a2679ebddb0abb2f5df3515b48",
+    "src\\subsurface_uq\\sampling\\training_compatibility.py": "c8b9be29b9f5ee575ebad14fb33b57731e346bd89e3c1f1924ca1f6572526951",
+    "src\\subsurface_uq\\sampling\\training_provenance.py": "2cf4b6abcbe1a5efc515bc0040fc2425f1c34a640f1773729380bcd779d36750",
+    "src\\subsurface_uq\\sampling\\training_split_provenance.py": "cbbdb3a0b25b65423567fc62560014ad0855fe8fb149c909c49453cdddb36e60",
+    "src\\subsurface_uq\\spatial.py": "3a5adf421f8097076b70ddb6900119c07bd9975e177354393fbecf80447ca9ce",
+    "src\\subsurface_uq\\statistics\\__init__.py": "5cc5c4e039685aa2508894b5fbc8dad58084dc7eaf44cdfb70caca9a290888ea",
+    "src\\subsurface_uq\\statistics\\accumulators.py": "f3e083ce4826d65d77b002ad1023e7eb0950ed19e295fb4e1aac349b8aa7f09e",
+    "src\\subsurface_uq\\statistics\\calibration.py": "2b58bf9fe4c7a7498a8e936477cb1f01e43e70e60340e693732945e212cc08c4",
+    "src\\subsurface_uq\\statistics\\exceedance.py": "be9ae177d9bccbcb4890859214593aa57a05f007a92d9f03d964237123fcbd6c",
+    "src\\subsurface_uq\\statistics\\online.py": "acc3d1a10b2c2fae924b31607fe3bc2f206b00900d75c47d693a11b2cf8038b7",
+    "src\\subsurface_uq\\statistics\\regional_temperature.py": "079bb8906ab01029c1b8987e778b932a44a59e9a31323078885963927fbd8962",
+    "src\\subsurface_uq\\statistics\\temperature_risk.py": "3ad8e26fff6a3793dc95d2393104e254cc5dfbe2af6487084c4bbb41788be657",
+    "src\\subsurface_uq\\surrogates\\__init__.py": "15a615b45cf5699ed93a59f5349d77401b3d9775864704d7cea8d8c7fe770be1",
+    "src\\subsurface_uq\\surrogates\\base.py": "b4179f8077763773382c52ae2eff19c34bd370824a3a7b2523c7b5995eadb744",
+    "src\\subsurface_uq\\surrogates\\bounded_streamlines.py": "6edd7166c5c4d464f7034fda82ec7f9667c2283b8a862efcdb90263c57c26088",
+    "src\\subsurface_uq\\surrogates\\frozen_temperature.py": "b2a2cc625603ec0bc8342c3bb6698c72970b2001a3e7c0fec678f389a5052d49",
+    "src\\subsurface_uq\\surrogates\\release25.py": "4ec217f04214e360ee227c4e312d488f033dd446236a67072406d98c8e2477ff",
+    "src\\subsurface_uq\\surrogates\\release25_runtime.py": "64063611087e525884f4fce11f5bdb0c6021cb36a873cf94c56157cef6ad1871",
+    "src\\subsurface_uq\\validation\\__init__.py": "f95403161bde7a54bd2b3f7ff47d0cb0314d4893de8e3fe22060ac37442218ee",
+    "src\\subsurface_uq\\validation\\cli.py": "12184b30f654e45d811201a66a19f590959eeff5f9e073ded67fe638ad1bbace",
+    "src\\subsurface_uq\\validation\\diagnostics.py": "536d1827e850bbb5a07a118a7fb6c189248f580fed363704cbe4f06308cfc39d",
+    "src\\subsurface_uq\\validation\\measurements.py": "698984d07369442504a8c2b5ac9f705370358b260e09ae552039d83ea671cb88",
+    "src\\subsurface_uq\\validation\\overlays.py": "520d03b3b4edc0715fc4152ea80b12e3a968ed1c29a43eddd9bddfab7183af9a",
+    "src\\subsurface_uq\\validation\\reconstruction.py": "615808a850afe1c4f5fe1882eb073332bdc71be0446267a7190a1bb94006f1a7",
+    "src\\subsurface_uq\\validation\\temperature.py": "39ca3aead39974afb42fe5cddfec4ae7f3d4a482e2846db5192f7aebdba50ab1",
+    "src\\subsurface_uq\\visualization\\__init__.py": "1ea2c0976eb832da7558627cf37bf42863371451f8dd773d6802d4460ef55478",
+    "src\\subsurface_uq\\visualization\\cli.py": "95366c9aeaf150d2afb393fda28d3e9f20cc0ffea8d2b4c620c7bdef3aa801de",
+    "src\\subsurface_uq\\visualization\\pce.py": "777c7a1e17913883a54b5edf85f5bdf830fe204d125a63881630d85167e73369",
+    "src\\subsurface_uq\\visualization\\pce_cli.py": "b5008edfd2540dbfbe026bd0be75b68a4da0cc7e880fcdb612f09c4569fd56a3",
+    "src\\subsurface_uq\\visualization\\permeability.py": "e9561d6daa231b98dda814922ad76cc5f35d8513159c61ffa352601f2cd2f988",
+    "src\\subsurface_uq\\visualization\\realistic_permeability.py": "2b56918193049ac903bfe7cf5da579239ac4ec50b66c6a772f7ef643bb5ba213",
+    "src\\subsurface_uq\\visualization\\reference_fields.py": "dd66f1d87895f3f8d6bfd1ede8b9057a668b8eaa3423eb319edf95faacf844a4",
+    "src\\subsurface_uq\\visualization\\reference_fields_cli.py": "764421a39ec48d71b20f51e07312b114fa4caf2197b17697e886db8a8776350c",
+    "src\\subsurface_uq\\visualization\\reference_validation.py": "4a5da9c0608cd8af19db876f4b9d0f7e5e376b73f4568b7445e24ddc56e73a34",
+    "src\\subsurface_uq\\visualization\\release25.py": "0313e65c01a685a57deb4566eeab9569f59edefddf8b0391c2d8dcd813c50355",
+    "src\\subsurface_uq\\visualization\\rq1.py": "f631b1cb9f8289e3fa4a193a122bad4a118aa33741f8ce9c14eab366a82d6840",
+    "src\\subsurface_uq\\visualization\\uq.py": "4bc5ecbcd97c6cbf63b610cfb0be6141725a4fa0e8c606af10a22d48624f3b41"
+  },
+  "audit": {
+    "status": "passed",
+    "study_id": "controlled-4d110227778ffdf9b8e9",
+    "checks": {
+      "source_hashes": 146,
+      "archived_source_hashes": 1,
+      "artifact_hashes": 258,
+      "query_hashes": 80,
+      "native_cases": 10,
+      "conditional_probe_checks": 80
+    },
+    "completed_lgcnn_evaluations": 82,
+    "maximum_independent_input_mean_difference": 4.7519147194918787e-07,
+    "maximum_independent_input_variance_difference": 3.482723130721066e-09,
+    "maximum_independent_matheron_difference_log10": 3.569163276040399e-08,
+    "maximum_exact_reading_error_log10": 2.3199897114523083e-08,
+    "maximum_independent_temperature_U_RMS_difference_C": 1.1841333469320148e-11,
+    "dense_equation_error": 1.7763568394002505e-15,
+    "dense_analytic_coverage90_range": [
+      0.8671875,
+      0.9375
+    ],
+    "prediction_seconds_median": 8.530999999999949,
+    "prediction_seconds_sum": 706.1320000000014,
+    "maximum_checkpoint_normalization_fraction_below": 0.0,
+    "maximum_checkpoint_normalization_fraction_above": 0.0035100272320077778,
+    "source_reference_files_unchanged": true,
+    "realism_status": "validation_failed"
+  },
+  "final_model_regression": {
+    "input": "first native pilot hidden truth",
+    "maximum_temperature_difference_C": 0.0,
+    "bitwise_equal": true,
+    "model_evaluations": 1,
+    "purpose": "verify writable-copy protection in final code preserves actual LGCNN output"
+  },
+  "full_suite_passed": 630,
+  "main_matrix": {
+    "study_id": "controlled-8816e2fbfc34cd543d2f",
+    "status": "dense_validated",
+    "planned_model_evaluations": 28736,
+    "completed_model_evaluations": 0,
+    "dense_validation_rows": 128,
+    "dense_equation_error": 1.7763568394002505e-15,
+    "dense_analytic_coverage90_range": [
+      0.875,
+      0.9375
+    ]
+  },
+  "execution_note": "The frozen native pilot predates final chart ticks, package-context recovery guard and writable truth-input copy. No sampling, conditioning or statistics formula changed. Exact executed sources are archived and hash verified locally."
+}

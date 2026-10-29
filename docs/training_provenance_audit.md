@@ -1,5 +1,14 @@
 # DaRUS-5065 training-field provenance audit
 
+Current interpretation (2026-10-26): these are historical implementation and
+CLI notes. The supplied TIFF's georeference supports direct comparison with
+workbook coordinates under the declared coordinate interpretation, but exact
+reconstruction of the present RUN arrays remains unverified; see the local
+2026-10-20 measurement-mapping verification. A matching filename/checksum and
+implemented reconstruction recipe do not establish successful RUN reproduction.
+The [measurement-only assessment](measurement_model_validation.md) now tests
+observation predictions separately and fails its regional adequacy checks.
+
 The realistic LGCNN permeability inputs are spatial cutouts of one Munich parent
 hydraulic-conductivity raster, not independent realizations of a stochastic
 permeability field. The historical generation code stores, for every `RUN_*`,
@@ -194,9 +203,11 @@ RUNs are windows of the same underlying map.
 However, the parent map may itself have been constructed using overlapping
 borehole data. Consequently a residual model cannot be presented as an
 independent validation model unless the upstream interpolation provenance is
-recovered. For the thesis, the current measurement-only kriging/KL law remains
-the primary UQ model; a parent-trend residual law should be added as a
-provenance-informed sensitivity/alternative model and compared against it.
+recovered. The current main method check is the controlled conditional-field
+benchmark. The measurement-only model has a separate empirical assessment and
+is not yet a validated regional field law. A parent-trend residual law can be
+investigated as a provenance-informed sensitivity model with explicit treatment
+of possible data reuse, rather than being presented as independent validation.
 
 ## 4. Remaining validation step
 

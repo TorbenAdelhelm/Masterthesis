@@ -1,0 +1,15 @@
+references:
+  RUN_1: ../data/reference_pilot/RUN_1.reference.npy
+  RUN_2: ../data/reference_pilot/RUN_2.reference.npy
+  RUN_3: ../data/reference_pilot/RUN_3.reference.npy
+preparation_manifest: ../data/reference_pilot/preparation_manifest.json
+cell_size_m: 5.0
+permeability_units: m2
+lags_cells: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+length_bounds_m: [50.0, 12800.0]
+quadrature_order: 48
+structural_samples: 16
+diagnostic_stride_cells: 8
+paired_embedding_shape: [8192, 8192]
+seed: 2026102603
+workers: 4

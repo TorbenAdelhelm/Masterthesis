@@ -1,0 +1,524 @@
+{
+  "study_id": "density-visual-856442423a833308c75a",
+  "profile_name": "RUN_2_structural",
+  "counts": [
+    {
+      "n_measurements": 32,
+      "n_samples": 8,
+      "samples": [
+        {
+          "sample": 1,
+          "input_log10_rmse": 0.11781779249206778,
+          "temperature_rmse_C": 0.06643982062581266
+        },
+        {
+          "sample": 2,
+          "input_log10_rmse": 0.10954227390967158,
+          "temperature_rmse_C": 0.06300789181567973
+        },
+        {
+          "sample": 3,
+          "input_log10_rmse": 0.13274345063782986,
+          "temperature_rmse_C": 0.06990132295082993
+        },
+        {
+          "sample": 4,
+          "input_log10_rmse": 0.11983298326368229,
+          "temperature_rmse_C": 0.06743099067975075
+        },
+        {
+          "sample": 5,
+          "input_log10_rmse": 0.12259592974347104,
+          "temperature_rmse_C": 0.07028083612812165
+        },
+        {
+          "sample": 6,
+          "input_log10_rmse": 0.10362698352350651,
+          "temperature_rmse_C": 0.07096908226409407
+        },
+        {
+          "sample": 7,
+          "input_log10_rmse": 0.11532918261499935,
+          "temperature_rmse_C": 0.07085478230887358
+        },
+        {
+          "sample": 8,
+          "input_log10_rmse": 0.12816881661445936,
+          "temperature_rmse_C": 0.08916927589843647
+        }
+      ],
+      "analytic_input_sd_rms_log10": 0.09465989649799196,
+      "empirical_input_sd_rms_log10": 0.09096603840589523,
+      "mean_log10_field_rmse": 0.08324208068522695,
+      "temperature_sd_rms_C": 0.0543849915266037,
+      "temperature_mean_field_rmse_C": 0.050075992941856384,
+      "mean_individual_temperature_rmse_C": 0.07100675033394986,
+      "maximum_exact_log10_error": 2.3002689530926546e-08
+    },
+    {
+      "n_measurements": 64,
+      "n_samples": 8,
+      "samples": [
+        {
+          "sample": 1,
+          "input_log10_rmse": 0.0786290909699931,
+          "temperature_rmse_C": 0.07056094591003212
+        },
+        {
+          "sample": 2,
+          "input_log10_rmse": 0.08442218788024422,
+          "temperature_rmse_C": 0.06617118801833054
+        },
+        {
+          "sample": 3,
+          "input_log10_rmse": 0.07984542521663728,
+          "temperature_rmse_C": 0.068327145377564
+        },
+        {
+          "sample": 4,
+          "input_log10_rmse": 0.08583073144640418,
+          "temperature_rmse_C": 0.06237192641051888
+        },
+        {
+          "sample": 5,
+          "input_log10_rmse": 0.08445019888962042,
+          "temperature_rmse_C": 0.074234123446131
+        },
+        {
+          "sample": 6,
+          "input_log10_rmse": 0.08936143990319308,
+          "temperature_rmse_C": 0.07739117576486253
+        },
+        {
+          "sample": 7,
+          "input_log10_rmse": 0.08555471186415702,
+          "temperature_rmse_C": 0.053437805468232215
+        },
+        {
+          "sample": 8,
+          "input_log10_rmse": 0.08019936510317416,
+          "temperature_rmse_C": 0.06385122999927825
+        }
+      ],
+      "analytic_input_sd_rms_log10": 0.06156662030991842,
+      "empirical_input_sd_rms_log10": 0.061676010489463806,
+      "mean_log10_field_rmse": 0.06051156942044292,
+      "temperature_sd_rms_C": 0.04567995294928551,
+      "temperature_mean_field_rmse_C": 0.05213252827525139,
+      "mean_individual_temperature_rmse_C": 0.06704319254936869,
+      "maximum_exact_log10_error": 2.3002689530926546e-08
+    },
+    {
+      "n_measurements": 128,
+      "n_samples": 8,
+      "samples": [
+        {
+          "sample": 1,
+          "input_log10_rmse": 0.054202175985222104,
+          "temperature_rmse_C": 0.060977507393356334
+        },
+        {
+          "sample": 2,
+          "input_log10_rmse": 0.05588130943260235,
+          "temperature_rmse_C": 0.06625878367825608
+        },
+        {
+          "sample": 3,
+          "input_log10_rmse": 0.05482828470951479,
+          "temperature_rmse_C": 0.0561902907297513
+        },
+        {
+          "sample": 4,
+          "input_log10_rmse": 0.05453333301866891,
+          "temperature_rmse_C": 0.05465867741714391
+        },
+        {
+          "sample": 5,
+          "input_log10_rmse": 0.057498881278305616,
+          "temperature_rmse_C": 0.06810032808813182
+        },
+        {
+          "sample": 6,
+          "input_log10_rmse": 0.05724967061311405,
+          "temperature_rmse_C": 0.05198808171319279
+        },
+        {
+          "sample": 7,
+          "input_log10_rmse": 0.05959355121501594,
+          "temperature_rmse_C": 0.054493986774254634
+        },
+        {
+          "sample": 8,
+          "input_log10_rmse": 0.05240710579664274,
+          "temperature_rmse_C": 0.05283946412039037
+        }
+      ],
+      "analytic_input_sd_rms_log10": 0.03792732562992009,
+      "empirical_input_sd_rms_log10": 0.036752719432115555,
+      "mean_log10_field_rmse": 0.04396990640741134,
+      "temperature_sd_rms_C": 0.040148090571165085,
+      "temperature_mean_field_rmse_C": 0.0448223352432251,
+      "mean_individual_temperature_rmse_C": 0.058188389989309655,
+      "maximum_exact_log10_error": 2.3002689530926546e-08
+    },
+    {
+      "n_measurements": 256,
+      "n_samples": 8,
+      "samples": [
+        {
+          "sample": 1,
+          "input_log10_rmse": 0.03221801687313089,
+          "temperature_rmse_C": 0.041084623354098265
+        },
+        {
+          "sample": 2,
+          "input_log10_rmse": 0.033207115954017596,
+          "temperature_rmse_C": 0.050182579058378966
+        },
+        {
+          "sample": 3,
+          "input_log10_rmse": 0.033054668074860974,
+          "temperature_rmse_C": 0.05140633176257051
+        },
+        {
+          "sample": 4,
+          "input_log10_rmse": 0.032217198874609394,
+          "temperature_rmse_C": 0.04103895739662734
+        },
+        {
+          "sample": 5,
+          "input_log10_rmse": 0.03081535981298386,
+          "temperature_rmse_C": 0.042143957069723736
+        },
+        {
+          "sample": 6,
+          "input_log10_rmse": 0.032246648731662664,
+          "temperature_rmse_C": 0.04441372477765119
+        },
+        {
+          "sample": 7,
+          "input_log10_rmse": 0.034787082907685514,
+          "temperature_rmse_C": 0.04182952640555116
+        },
+        {
+          "sample": 8,
+          "input_log10_rmse": 0.030518747118357708,
+          "temperature_rmse_C": 0.04612100742836283
+        }
+      ],
+      "analytic_input_sd_rms_log10": 0.02261411662856848,
+      "empirical_input_sd_rms_log10": 0.02229100838303566,
+      "mean_log10_field_rmse": 0.02480932030964863,
+      "temperature_sd_rms_C": 0.029561933130025864,
+      "temperature_mean_field_rmse_C": 0.035428158938884735,
+      "mean_individual_temperature_rmse_C": 0.0447775884066205,
+      "maximum_exact_log10_error": 2.527271547592136e-08
+    },
+    {
+      "n_measurements": 512,
+      "n_samples": 8,
+      "samples": [
+        {
+          "sample": 1,
+          "input_log10_rmse": 0.01879423667828452,
+          "temperature_rmse_C": 0.03675428585739276
+        },
+        {
+          "sample": 2,
+          "input_log10_rmse": 0.019228618556745677,
+          "temperature_rmse_C": 0.03825888539672876
+        },
+        {
+          "sample": 3,
+          "input_log10_rmse": 0.020129904666325433,
+          "temperature_rmse_C": 0.0416572101512075
+        },
+        {
+          "sample": 4,
+          "input_log10_rmse": 0.01899617849539924,
+          "temperature_rmse_C": 0.03410064890417467
+        },
+        {
+          "sample": 5,
+          "input_log10_rmse": 0.018028199672852706,
+          "temperature_rmse_C": 0.039127564100680086
+        },
+        {
+          "sample": 6,
+          "input_log10_rmse": 0.01876125152373804,
+          "temperature_rmse_C": 0.040020216473913045
+        },
+        {
+          "sample": 7,
+          "input_log10_rmse": 0.019335348310915882,
+          "temperature_rmse_C": 0.036869692224680756
+        },
+        {
+          "sample": 8,
+          "input_log10_rmse": 0.018293912774370296,
+          "temperature_rmse_C": 0.03483887090459527
+        }
+      ],
+      "analytic_input_sd_rms_log10": 0.013406551512651587,
+      "empirical_input_sd_rms_log10": 0.013510960154235363,
+      "mean_log10_field_rmse": 0.014127684365852497,
+      "temperature_sd_rms_C": 0.024428069591522217,
+      "temperature_mean_field_rmse_C": 0.030086101964116096,
+      "mean_individual_temperature_rmse_C": 0.0377034217516716,
+      "maximum_exact_log10_error": 2.5604219189290234e-08
+    }
+  ],
+  "shared_colour_limits": {
+    "input": [
+      -9.845445523945102,
+      -8.701963359325822
+    ],
+    "output": [
+      10.621593475341797,
+      12.417984962463379
+    ],
+    "input_error": [
+      -0.5519808418285432,
+      0.5519808418285432
+    ],
+    "output_error": [
+      -0.876643180847168,
+      0.876643180847168
+    ],
+    "input_deviation": [
+      -0.4059775656913249,
+      0.4059775656913249
+    ],
+    "output_deviation": [
+      -0.5913105010986328,
+      0.5913105010986328
+    ],
+    "analytic_input_sd": [
+      0.0,
+      0.2067964071701802
+    ],
+    "temperature_sd": [
+      0.0,
+      0.31383323669433594
+    ]
+  },
+  "local_detail_colour_limits": {
+    "32": {
+      "input_error": [
+        -0.5519808418285432,
+        0.5519808418285432
+      ],
+      "output_error": [
+        -0.7792739868164062,
+        0.7792739868164062
+      ],
+      "input_deviation": [
+        -0.4059775656913249,
+        0.4059775656913249
+      ],
+      "output_deviation": [
+        -0.5913105010986328,
+        0.5913105010986328
+      ]
+    },
+    "64": {
+      "input_error": [
+        -0.3963302756808691,
+        0.3963302756808691
+      ],
+      "output_error": [
+        -0.876643180847168,
+        0.876643180847168
+      ],
+      "input_deviation": [
+        -0.27279608805210387,
+        0.27279608805210387
+      ],
+      "output_deviation": [
+        -0.5546722412109375,
+        0.5546722412109375
+      ]
+    },
+    "128": {
+      "input_error": [
+        -0.36877315999917215,
+        0.36877315999917215
+      ],
+      "output_error": [
+        -0.7602481842041016,
+        0.7602481842041016
+      ],
+      "input_deviation": [
+        -0.18004168315573565,
+        0.18004168315573565
+      ],
+      "output_deviation": [
+        -0.470458984375,
+        0.470458984375
+      ]
+    },
+    "256": {
+      "input_error": [
+        -0.1595924397040278,
+        0.1595924397040278
+      ],
+      "output_error": [
+        -0.5352897644042969,
+        0.5352897644042969
+      ],
+      "input_deviation": [
+        -0.10551522863507046,
+        0.10551522863507046
+      ],
+      "output_deviation": [
+        -0.37363147735595703,
+        0.37363147735595703
+      ]
+    },
+    "512": {
+      "input_error": [
+        -0.1314272992987302,
+        0.1314272992987302
+      ],
+      "output_error": [
+        -0.5473613739013672,
+        0.5473613739013672
+      ],
+      "input_deviation": [
+        -0.07872723145652749,
+        0.07872723145652749
+      ],
+      "output_deviation": [
+        -0.4867563247680664,
+        0.4867563247680664
+      ]
+    }
+  },
+  "extents_km": {
+    "input": [
+      0,
+      12.8,
+      0,
+      12.8
+    ],
+    "temperature": [
+      3.83,
+      8.969999999999999,
+      3.83,
+      8.969999999999999
+    ]
+  },
+  "input_error_definition": "log10(K_sample/K_hidden); positive means higher permeability",
+  "output_error_definition": "T_sample - T_hidden_LGCNN in C; positive means warmer",
+  "ensemble_deviation_definition": "sample minus empirical eight-draw mean, in log10 k or temperature",
+  "uncertainty_definition": "analytical conditional log-k SD or empirical temperature SD (ddof=1)",
+  "image_input_point_stride_cells": 4,
+  "temperature_images_native_resolution": true,
+  "native_inputs_and_outputs_retained": true,
+  "independent_hidden_truths": 1,
+  "limits": "single synthetic truth/layout, eight matched samples; no calibration, geological validation or tail-convergence claim",
+  "configuration": {
+    "structural_profile_file": "structural_profiles.json",
+    "profile_name": "RUN_2_structural",
+    "measurement_counts": [
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "n_samples": 8,
+    "candidate_stride_cells": 32,
+    "seed": 2026102606,
+    "embedding_shape": [
+      8192,
+      8192
+    ],
+    "workers": 4,
+    "chunk_size": 8192,
+    "model_config": "../run_output/reference_pilot/rq1.local.yaml",
+    "model_asset_root": "..",
+    "torch_threads": 8,
+    "plot_stride_cells": 4
+  },
+  "law": {
+    "covariance": {
+      "angle_deg": 84.31569631887129,
+      "center": "median",
+      "ell_col_m": 2669.817156899003,
+      "ell_row_m": 1816.9078476336545,
+      "family": "matern32_radial",
+      "sigma_R": 0.2067964071701802
+    },
+    "mean_log10_k": -9.32061091661667
+  },
+  "audit": {
+    "status": "passed",
+    "study_id": "density-visual-856442423a833308c75a",
+    "completed_model_evaluations": 41,
+    "source_model_hash_checks": 159,
+    "artifact_hash_checks": 508,
+    "counts": [
+      {
+        "n_measurements": 32,
+        "inputs_verified": 8,
+        "outputs_verified": 8
+      },
+      {
+        "n_measurements": 64,
+        "inputs_verified": 8,
+        "outputs_verified": 8
+      },
+      {
+        "n_measurements": 128,
+        "inputs_verified": 8,
+        "outputs_verified": 8
+      },
+      {
+        "n_measurements": 256,
+        "inputs_verified": 8,
+        "outputs_verified": 8
+      },
+      {
+        "n_measurements": 512,
+        "inputs_verified": 8,
+        "outputs_verified": 8
+      }
+    ],
+    "independent_conditional_query_cells_per_count": 192,
+    "maximum_mean_difference_log10": 4.766583927562351e-07,
+    "maximum_variance_difference_log10": 1.7485572087472256e-09,
+    "maximum_matheron_difference_log10": 2.5690557237112444e-08,
+    "maximum_exact_reading_error_log10": 2.5604219189290234e-08,
+    "maximum_temperature_summary_rounding_C": 4.76837158203125e-07,
+    "maximum_temperature_rms_summary_rounding_C": 1.1213659709130575e-08,
+    "maximum_normalization_fraction_outside": 0.0,
+    "synced_sources_unchanged": true,
+    "independent_hidden_truths": 1,
+    "limits": "checks declared-law implementation and saved model outputs, not geological calibration or simulator accuracy"
+  },
+  "local_test_suite": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "654",
+    "time": "572.998",
+    "timestamp": "2026-10-26T21:21:17.725472+01:00",
+    "hostname": "DESKTOP-VE9O52M"
+  },
+  "gallery_control_check": {
+    "status": "passed",
+    "report": "C:\\Users\\Torbe\\.codex\\.chatgpt-projects\\g-p-6a95d44db80481919a73cf33c378a02a\\candidate-repository\\run_output\\conditional_density_visual_20261026\\report.html",
+    "interaction_cases": 20,
+    "verified_image_and_array_links": 320,
+    "method": "offline JavaScript execution with an in-memory DOM; no browser rendering or network"
+  },
+  "completed_lgcnn_evaluations": 41,
+  "observation_condition_number": 20017.974699336275,
+  "supplementary_temperature_figure": {
+    "source": "C:\\Users\\Torbe\\.codex\\.chatgpt-projects\\g-p-6a95d44db80481919a73cf33c378a02a\\analysis\\conditional_density_visual_20261026\\temperature_overview.py",
+    "source_sha256": "15735d442b8cb9ce7e5ee0b2375ae8ab9a684a2ee8fe6d58ea9f8af7de100a6d",
+    "normalization": "shared PowerNorm gamma=.5 for mean and SD; SymLogNorm linthresh=.01 C for signed errors; display only"
+  }
+}

@@ -30,6 +30,12 @@ jobs:
           subsurface-uq-conditioning-temperature --help
           python -m subsurface_uq.experiments.conditioning_deviation --help
           python -m subsurface_uq.experiments.covariance_reconstruction --help
+          python -m subsurface_uq.experiments.measurement_density --help
+          subsurface-uq-measurement-density --help
+          subsurface-uq-controlled-fields --help
+          subsurface-uq-structural-profiles --help
+          subsurface-uq-density-gallery --help
+          subsurface-uq-measurement-model-validation --help
           python examples/reference_pilot/run_temperature_pilot.py --help
           python examples/reference_pilot/run_matched_kernel_study.py --help
           python examples/reference_pilot/fit_reference_kernel_models.py --help

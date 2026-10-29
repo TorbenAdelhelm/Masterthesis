@@ -1,19 +1,50 @@
 # Master Thesis — Subsurface UQ
 
 **Current working branch:** [`feat/reference-field-uq`](https://github.com/TorbenAdelhelm/Masterthesis/tree/feat/reference-field-uq).
-Use this branch for the reference-scenario study and permeability input previews.
+Use this branch for the controlled conditional-field experiment and separate
+RUN-based reconstruction realism challenge.
 
 This repository contains the thesis-specific forward uncertainty-quantification
 (UQ) framework around deterministic groundwater heat-plume surrogate models.
 The current scientific baseline focuses on uncertainty in the permeability
 field while pressure and heat-pump locations are held fixed.
 
-The primary [reference-centered lognormal scenario family](docs/reference_field_uncertainty.md)
-uses spatial reference fields, explicit correlated input perturbations,
-matched-support spectra/truncation diagnostics and Gaussian/Hermite response PCE.
-Amplitude and covariance are explicit model-form/sensitivity assumptions, not calibrated truth.
-RUNs remain separate reference scenarios. The measurement-kriging workflow remains
-available as a legacy/comparison baseline with unchanged command defaults for reproducibility.
+The main [controlled conditional-field benchmark](docs/controlled_field_benchmark.md)
+draws independent hidden permeability truths from a declared log-Gaussian law,
+reveals nested exact synthetic boreholes, and propagates conditional fields
+through the frozen LGCNN. Ranks, coverage, CRPS and measurement-density summaries
+are evaluated across independent hidden truths. The primary laws are now
+[documented structural profiles derived from RUN 1/2/3](docs/structural_profiles.md),
+with fitted log means, total heterogeneity and anisotropic correlation scales.
+They describe synthetic processed-map structures; geological probabilities
+remain unspecified. The primary configurations are
+`configs/controlled_field.profiles.pilot.yaml` and
+`configs/controlled_field.profiles.main.yaml`.
+The [completed profile-sensitivity pilot](docs/structural_profile_results.md)
+contains 204 actual LGCNN evaluations, independent audits and retained MC
+checks. Profile choice materially changes absolute temperature uncertainty;
+32 balanced readings reduce estimated temperature variance by 22–29% in this
+reduced experiment. The larger 7728-evaluation profile matrix is planned and
+densely validated; its LGCNN propagation has not run.
+The [complete spatial density study](docs/conditional_density_visual_results.md)
+adds eight actual input/output pairs at each of 32/64/128/256/512 observations
+for one RUN 2 structural truth. It provides every field, signed reference-error
+maps, ensemble deviations, shared/detail scales and native arrays, with an
+offline gallery and per-count PNG atlases.
+The earlier [82-evaluation illustrative pilot](docs/controlled_field_results.md)
+and its larger matrix remain historical execution evidence.
+
+The [RUN-based withheld reconstruction challenge](docs/measurement_density_results.md)
+is the separate realism test. Its failed assessment remains evidence about the
+tested reconstruction model, independent of controlled benchmark results.
+The [real-measurement model assessment](docs/measurement_model_validation.md)
+separately tests conductivity predictions with frozen spatial blocks and buffers.
+The current regional fit fails its declared coverage/usefulness checks; an
+exploratory diagnostic suggests modest interpolation gains close to observations.
+This does not yet validate a geological 5 m input law for the LGCNN.
+The [reference-centered lognormal scenario family](docs/reference_field_uncertainty.md)
+and earlier measurement-kriging workflows remain available as historical
+comparisons with unchanged command defaults for reproducibility.
 
 The [permeability input previews](docs/reference_field_previews.md) export selected
 generated fields beside their fixed reference, with PNG agreement maps and optional
@@ -61,6 +92,16 @@ The [covariance-only reconstruction benchmark](docs/covariance_reconstruction.md
 selects synthetic sites without inspecting reference values or the full mean.
 Ordinary kriging estimates an unknown mean from revealed readings and reports
 stochastic error versus count, separately from uncertainty around its prediction.
+
+The [RUN realism measurement-density workflow](docs/measurement_density.md) can propagate
+native sparse reconstructions through the frozen LGCNN. Its validation configuration
+reserves spatial test blocks, selects a covariance from the smallest revealed
+reading set, and checks uncertainty against withheld reconstruction error before
+propagation. It compares nested counts and repeated broad/clustered layouts.
+The original full-reference-informed configuration remains a labelled benchmark.
+The [completed withheld assessment](docs/measurement_density_results.md) meets
+its exploratory adequacy checks in 15 of 54 cases and therefore defers temperature
+propagation from these selected laws.
 
 The implementation is designed around interchangeable components:
 

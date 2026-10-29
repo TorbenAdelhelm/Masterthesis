@@ -34,6 +34,11 @@ subsurface-uq-reference-kernel-study = "subsurface_uq.experiments.reference_kern
 subsurface-uq-reference-kl-sensitivity = "subsurface_uq.experiments.reference_kl_sensitivity:main"
 subsurface-uq-reference-conditioning = "subsurface_uq.experiments.reference_conditioning:main"
 subsurface-uq-conditioning-temperature = "subsurface_uq.experiments.conditioning_temperature:main"
+subsurface-uq-measurement-density = "subsurface_uq.experiments.measurement_density:main"
+subsurface-uq-controlled-fields = "subsurface_uq.experiments.controlled_field_benchmark:main"
+subsurface-uq-structural-profiles = "subsurface_uq.experiments.structural_profiles:main"
+subsurface-uq-density-gallery = "subsurface_uq.experiments.conditional_density_visual:main"
+subsurface-uq-measurement-model-validation = "subsurface_uq.experiments.measurement_model_validation:main"
 subsurface-uq-real-k-training-support = "subsurface_uq.experiments.real_k_training_support:main"
 subsurface-uq-release25-grf = "subsurface_uq.experiments.release25_grf_mc:main"
 subsurface-uq-release25-rq1 = "subsurface_uq.experiments.release25_rq1:main"
@@ -49,6 +54,9 @@ subsurface-uq-validate-temperature = "subsurface_uq.validation.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"subsurface_uq.visualization" = ["*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
