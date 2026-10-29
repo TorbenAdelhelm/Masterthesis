@@ -1,0 +1,31 @@
+# All amplitudes, covariance families and lengths are explicit model-form assumptions.
+# RUNs remain separate reference scenarios; no geological probabilities are inferred.
+base:
+  reference_run: RUN_1
+  marginal: lognormal
+  center: median
+  sigma_R: 0.05  # log10 units
+  covariance_family: matern32
+  ell_x: 800.0
+  ell_y: 500.0
+  energy_threshold: 0.95  # Representation sensitivity, not QoI convergence.
+axes:
+  reference_run: [RUN_1, RUN_2, RUN_3]
+  sigma_R: [0.05, 0.10]
+  covariance_family: [matern32, exponential]
+references:
+  RUN_1: ../data/reference_pilot/RUN_1.reference.npy
+  RUN_2: ../data/reference_pilot/RUN_2.reference.npy
+  RUN_3: ../data/reference_pilot/RUN_3.reference.npy
+# Generate and query the model on the native 5 m grid.
+cell_size_m: 5.0
+permeability_convention: historical-training
+n_samples: 8  # Pilot only; this budget does not establish UQ convergence.
+seed: 4901
+# Coarsen descriptive diagnostics only; generated model inputs retain the native grid.
+diagnostic_factor: 8
+scenario_weights: null
+storage:
+  retain_generated_fields: false
+# Training-support references are omitted: checkpoint prepared-list ordinal
+# membership remains unverified, so model training compatibility is unassessed.

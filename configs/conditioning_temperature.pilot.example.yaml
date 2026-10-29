@@ -1,0 +1,10 @@
+# 72 generated-input evaluations + 3 references; an execution demonstration.
+conditioning_config: reference_conditioning.temperature_pilot.yaml
+model_config: frozen_temperature.example.yaml
+measurement_counts: [0, 4, 8]
+sample_budgets: [2, 4]
+risk_thresholds_C: [0.1, 1.0]
+threshold_comparison: ">"
+quantile_chunk_rows: 16
+retain_temperature_ensemble: false
+torch_threads: 8

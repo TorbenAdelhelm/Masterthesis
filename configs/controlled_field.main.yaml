@@ -1,0 +1,34 @@
+# Main experiment specification. Start with the pilot and inspect MC diagnostics.
+# This larger matrix is NOT implicitly run when executing the pilot.
+scenarios:
+  matern32_known:
+    mean_log10_k: -9.3
+    covariance:
+      family: matern32_radial
+      ell_row_m: 1000.0
+      ell_col_m: 1000.0
+      sigma_R: 0.25
+      center: median
+      angle_deg: 0.0
+shape: [2560, 2560]
+cell_size_m: 5.0
+permeability_units: m2
+measurement_counts: [0, 8, 32, 128]
+coverage_scenarios: [balanced, clustered]
+n_designs: 1
+candidate_stride_cells: 32
+cluster_scale_fraction: 0.1
+n_truths: 64
+n_samples: 64
+sample_budgets: [16, 32, 64]
+seed: 20261027
+workers: 4
+chunk_size: 8192
+validation_replicates: 512
+validation_probes: 16
+diagnostic_stride_cells: 32
+model_config: ../run_output/reference_pilot/rq1.local.yaml
+model_asset_root: ..
+torch_threads: 8
+risk_thresholds_C: [0.1, 1.0]
+quantile_chunk_rows: 16

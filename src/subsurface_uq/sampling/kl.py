@@ -1,0 +1,518 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+import numpy as np
+
+Array = np.ndarray
+
+
+def matern32_correlation_matrix(
+    size: int,
+    domain_length_m: float,
+    length_scale_m: float,
+) -> Array:
+    """Return the 1-D Matérn-3/2 correlation matrix on cell centers.
+
+    ``size`` cells cover ``domain_length_m`` with spacing
+    ``domain_length_m / size``. The returned matrix has unit diagonal and uses
+
+    ``rho(r) = (1 + sqrt(3) r) exp(-sqrt(3) r)``
+
+    with ``r = |x-x'| / length_scale_m``.
+    """
+
+    size = int(size)
+    domain_length_m = float(domain_length_m)
+    length_scale_m = float(length_scale_m)
+    if size <= 0:
+        raise ValueError("size must be positive")
+    if not np.isfinite(domain_length_m) or domain_length_m <= 0.0:
+        raise ValueError("domain_length_m must be finite and positive")
+    if not np.isfinite(length_scale_m) or length_scale_m <= 0.0:
+        raise ValueError("length_scale_m must be finite and positive")
+
+    spacing = domain_length_m / size
+    locations = (np.arange(size, dtype=np.float64) + 0.5) * spacing
+    scaled_distance = np.abs(locations[:, None] - locations[None, :]) / length_scale_m
+    root3_r = np.sqrt(3.0) * scaled_distance
+    return (1.0 + root3_r) * np.exp(-root3_r)
+
+def exponential_correlation_matrix(
+    size: int,
+    domain_length_m: float,
+    length_scale_m: float,
+) -> Array:
+    """Return the 1-D exponential correlation matrix on cell centers.
+
+    The correlation is rho(r)=exp(-r) with r=|x-x'|/length_scale_m.
+    In a Gaussian-process interpretation this is the Matern nu=1/2 kernel
+    and therefore produces rougher sample paths than Matern-3/2.
+    """
+
+    size = int(size)
+    domain_length_m = float(domain_length_m)
+    length_scale_m = float(length_scale_m)
+    if size <= 0:
+        raise ValueError("size must be positive")
+    if not np.isfinite(domain_length_m) or domain_length_m <= 0.0:
+        raise ValueError("domain_length_m must be finite and positive")
+    if not np.isfinite(length_scale_m) or length_scale_m <= 0.0:
+        raise ValueError("length_scale_m must be finite and positive")
+
+    spacing = domain_length_m / size
+    locations = (np.arange(size, dtype=np.float64) + 0.5) * spacing
+    scaled_distance = np.abs(locations[:, None] - locations[None, :]) / length_scale_m
+    return np.exp(-scaled_distance)
+
+
+def gaussian_correlation_matrix(
+    size: int,
+    domain_length_m: float,
+    length_scale_m: float,
+) -> Array:
+    """Return the 1-D Gaussian/RBF correlation matrix on cell centers.
+
+    The canonical convention is ``rho(d) = exp(-0.5 * (d / ell)**2)``.
+    Thus the distance at which correlation falls to ``1/e`` is
+    ``sqrt(2) * ell``; ``ell`` is not itself that effective distance.
+    """
+
+    size = int(size)
+    domain_length_m = float(domain_length_m)
+    length_scale_m = float(length_scale_m)
+    if size <= 0:
+        raise ValueError("size must be positive")
+    if not np.isfinite(domain_length_m) or domain_length_m <= 0.0:
+        raise ValueError("domain_length_m must be finite and positive")
+    if not np.isfinite(length_scale_m) or length_scale_m <= 0.0:
+        raise ValueError("length_scale_m must be finite and positive")
+
+    spacing = domain_length_m / size
+    locations = (np.arange(size, dtype=np.float64) + 0.5) * spacing
+    scaled_distance = np.abs(locations[:, None] - locations[None, :]) / length_scale_m
+    return np.exp(-0.5 * scaled_distance**2)
+
+
+def _correlation_matrix(
+    covariance_model: str,
+    size: int,
+    domain_length_m: float,
+    length_scale_m: float,
+) -> Array:
+    if covariance_model == "matern32":
+        return matern32_correlation_matrix(size, domain_length_m, length_scale_m)
+    if covariance_model == "exponential":
+        return exponential_correlation_matrix(size, domain_length_m, length_scale_m)
+    if covariance_model == "gaussian":
+        return gaussian_correlation_matrix(size, domain_length_m, length_scale_m)
+    raise ValueError(
+        "covariance_model must be 'matern32', 'exponential' or 'gaussian' "
+        "for the factorized KL map"
+    )
+
+
+def _sorted_psd_eigendecomposition(matrix: Array) -> tuple[Array, Array]:
+    """Symmetric eigendecomposition sorted from largest to smallest value."""
+
+    values, vectors = np.linalg.eigh(np.asarray(matrix, dtype=np.float64))
+    scale = max(float(np.max(np.abs(values))), 1.0)
+    if float(np.min(values)) < -1e-10 * scale:
+        raise RuntimeError("covariance matrix has a materially negative eigenvalue")
+    values = np.clip(values, 0.0, None)
+    order = np.argsort(values)[::-1]
+    return values[order], vectors[:, order]
+
+
+@dataclass
+class KLLogGaussianPermeabilityMap:
+    """Discrete KL map for a separable log10-Gaussian permeability field.
+
+    The log10-permeability covariance is the separable product
+
+    ``sigma^2 * C_y ⊗ C_x``
+
+    where each one-dimensional factor is Matérn-3/2, exponential or Gaussian/RBF.
+    The Gaussian convention is ``rho(d)=exp(-0.5*(d/ell)**2)``. This
+    avoids constructing the full ``(H*W) x (H*W)`` covariance matrix. If
+    ``C_y u_i = lambda_i^y u_i`` and ``C_x v_j = lambda_j^x v_j``, the two-
+    dimensional eigenpairs are outer products with eigenvalues
+
+    ``sigma^2 * lambda_i^y * lambda_j^x``.
+
+    Array/domain convention: ``shape=(H,W)``, ``domain_size_m=(L_y,L_x)`` and
+    ``length_scale_m=(ell_y,ell_x)``. ``n_modes`` takes precedence over
+    ``energy_threshold`` when supplied.
+    """
+
+    shape: tuple[int, int]
+    domain_size_m: tuple[float, float]
+    mean_log10_k: float
+    std_log10_k: float
+    length_scale_m: tuple[float, float]
+    covariance_model: str = "matern32"
+    n_modes: int | None = None
+    energy_threshold: float = 0.95
+    global_mean_std_log10_k: float = 0.0
+
+    _eigvals_y: Array = field(init=False, repr=False)
+    _eigvecs_y: Array = field(init=False, repr=False)
+    _eigvals_x: Array = field(init=False, repr=False)
+    _eigvecs_x: Array = field(init=False, repr=False)
+    _mode_y: Array = field(init=False, repr=False)
+    _mode_x: Array = field(init=False, repr=False)
+    _eigenvalues: Array = field(init=False, repr=False)
+    _total_variance: float = field(init=False, repr=False)
+    _retained_energy_fraction: float = field(init=False, repr=False)
+    _selection_method: str = field(init=False, repr=False)
+    _requested_n_modes: int | None = field(init=False, repr=False)
+    _spatial_dimension: int = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        if len(self.shape) != 2 or any(int(value) <= 0 for value in self.shape):
+            raise ValueError("shape must contain two positive entries")
+        if len(self.domain_size_m) != 2 or any(
+            not np.isfinite(value) or float(value) <= 0.0 for value in self.domain_size_m
+        ):
+            raise ValueError("domain_size_m must contain two finite positive entries")
+        if len(self.length_scale_m) != 2 or any(
+            not np.isfinite(value) or float(value) <= 0.0 for value in self.length_scale_m
+        ):
+            raise ValueError("length_scale_m must contain two finite positive entries")
+        if not np.isfinite(self.mean_log10_k):
+            raise ValueError("mean_log10_k must be finite")
+        if not np.isfinite(self.std_log10_k) or self.std_log10_k <= 0.0:
+            raise ValueError("std_log10_k must be finite and positive")
+        if not np.isfinite(self.global_mean_std_log10_k) or self.global_mean_std_log10_k < 0.0:
+            raise ValueError("global_mean_std_log10_k must be finite and non-negative")
+        if not np.isfinite(self.energy_threshold) or not (0.0 < self.energy_threshold <= 1.0):
+            raise ValueError("energy_threshold must lie in (0, 1]")
+        self.covariance_model = str(self.covariance_model).strip().lower()
+        if self.covariance_model not in {"matern32", "exponential", "gaussian"}:
+            raise ValueError(
+                "factorized KL covariance_model must be 'matern32', "
+                "'exponential' or 'gaussian'"
+            )
+
+        self.shape = (int(self.shape[0]), int(self.shape[1]))
+        self.domain_size_m = (
+            float(self.domain_size_m[0]),
+            float(self.domain_size_m[1]),
+        )
+        self.length_scale_m = (
+            float(self.length_scale_m[0]),
+            float(self.length_scale_m[1]),
+        )
+        self.mean_log10_k = float(self.mean_log10_k)
+        self.std_log10_k = float(self.std_log10_k)
+        self.global_mean_std_log10_k = float(self.global_mean_std_log10_k)
+        self.energy_threshold = float(self.energy_threshold)
+
+        total_modes = self.shape[0] * self.shape[1]
+        self._requested_n_modes = None if self.n_modes is None else int(self.n_modes)
+        self._selection_method = (
+            "energy_threshold" if self._requested_n_modes is None else "fixed_n_modes"
+        )
+        if self._requested_n_modes is not None and not (
+            1 <= self._requested_n_modes <= total_modes
+        ):
+            raise ValueError(
+                f"n_modes must lie in [1, {total_modes}], got {self._requested_n_modes}"
+            )
+
+        corr_y = _correlation_matrix(
+            self.covariance_model,
+            self.shape[0],
+            self.domain_size_m[0],
+            self.length_scale_m[0],
+        )
+        corr_x = _correlation_matrix(
+            self.covariance_model,
+            self.shape[1],
+            self.domain_size_m[1],
+            self.length_scale_m[1],
+        )
+        self._eigvals_y, self._eigvecs_y = _sorted_psd_eigendecomposition(corr_y)
+        self._eigvals_x, self._eigvecs_x = _sorted_psd_eigendecomposition(corr_x)
+
+        product_values = (
+            self.std_log10_k**2
+            * np.multiply.outer(self._eigvals_y, self._eigvals_x)
+        )
+        flat_values = product_values.ravel()
+        order = np.argsort(flat_values)[::-1]
+        sorted_values = flat_values[order]
+        self._total_variance = float(np.sum(sorted_values, dtype=np.float64))
+        if not self._total_variance > 0.0:
+            raise RuntimeError("KL covariance has zero total variance")
+
+        if self._requested_n_modes is None:
+            cumulative = np.cumsum(sorted_values, dtype=np.float64)
+            target = min(
+                self.energy_threshold * self._total_variance,
+                float(cumulative[-1]),
+            )
+            selected_count = int(np.searchsorted(cumulative, target, side="left") + 1)
+        else:
+            selected_count = self._requested_n_modes
+
+        selected = order[:selected_count]
+        mode_y, mode_x = np.unravel_index(selected, product_values.shape)
+        self._mode_y = np.asarray(mode_y, dtype=np.int64)
+        self._mode_x = np.asarray(mode_x, dtype=np.int64)
+        self._eigenvalues = np.asarray(sorted_values[:selected_count], dtype=np.float64)
+        if np.any(self._eigenvalues <= 0.0):
+            raise RuntimeError("selected KL modes must have strictly positive eigenvalues")
+
+        self.n_modes = int(selected_count)
+        self._spatial_dimension = int(selected_count)
+        global_trace = self.global_mean_std_log10_k**2 * self.shape[0] * self.shape[1]
+        self._retained_energy_fraction = float(
+            (np.sum(self._eigenvalues, dtype=np.float64) + global_trace)
+            / (self._total_variance + global_trace)
+        )
+
+    @property
+    def dimension(self) -> int:
+        return int(self._spatial_dimension + (self.global_mean_std_log10_k > 0.0))
+
+    @property
+    def spatial_dimension(self) -> int:
+        return int(self._spatial_dimension)
+
+    @property
+    def field_shape(self) -> tuple[int, int]:
+        return self.shape
+
+    @property
+    def eigenvalues(self) -> Array:
+        if self.global_mean_std_log10_k <= 0.0:
+            return self._eigenvalues.copy()
+        global_eigenvalue = self.global_mean_std_log10_k**2 * self.shape[0] * self.shape[1]
+        return np.concatenate((np.asarray([global_eigenvalue]), self._eigenvalues))
+
+    @property
+    def mode_pairs(self) -> Array:
+        pairs = np.column_stack((self._mode_y, self._mode_x))
+        if self.global_mean_std_log10_k <= 0.0:
+            return pairs
+        return np.vstack((np.asarray([[-1, -1]], dtype=np.int64), pairs))
+
+    @property
+    def retained_energy_fraction(self) -> float:
+        return self._retained_energy_fraction
+
+    def mode_matrix_at_indices(self, indices: Array) -> Array:
+        """Return truncated-KL log10 loadings at integer ``(row, col)`` cells.
+
+        The returned matrix ``A`` has shape ``[n_observations, dimension]`` and
+        satisfies ``Y_obs = mean_log10_k + A @ xi`` for the retained KL model.
+        This small matrix is the interface used by conditional kriging; it avoids
+        materializing a dense spatial covariance or a full ``H*W*m`` basis tensor.
+        """
+
+        raw = np.asarray(indices)
+        if raw.ndim != 2 or raw.shape[1] != 2:
+            raise ValueError("indices must have shape [n,2] with integer (row, col) cells")
+        if raw.shape[0] == 0:
+            raise ValueError("at least one observation index is required")
+        if not np.all(np.isfinite(raw)):
+            raise ValueError("observation indices must be finite")
+        rounded = np.rint(raw)
+        if not np.array_equal(raw, rounded):
+            raise ValueError("observation indices must be integer-valued")
+        cells = rounded.astype(np.int64)
+        rows, cols = cells[:, 0], cells[:, 1]
+        if np.any(rows < 0) or np.any(rows >= self.shape[0]):
+            raise ValueError("observation row index is outside the permeability grid")
+        if np.any(cols < 0) or np.any(cols >= self.shape[1]):
+            raise ValueError("observation column index is outside the permeability grid")
+
+        vectors_y = self._eigvecs_y[:, self._mode_y]
+        vectors_x = self._eigvecs_x[:, self._mode_x]
+        spatial = (
+            vectors_y[rows, :]
+            * vectors_x[cols, :]
+            * np.sqrt(self._eigenvalues)[None, :]
+        )
+        if self.global_mean_std_log10_k <= 0.0:
+            return spatial
+        return np.column_stack(
+            (np.full(rows.shape[0], self.global_mean_std_log10_k), spatial)
+        )
+
+    def mode_matrix_at_coordinates(self, coordinates_yx_m: Array) -> Array:
+        """Return truncated-KL loadings at continuous local (y,x) coordinates.
+
+        Coordinates are measured in metres from the lower/southern and
+        left/western domain edges. The KL eigensystem itself is defined at
+        cell centres. A Nystrom extension of each retained one-dimensional
+        eigenvector evaluates the discrete KL basis between cell centres.
+
+        The returned matrix B has shape [n_points, dimension] and satisfies
+        Y(points) = mean_log10_k + B @ xi for the same truncated prior used
+        on the regular grid.
+        """
+
+        coordinates = np.asarray(coordinates_yx_m, dtype=np.float64)
+        if coordinates.ndim != 2 or coordinates.shape[1] != 2:
+            raise ValueError("coordinates_yx_m must have shape [n,2] as local y,x")
+        if coordinates.shape[0] == 0:
+            raise ValueError("at least one continuous coordinate is required")
+        if not np.all(np.isfinite(coordinates)):
+            raise ValueError("continuous coordinates must be finite")
+        y = coordinates[:, 0]
+        x = coordinates[:, 1]
+        ly_domain, lx_domain = self.domain_size_m
+        tolerance = 1e-9 * max(ly_domain, lx_domain, 1.0)
+        if np.any(y < -tolerance) or np.any(y > ly_domain + tolerance):
+            raise ValueError("continuous y coordinate lies outside the KL domain")
+        if np.any(x < -tolerance) or np.any(x > lx_domain + tolerance):
+            raise ValueError("continuous x coordinate lies outside the KL domain")
+
+        h, w = self.shape
+        dy = ly_domain / h
+        dx = lx_domain / w
+        grid_y = (np.arange(h, dtype=np.float64) + 0.5) * dy
+        grid_x = (np.arange(w, dtype=np.float64) + 0.5) * dx
+        ell_y, ell_x = self.length_scale_m
+
+        def correlation(distance: Array, length_scale: float) -> Array:
+            scaled = np.asarray(distance, dtype=np.float64) / float(length_scale)
+            if self.covariance_model == "exponential":
+                return np.exp(-scaled)
+            if self.covariance_model == "gaussian":
+                return np.exp(-0.5 * scaled**2)
+            root3 = np.sqrt(3.0) * scaled
+            return (1.0 + root3) * np.exp(-root3)
+
+        corr_y = correlation(np.abs(y[:, None] - grid_y[None, :]), ell_y)
+        corr_x = correlation(np.abs(x[:, None] - grid_x[None, :]), ell_x)
+
+        eig_y = self._eigvals_y[self._mode_y]
+        eig_x = self._eigvals_x[self._mode_x]
+        if np.any(eig_y <= 0.0) or np.any(eig_x <= 0.0):
+            raise RuntimeError("selected one-dimensional KL eigenvalues must be positive")
+
+        extended_y = (
+            corr_y @ self._eigvecs_y[:, self._mode_y]
+        ) / eig_y[None, :]
+        extended_x = (
+            corr_x @ self._eigvecs_x[:, self._mode_x]
+        ) / eig_x[None, :]
+        spatial = extended_y * extended_x * np.sqrt(self._eigenvalues)[None, :]
+        if self.global_mean_std_log10_k <= 0.0:
+            return spatial
+        return np.column_stack(
+            (np.full(coordinates.shape[0], self.global_mean_std_log10_k), spatial)
+        )
+
+    def map_log10_coordinates_at_points(
+        self,
+        stochastic_coordinates: Array,
+        coordinates_yx_m: Array,
+    ) -> Array:
+        """Evaluate truncated-KL log10 fields at continuous local points."""
+
+        xi, single = self._prepare_coordinates(stochastic_coordinates)
+        basis = self.mode_matrix_at_coordinates(coordinates_yx_m)
+        values = self.mean_log10_k + xi @ basis.T
+        return values[0] if single else values
+    @property
+    def metadata(self) -> dict[str, object]:
+        return {
+            "map": "KLLogGaussianPermeabilityMap",
+            "log_space": "log10",
+            "covariance": f"separable_{self.covariance_model}",
+            "shape": [self.shape[0], self.shape[1]],
+            "domain_size_m": [self.domain_size_m[0], self.domain_size_m[1]],
+            "axis_convention": "shape=(H,W), domain=(L_y,L_x), length_scale=(ell_y,ell_x)",
+            "mean_log10_k": self.mean_log10_k,
+            "std_log10_k": self.std_log10_k,
+            "global_mean_std_log10_k": self.global_mean_std_log10_k,
+            "length_scale_m": [self.length_scale_m[0], self.length_scale_m[1]],
+            "dimension": self.dimension,
+            "spatial_dimension": self.spatial_dimension,
+            "selection": self._selection_method,
+            "requested_n_modes": self._requested_n_modes,
+            "energy_threshold_requested": self.energy_threshold,
+            "retained_energy_fraction": self.retained_energy_fraction,
+        }
+
+    def _prepare_coordinates(self, coordinates: Array) -> tuple[Array, bool]:
+        coordinates = np.asarray(coordinates, dtype=np.float64)
+        single = coordinates.ndim == 1
+        if single:
+            coordinates = coordinates[None, :]
+        if coordinates.ndim != 2:
+            raise ValueError(
+                "coordinates must have shape [m] or [B,m], "
+                f"got {coordinates.shape}"
+            )
+        if coordinates.shape[1] != self.dimension:
+            raise ValueError(
+                f"expected stochastic dimension {self.dimension}, "
+                f"got {coordinates.shape[1]}"
+            )
+        if not np.all(np.isfinite(coordinates)):
+            raise ValueError("stochastic coordinates must be finite")
+        return coordinates, single
+
+    def map_log10_coordinates(self, coordinates: Array) -> Array:
+        """Map coordinates to truncated-KL log10-permeability fields."""
+
+        coordinates, single = self._prepare_coordinates(coordinates)
+        if self.global_mean_std_log10_k > 0.0:
+            global_shift = coordinates[:, 0] * self.global_mean_std_log10_k
+            spatial_coordinates = coordinates[:, 1:]
+        else:
+            global_shift = np.zeros(coordinates.shape[0], dtype=np.float64)
+            spatial_coordinates = coordinates
+        weighted = spatial_coordinates * np.sqrt(self._eigenvalues)[None, :]
+
+        # The naive sum over every selected 2-D mode costs O(B*H*W*m).
+        # Regroup the selected tensor-product modes into the unique retained
+        # one-dimensional y/x eigenspaces and evaluate U_y @ C @ U_x^T instead.
+        # This is essential for 2560x2560 fields where a 95% energy threshold
+        # can retain O(10^3) two-dimensional modes.
+        unique_y, compact_y = np.unique(self._mode_y, return_inverse=True)
+        unique_x, compact_x = np.unique(self._mode_x, return_inverse=True)
+        vectors_y = self._eigvecs_y[:, unique_y]
+        vectors_x = self._eigvecs_x[:, unique_x]
+        coefficients = np.zeros(
+            (coordinates.shape[0], unique_y.size, unique_x.size),
+            dtype=np.float64,
+        )
+        coefficients[:, compact_y, compact_x] = weighted
+        fields = self.mean_log10_k + np.einsum(
+            "ya,bac,xc->byx",
+            vectors_y,
+            coefficients,
+            vectors_x,
+            optimize=True,
+        )
+        fields += global_shift[:, None, None]
+        return fields[0] if single else fields
+
+    def pointwise_log10_variance(self) -> Array:
+        """Actual retained variance, without constructing the full grid basis."""
+        unique_y, compact_y = np.unique(self._mode_y, return_inverse=True)
+        unique_x, compact_x = np.unique(self._mode_x, return_inverse=True)
+        weights = np.zeros((unique_y.size, unique_x.size), dtype=np.float64)
+        weights[compact_y, compact_x] = self._eigenvalues
+        variance = np.einsum(
+            "ya,ac,xc->yx", self._eigvecs_y[:, unique_y] ** 2, weights,
+            self._eigvecs_x[:, unique_x] ** 2, optimize=True,
+        )
+        return variance + self.global_mean_std_log10_k ** 2
+
+    def map_coordinates(self, coordinates: Array) -> Array:
+        """Map standard-normal KL coordinates to physical permeability fields."""
+
+        log10_fields = self.map_log10_coordinates(coordinates)
+        permeability = np.power(10.0, log10_fields)
+        if not np.all(np.isfinite(permeability)):
+            raise ValueError("permeability transformation produced non-finite values")
+        if np.any(permeability <= 0.0):
+            raise ValueError("permeability transformation produced non-positive values")
+        return permeability.astype(np.float32, copy=False)

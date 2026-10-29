@@ -1,0 +1,70 @@
+# Planned extension after the reduced profile sensitivity; 7728 LGCNN evaluations.
+# Not a tail-convergence certificate. Profile probabilities are unspecified.
+scenarios:
+  RUN_1_structural:
+    covariance:
+      angle_deg: 88.7701858907613
+      center: median
+      ell_col_m: 2419.5514281495543
+      ell_row_m: 1612.7708172379264
+      family: matern32_radial
+      sigma_R: 0.19361137113733584
+    mean_log10_k: -9.291893306559812
+  RUN_2_structural:
+    covariance:
+      angle_deg: 84.31569631887129
+      center: median
+      ell_col_m: 2669.817156899003
+      ell_row_m: 1816.9078476336545
+      family: matern32_radial
+      sigma_R: 0.2067964071701802
+    mean_log10_k: -9.32061091661667
+  RUN_3_structural:
+    covariance:
+      angle_deg: -86.3655418051892
+      center: median
+      ell_col_m: 1236.3124059383958
+      ell_row_m: 819.3881749539624
+      family: matern32_radial
+      sigma_R: 0.16614345566324304
+    mean_log10_k: -9.157023847565199
+shape:
+- 2560
+- 2560
+cell_size_m: 5.0
+permeability_units: m2
+measurement_counts:
+- 0
+- 8
+- 32
+coverage_scenarios:
+- balanced
+- clustered
+n_designs: 1
+candidate_stride_cells: 32
+cluster_scale_fraction: 0.1
+n_truths: 16
+n_samples: 32
+sample_budgets:
+- 8
+- 16
+- 32
+seed: 2026102605
+workers: 4
+chunk_size: 16384
+validation_replicates: 512
+validation_probes: 8
+diagnostic_stride_cells: 32
+model_config: ../run_output/reference_pilot/rq1.local.yaml
+model_asset_root: ..
+torch_threads: 8
+risk_thresholds_C:
+- 0.1
+- 1.0
+quantile_chunk_rows: 16
+structural_profile_file: structural_profiles.json
+profile_pairing_group: map-structure-sensitivity
+paired_embedding_shape:
+- 8192
+- 8192
+sensitivity_reference_profile: RUN_2_structural

@@ -14,6 +14,7 @@ from ..sampling import (
     Release25PerlinPermeabilitySampler,
 )
 from ..surrogates import Release25Surrogate
+from ..surrogates.bounded_streamlines import configure_release25_streamlines
 from ..surrogates.release25_runtime import Release25Runtime
 from ..visualization import plot_monte_carlo_archive
 
@@ -92,6 +93,36 @@ def build_parser() -> argparse.ArgumentParser:
         "--streamline-method", choices=("RK45", "RK23", "Radau"), default="RK45"
     )
     parser.add_argument(
+        "--streamline-mode",
+        choices=("release25", "bounded"),
+        default="release25",
+        help=(
+            "Streamline implementation. 'release25' preserves the published behavior; "
+            "'bounded' terminates trajectories at the valid grid boundary and adds "
+            "a watchdog for pathological adaptive ODE steps."
+        ),
+    )
+    parser.add_argument(
+        "--streamline-max-nfev",
+        type=int,
+        default=100_000,
+        help=(
+            "Maximum RHS evaluations per streamline in bounded mode. Use 0 to disable "
+            "the watchdog. Default: 100000."
+        ),
+    )
+    parser.add_argument(
+        "--streamline-diagnostics",
+        action="store_true",
+        help="Print bounded-streamline timing, velocity ranges and slow-trajectory diagnostics.",
+    )
+    parser.add_argument(
+        "--streamline-slow-seconds",
+        type=float,
+        default=2.0,
+        help="Diagnostic threshold for reporting a slow individual streamline.",
+    )
+    parser.add_argument(
         "--background-temperature",
         type=float,
         default=RELEASE25_SYNTHETIC_BACKGROUND_TEMPERATURE_C,
@@ -138,6 +169,13 @@ def main() -> None:
         random_k=args.random_k,
         streamline_method=args.streamline_method,
     )
+    configure_release25_streamlines(
+        runtime.adapter,
+        mode=args.streamline_mode,
+        max_nfev=args.streamline_max_nfev,
+        diagnostics=args.streamline_diagnostics,
+        slow_streamline_seconds=args.streamline_slow_seconds,
+    )
 
     # The sampler uses the fixed scenario shape/domain. For the published
     # synthetic baseline this is 2560 x 2560 at 5 m, i.e. 12.8 km square.
@@ -181,6 +219,10 @@ def main() -> None:
         "cnn2_dir_role": "LGCNN Step 3 / CNN3 (legacy argument name)",
         "device": args.device,
         "streamline_method": args.streamline_method,
+        "streamline_mode": args.streamline_mode,
+        "streamline_max_nfev": int(args.streamline_max_nfev),
+        "streamline_diagnostics": bool(args.streamline_diagnostics),
+        "streamline_slow_seconds": float(args.streamline_slow_seconds),
         "random_k": bool(args.random_k),
         "ddof": int(effective_ddof),
         "ddof_requested": args.ddof,
@@ -225,6 +267,11 @@ def main() -> None:
         "Perlin parameters: "
         f"seed={sampler.seed}, frequency={sampler.frequency}, "
         f"k_min={sampler.k_min:.16e}, k_max={sampler.k_max:.16e}"
+    )
+    print(
+        "Streamlines: "
+        f"mode={args.streamline_mode}, method={args.streamline_method}, "
+        f"max_nfev={args.streamline_max_nfev}"
     )
     print(f"Variance ddof: {effective_ddof}")
     print(

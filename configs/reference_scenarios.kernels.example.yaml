@@ -1,0 +1,52 @@
+# 27 explicit model-form scenarios, never inferred geological probabilities.
+# These COMMON effective ranges are illustrative assumptions, not estimates
+# calibrated to RUN_1, RUN_2 or RUN_3. Adjust them after inspecting diagnostics.
+base:
+  reference_run: RUN_1
+  marginal: lognormal
+  center: median
+  sigma_R: 0.05  # residual standard deviation in log10 permeability units
+  covariance_family: matern32
+  energy_threshold: 0.95
+axes:
+  reference_run: [RUN_1, RUN_2, RUN_3]
+  covariance_family: [gaussian, matern32, exponential]
+  # Each mapping is ONE paired setting. Rows and columns are not crossed.
+  # The axial effective range is the distance where prior rho = exp(-1).
+  # Kernel-specific ell values are resolved and recorded in the manifest.
+  parameter_sets:
+    - label: short
+      correlation_range_row_m: 250.0
+      correlation_range_col_m: 400.0
+    - label: medium
+      correlation_range_row_m: 500.0
+      correlation_range_col_m: 800.0
+    - label: long
+      correlation_range_row_m: 1000.0
+      correlation_range_col_m: 1600.0
+
+# First prepare the three native reference arrays using the existing pilot
+# preparation instructions. Paths are relative to this YAML file.
+references:
+  RUN_1: ../data/reference_pilot/RUN_1.reference.npy
+  RUN_2: ../data/reference_pilot/RUN_2.reference.npy
+  RUN_3: ../data/reference_pilot/RUN_3.reference.npy
+cell_size_m: 5.0
+permeability_convention: historical-training
+n_samples: 32
+seed: 4901
+diagnostic_factor: 8
+distribution_target: null
+distribution_validation: null
+scenario_weights: null
+storage:
+  retain_generated_fields: false
+
+# Training-support comparisons must use proven training membership, at matching
+# native grid and patch geometry. Omitting this leaves training support unassessed.
+# training_support:
+#   reference_npy: [../data/verified_training_reference.npy]
+#   box_size: 1280
+#   skip_per_dir: 8
+#   feature_stride: 8
+#   max_patches: 192

@@ -1,0 +1,41 @@
+# Primary reference-family RQ1 template. Replace asset paths and select QoIs.
+# Reference RUN and fixed_run_id are distinct: sources/pressure remain fixed.
+experiment:
+  id: reference_rq1
+  output_root: run_output/reference_rq1
+release25:
+  repo: external/release25-repo/Heat-Plume-Prediction
+  cnn1_dir: models/LGCNN_step1_realK
+  cnn2_dir: models/LGCNN_step3_realK
+  prepared_pki_dir: data/prepared_real_pki
+  fixed_run_id: RUN_1
+  device: cpu
+  cell_size_m: 5.0
+  # Set to the background temperature of the selected physical scenario.
+  background_temperature: 10.6
+  random_k: false
+sampling:
+  budgets: [32, 64, 128, 256, 512, 1024]
+  comparison_budgets: [32, 64, 128, 256, 512]
+  repetitions: 4
+  main_seed: 2907
+  repetition_seeds: [3901, 3902, 3903, 3904]
+  batch_size: 1
+  quantiles: [0.05, 0.50, 0.95]
+  quantile_chunk_rows: 16
+  input_preview_count: 3
+qoi:
+  receptors: [[500, 500], [1000, 1000]]
+  mean_anomaly_roi: [400, 1200, 400, 1200]
+grf:
+  # The matrix supplies one artifact per scenario before validating this template.
+  # For a direct RQ1 invocation, replace null with its actual artifact path.
+  input_model: null
+streamlines:
+  mode: bounded
+  method: RK45
+  max_nfev: 100000
+  diagnostics: false
+  slow_seconds: 2.0
+storage:
+  retain_scratch: false

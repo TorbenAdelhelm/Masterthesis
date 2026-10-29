@@ -1,0 +1,256 @@
+# RQ1 evaluation experiment
+
+Research question:
+
+> How much permeability input uncertainty reaches the predicted temperature field?
+
+The implementation keeps the release25 LGCNN frozen and holds the prepared
+pressure/material/heat-pump scenario fixed. It therefore measures permeability
+input uncertainty only.
+
+## Experimental variants
+
+For the primary schema-3 **reference-centered input artifact**, RQ1 executes only
+the stochastic law selected by that artifact:
+
+- an **unconditioned** artifact uses `B_unconditional_grf_mc` as the main iid-MC
+  target and `D_unconditional_grf_rqmc` for the equal-budget scrambled-Sobol
+  comparison;
+- a genuinely **conditioned** artifact uses `C_conditional_grf_mc` as the main
+  iid-MC target and `D_conditional_grf_rqmc` for the RQMC comparison.
+
+This avoids evaluating the same unconditioned map twice under B/C labels and does
+not add a Perlin baseline to every reference-family scenario. The emitted
+`metadata.json` records `execution_mode: reference_artifact_target_law_only` and
+the exact variants that were evaluated.
+
+The older manual/legacy RQ1 configuration retains the finalized four-part design
+for reproducibility:
+
+- **A — Perlin + MC:** in-generator-family release25 baseline using the existing
+  two-coordinate Perlin map with iid uniform offset coordinates. This defines a
+  reproducible continuous reference law from the historical `perlin_v2`
+  generator family; it does not claim to reproduce the dependence structure of
+  the finite historical training fields, which shared one base offset and used
+  successive x-shifts.
+- **B — unconditional log-GRF/KL + MC:** effect of replacing the Perlin input
+  law by the explicit Gaussian random-field prior.
+- **C — conditional log-GRF/KL + MC:** historical conditional-GRF target.
+- **D — conditional log-GRF/KL + randomized QMC:** scrambled Sobol comparison
+  at equal frozen-LGCNN evaluation budgets.
+
+The Perlin baseline is a comparison input family and does not establish training
+compatibility for a real-K model. It is not part of the primary schema-3
+reference-family propagation unless the user deliberately runs the legacy/manual
+configuration.
+
+The default design encoded in the example configuration uses main checkpoints
+N = {32, 64, 128, 256, 512, 1024} and repeated MC/RQMC comparison budgets
+N = {32, 64, 128, 256, 512}.
+
+The largest declared-law iid-MC run is an **empirical reference**, not ground
+truth. The configuration accepts larger powers of two (for example 2048 or
+4096) if the reference-convergence check later shows that this is needed.
+
+RQMC uses independently scrambled Sobol designs. A point u in (0,1)^d is
+transformed component-wise by the standard-normal inverse CDF, so the selected
+Gaussian field map still receives standard-Gaussian target coordinates. The
+same explicit repetition-seed list is used to pair the MC and RQMC repetitions.
+
+## Temperature uncertainty metrics
+
+For the final main runs the command writes exact empirical fields
+
+mu_T(x), sigma_T(x), q05(x), q50(x), q95(x),
+and W90(x) = q95(x) - q05(x).
+
+Mean and variance are accumulated online. Exact empirical field quantiles are
+computed from a temporary disk-backed float32 temperature ensemble, spatially
+chunked so the full [N,H,W] array is not held in RAM.
+
+Global summaries are
+
+U_RMS = sqrt(mean_x sigma_T(x)^2)
+
+and
+
+U95 = q95({sigma_T(x)}),
+
+plus mean and maximum spatial standard deviation.
+
+Field convergence against the corresponding largest empirical MC run is
+
+e_mu(N) = sqrt(mean_x (mu_N(x)-mu_ref(x))^2)
+
+and
+
+e_sigma(N) = sqrt(mean_x (sigma_N(x)-sigma_ref(x))^2).
+
+These are absolute RMS errors in degrees Celsius.
+
+## Scalar QoIs
+
+Receptor locations are configured explicitly as temperature-output grid cells;
+the implementation does not choose them automatically. For Q_r = T(x_r), it
+reports mean, unbiased standard deviation and empirical q05/q50/q95.
+
+If `qoi.mean_anomaly_roi` is configured, the continuous mean-anomaly QoI is
+evaluated over that fixed ROI Omega_T:
+
+Q_mean = mean_{x in Omega_T} [T(x)-T_bg].
+
+The same statistics are reported for this scalar QoI. Setting
+`qoi.mean_anomaly_roi: null` disables this optional scalar QoI without
+affecting field or receptor metrics.
+
+Thresholded plume/risk quantities are deliberately not part of RQ1; they belong
+to RQ2.
+
+## Input law and diagnostics
+
+The primary thesis path uses a separate `stochastic_input_model.yaml` per
+**reference-centered lognormal scenario**, written by `reference_scenarios` or
+`reference_field_permeability`. RUN, amplitude, covariance and correlation lengths
+are explicit scenario assumptions; truncation is a representation sensitivity.
+No RUN probabilities are inferred or pooled. The matrix runner can invoke RQ1
+with `--rq1-config`, retaining the same fixed sources and model across references.
+
+The **measurement-derived kriging/KL law** remains a legacy/comparison path:
+real Munich measurements determine the
+supported Matérn-3/2 or exponential covariance candidate by spatial block
+cross-validation, define the `log10(k)` mean/structured variance/length scales,
+and condition the same finite KL prior at continuous locations. RQ1 therefore
+reuses the exact site-specific posterior map rather than retyping or refitting
+stochastic parameters.
+
+Every main variant observes the exact permeability batches passed into the
+frozen LGCNN. Diagnostics are evaluated in `Y = log10(K)`. When an input-model
+artifact has explicitly documented training-support fields, their minimum/maximum
+becomes the range reference. The selected nominal reference is not automatically
+training support. Without an explicit training profile, training-range compatibility
+is unassessed; historical release25 Perlin bounds are only the fallback for the
+manual legacy configuration.
+
+Surrogate-support diagnostics are performed upstream by `reference_scenarios`
+with optional explicit `training_support`, or by the legacy
+realistic-permeability workflow. DaRUS-5065 does not define the production
+geological prior; instead, the exact release25 1280-cell / skip-8 patch lattice
+from the three training fields is the LGCNN-support reference. The workflow
+reports patch/full-field descriptors, generated-vs-training marginal
+Wasserstein/quantile errors and directional semivariogram mismatch. These
+diagnostics never filter samples, so the RQ1 coordinates remain evaluations of
+the declared Gaussian target law.
+
+For the continuous real-measurement input model, conditioning quality and prior
+compatibility are also recorded upstream, including prior-predictive
+standardized residuals and the covariance-aware Mahalanobis diagnostic. RQ1
+does not apply a post-hoc sample acceptance rule. This is intentional: all
+MC/RQMC samples remain evaluations of the declared Gaussian posterior-coordinate
+law.
+
+The older manual grid-cell GRF configuration remains available for synthetic
+experiments. In that mode RQ1 can still compute per-sample conditioning
+residuals and enforce an explicitly configured
+`conditioning_tolerance_log10`.
+
+## Repeated MC versus randomized QMC
+
+The declared-law empirical MC result at the largest main budget is used as
+the common reference. For each independent repetition and equal budget the code
+records errors for:
+
+- temperature field mean and standard deviation;
+- global U_RMS, U95, mean SD and max SD;
+- receptor mean/SD/q05/q50/q95;
+- mean-anomaly mean/SD/q05/q50/q95.
+
+Across repetitions it computes estimator RMSE and
+
+G(N) = RMSE_MC(N) / RMSE_RQMC(N).
+
+G(N) > 1 means randomized QMC produced lower error at the same number of LGCNN
+evaluations.
+
+## Command
+
+For the primary reference-family comparison, configure the real-K checkpoints,
+fixed sources, physical background temperature and temperature QoIs in
+`configs/rq1.reference.example.yaml`, then run a matrix in Git Bash:
+
+```bash
+python -m subsurface_uq.experiments.reference_scenarios \
+  --config configs/reference_scenarios.example.yaml \
+  --rq1-config configs/rq1.reference.example.yaml \
+  --output-dir run_output/reference_scenarios
+```
+
+The matrix supplies each selected artifact before validating RQ1's stochastic
+inputs and replaces the template's entire `grf` block. An artifact-only template
+with `input_model: null` therefore needs no placeholder manual parameters.
+Fixed sources and model paths remain those declared in the template. Each emitted
+RQ1 `config.yaml` contains only its actual `grf.input_model` and can be loaded again.
+The matrix example also sets `storage.retain_generated_fields: false`; upstream
+permeability diagnostics are still calculated, while one full `generated_fields.npy`
+per scenario is not retained.
+
+For a direct RQ1 invocation, first generate the permeability input law and set
+the actual artifact path in the real-K example:
+
+```yaml
+grf:
+  input_model: run_output/reference_scenarios/<SCENARIO_ID>/stochastic_input_model.yaml
+```
+
+Do not also specify manual GRF moments, covariance parameters, KL truncation or
+grid-cell observations in that configuration; the loader rejects duplicated
+sources of truth.
+
+Run with
+
+    python -m subsurface_uq.experiments.release25_rq1 --config configs/rq1.yaml
+
+or, after package installation,
+
+    subsurface-uq-release25-rq1 --config configs/rq1.yaml
+
+The command reconstructs the declared reference-centered or legacy measurement
+Gaussian map, checks its shape and physical domain against the release25 runtime,
+records the input-model SHA-256 in RQ1 metadata, and reuses the selected map for
+declared-law MC and scrambled-Sobol RQMC. The manual GRF block in
+`configs/rq1.example.yaml` remains an explicit fallback for synthetic/debug
+experiments and retains its historical multi-variant comparison design.
+
+## Result layout
+
+The output root contains the required machine-readable artifacts:
+
+    config.yaml
+    metadata.json
+    input_diagnostics.json
+    global_metrics.json
+    convergence.csv
+    mc_rqmc_comparison.csv
+    receptor_metrics.csv
+    qoi_samples.csv
+
+Each evaluated main variant has its own directory. Its fields directory contains
+
+    temperature_mean.npy
+    temperature_std.npy
+    temperature_q05.npy
+    temperature_q50.npy
+    temperature_q95.npy
+    temperature_width90.npy
+
+and its figures directory contains input log-permeability diagnostics,
+temperature mean/std/width90 maps and scalar-QoI distributions. Root-level
+figures contain convergence and MC-vs-RQMC RMSE comparisons.
+
+The temporary disk-backed temperature ensemble is removed after derived field
+products have been written unless storage.retain_scratch is true.
+
+## Scope exclusions
+
+RQ1 does **not** add PCE, sensitivity analysis, threshold/risk or plume metrics,
+or LGCNN-vs-PFLOTRAN/model-discrepancy uncertainty. Those are assigned to later
+research questions in the finalized evaluation design.

@@ -1,0 +1,11 @@
+# All paths resolve relative to this file. Configure the referenced files first.
+# The largest budgets must equal n_measurements / n_samples in that generator.
+conditioning_config: reference_conditioning.density.example.yaml
+model_config: frozen_temperature.example.yaml
+measurement_counts: [0, 4, 8, 16, 32]
+sample_budgets: [8, 16, 32]
+risk_thresholds_C: [0.1, 1.0]  # study assumptions, not established legal limits
+threshold_comparison: ">"
+quantile_chunk_rows: 16
+retain_temperature_ensemble: false
+torch_threads: 8

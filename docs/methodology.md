@@ -5,6 +5,25 @@ forward-UQ baseline and maps them to the package interfaces. It is intended to
 stay close to the executable code; future methods should be added here when they
 become part of the implementation.
 
+The main experiment is now the
+[controlled conditional-field benchmark](controlled_field_benchmark.md), with
+the [RUN reconstruction challenge](measurement_density.md) as its separate
+realism test. The general deterministic-map and Monte Carlo definitions below
+apply to both. The controlled experiment uses a known-mean, full radial Gaussian
+covariance and exact Matheron conditioning, including a proper zero-reading
+prior; it does not use the older fitted separable KL approximation. Its detailed
+conditional equations, information states and calibration design are specified
+in the benchmark method note.
+
+The primary known laws now use the
+[map-informed structural profiles](structural_profiles.md). Their mean,
+anisotropic covariance lengths/angle and finite-map-corrected total variance
+are fitted before any synthetic benchmark truths or temperature outcomes are
+drawn. Profile sensitivity uses common Gaussian driving modes and paired
+trials, with separate synthetic data under each law and no geological mixture
+weights. The resulting comparisons change the joint profile, rather than
+attributing effects to individual covariance parameters.
+
 ## 1. Deterministic LGCNN map
 
 For the present input-UQ experiments, pressure `p` and heat-pump locations `i`

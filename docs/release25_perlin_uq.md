@@ -95,6 +95,12 @@ python -m subsurface_uq.experiments.release25_perlin \
   --plots-dir run_output/release25_perlin_mc_5_plots
 ```
 
+The equivalent installed entry point is `subsurface-uq-release25-perlin`.
+Relative paths are resolved from the current working directory, so the paths
+above assume that the command is run from the repository root. The multiline
+example uses Bash line continuations; in PowerShell, put the command on one line
+or replace each trailing backslash with a backtick.
+
 `--cnn2-dir` is a retained legacy name: the directory is the second CNN of the
 LGCNN, i.e. **Step 3 / CNN3**.
 

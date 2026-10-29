@@ -20,3 +20,6 @@ run_output/
 
 # Keep committed example files if/when they are added.
 !examples/**
+# Example CLIs still produce local Python bytecode.
+examples/**/__pycache__/
+examples/**/*.py[cod]

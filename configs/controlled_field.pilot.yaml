@@ -1,0 +1,34 @@
+# Execution pilot for the main known-law experiment, NOT a convergence claim.
+# Parameters are declared scenarios; no RUN or withheld truth is used to fit them.
+scenarios:
+  matern32_known:
+    mean_log10_k: -9.3
+    covariance:
+      family: matern32_radial
+      ell_row_m: 1000.0
+      ell_col_m: 1000.0
+      sigma_R: 0.25
+      center: median
+      angle_deg: 0.0
+shape: [2560, 2560]
+cell_size_m: 5.0
+permeability_units: m2
+measurement_counts: [0, 8, 32]
+coverage_scenarios: [balanced, clustered]
+n_designs: 1
+candidate_stride_cells: 32
+cluster_scale_fraction: 0.1
+n_truths: 2
+n_samples: 8
+sample_budgets: [4, 8]
+seed: 20261026
+workers: 4
+chunk_size: 16384
+validation_replicates: 256
+validation_probes: 8
+diagnostic_stride_cells: 32
+model_config: ../run_output/reference_pilot/rq1.local.yaml
+model_asset_root: ..
+torch_threads: 8
+risk_thresholds_C: [0.1, 1.0]
+quantile_chunk_rows: 16

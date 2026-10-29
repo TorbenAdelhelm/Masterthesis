@@ -2,21 +2,46 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feat/reference-field-uq"]
   pull_request:
 
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install package
-        run: python -m pip install -e ".[test]"
+        run: python -m pip install -e ".[test,perlin]"
       - name: Run tests
-        run: python -m pytest
+        run: python -m pytest --junitxml=test-results.xml
+      - name: Check installed study commands
+        run: |
+          subsurface-uq-reference-kernel-study --help
+          subsurface-uq-reference-conditioning --help
+          subsurface-uq-conditioning-temperature --help
+          python -m subsurface_uq.experiments.conditioning_deviation --help
+          python -m subsurface_uq.experiments.covariance_reconstruction --help
+          python -m subsurface_uq.experiments.measurement_density --help
+          subsurface-uq-measurement-density --help
+          subsurface-uq-controlled-fields --help
+          subsurface-uq-structural-profiles --help
+          subsurface-uq-density-gallery --help
+          subsurface-uq-measurement-model-validation --help
+          python examples/reference_pilot/run_temperature_pilot.py --help
+          python examples/reference_pilot/run_matched_kernel_study.py --help
+          python examples/reference_pilot/fit_reference_kernel_models.py --help
+      - name: Save test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests-python-${{ matrix.python-version }}
+          path: test-results.xml

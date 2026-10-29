@@ -1,0 +1,29 @@
+# RUN_2 representation pilot; all residual choices remain model-form assumptions.
+# The main pilot already includes this reference law at energy threshold 0.95.
+base:
+  reference_run: RUN_2
+  marginal: lognormal
+  center: median
+  sigma_R: 0.05  # log10 units
+  covariance_family: matern32
+  ell_x: 800.0
+  ell_y: 500.0
+  energy_threshold: 0.95
+axes:
+  truncation:
+    - {energy_threshold: 0.99}
+    - {energy_threshold: 0.999}
+references:
+  RUN_2: ../data/reference_pilot/RUN_2.reference.npy
+# Generate and query the model on the native 5 m grid.
+cell_size_m: 5.0
+permeability_convention: historical-training
+n_samples: 8  # Pilot only; compare temperature QoIs before claiming convergence.
+seed: 4901
+# Coarsening affects descriptive diagnostics, not generated model inputs.
+diagnostic_factor: 8
+scenario_weights: null
+storage:
+  retain_generated_fields: false
+# Training-support references are omitted: checkpoint prepared-list ordinal
+# membership remains unverified, so model training compatibility is unassessed.

@@ -5,6 +5,11 @@ from .diagnostics import (
     save_temperature_diagnostic_plots,
     summarize_temperature_errors,
 )
+from .measurements import (
+    SpatialMeasurementCVResult,
+    spatial_block_cross_validate_measurements,
+    spatial_block_fold_assignment,
+)
 from .overlays import (
     build_release25_validation_overlay_context,
     save_validation_overlay_plots,
@@ -19,6 +24,9 @@ from .temperature import (
 )
 
 __all__ = [
+    "spatial_block_fold_assignment",
+    "spatial_block_cross_validate_measurements",
+    "SpatialMeasurementCVResult",
     "TemperatureComparison",
     "TemperatureDiagnostics",
     "build_release25_validation_overlay_context",
