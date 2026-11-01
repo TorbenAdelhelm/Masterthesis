@@ -1,0 +1,158 @@
+scenarios:
+  RUN_0_exponential_radial:
+    covariance:
+      angle_deg: -85.70491594155908
+      center: median
+      ell_col_m: 1829.166883653716
+      ell_row_m: 1351.3536702460533
+      family: exponential_radial
+      sigma_R: 0.19754090005479347
+    mean_log10_k: -9.376741500767197
+  RUN_0_gaussian:
+    covariance:
+      angle_deg: -85.70491594155908
+      center: median
+      ell_col_m: 1829.166883653716
+      ell_row_m: 1351.3536702460533
+      family: gaussian
+      sigma_R: 0.19853896663479326
+    mean_log10_k: -9.376741500767197
+  RUN_0_matern32_radial:
+    covariance:
+      angle_deg: -85.70491594155908
+      center: median
+      ell_col_m: 1829.166883653716
+      ell_row_m: 1351.3536702460533
+      family: matern32_radial
+      sigma_R: 0.19814384098347665
+    mean_log10_k: -9.376741500767197
+  RUN_2_exponential_radial:
+    covariance:
+      angle_deg: 84.9802952561509
+      center: median
+      ell_col_m: 1562.439012122849
+      ell_row_m: 1059.776414802412
+      family: exponential_radial
+      sigma_R: 0.1979348644514875
+    mean_log10_k: -9.32061091661667
+  RUN_2_gaussian:
+    covariance:
+      angle_deg: 84.9802952561509
+      center: median
+      ell_col_m: 1562.439012122849
+      ell_row_m: 1059.776414802412
+      family: gaussian
+      sigma_R: 0.19849474420634727
+    mean_log10_k: -9.32061091661667
+  RUN_2_matern32_radial:
+    covariance:
+      angle_deg: 84.9802952561509
+      center: median
+      ell_col_m: 1562.439012122849
+      ell_row_m: 1059.776414802412
+      family: matern32_radial
+      sigma_R: 0.1982750540637129
+    mean_log10_k: -9.32061091661667
+  RUN_3_exponential_radial:
+    covariance:
+      angle_deg: -86.02670697152442
+      center: median
+      ell_col_m: 754.7063334890229
+      ell_row_m: 500.6592936938085
+      family: exponential_radial
+      sigma_R: 0.16443132082308912
+    mean_log10_k: -9.157023847565199
+  RUN_3_gaussian:
+    covariance:
+      angle_deg: -86.02670697152442
+      center: median
+      ell_col_m: 754.7063334890229
+      ell_row_m: 500.6592936938085
+      family: gaussian
+      sigma_R: 0.16448407167431894
+    mean_log10_k: -9.157023847565199
+  RUN_3_matern32_radial:
+    covariance:
+      angle_deg: -86.02670697152442
+      center: median
+      ell_col_m: 754.7063334890229
+      ell_row_m: 500.6592936938085
+      family: matern32_radial
+      sigma_R: 0.16446366232618412
+    mean_log10_k: -9.157023847565199
+  RUN_4_exponential_radial:
+    covariance:
+      angle_deg: -85.13805350291233
+      center: median
+      ell_col_m: 817.1425701209319
+      ell_row_m: 592.1047009082475
+      family: exponential_radial
+      sigma_R: 0.21019573907951117
+    mean_log10_k: -9.242908377211641
+  RUN_4_gaussian:
+    covariance:
+      angle_deg: -85.13805350291233
+      center: median
+      ell_col_m: 817.1425701209319
+      ell_row_m: 592.1047009082475
+      family: gaussian
+      sigma_R: 0.210292092517554
+    mean_log10_k: -9.242908377211641
+  RUN_4_matern32_radial:
+    covariance:
+      angle_deg: -85.13805350291233
+      center: median
+      ell_col_m: 817.1425701209319
+      ell_row_m: 592.1047009082475
+      family: matern32_radial
+      sigma_R: 0.21025475936178895
+    mean_log10_k: -9.242908377211641
+shape:
+- 2560
+- 2560
+cell_size_m: 5.0
+permeability_units: m2
+measurement_counts:
+- 0
+- 64
+- 128
+- 256
+coverage_scenarios:
+- balanced
+n_designs: 1
+candidate_stride_cells: 32
+cluster_scale_fraction: 0.1
+n_truths: 1
+n_samples: 8
+sample_budgets:
+- 4
+- 8
+seed: 2026110103
+workers: 4
+chunk_size: 8192
+validation_replicates: 64
+validation_probes: 8
+diagnostic_stride_cells: 32
+model_config: frozen_temperature.by_reference.example.yaml
+model_asset_root: ..
+torch_threads: 8
+risk_thresholds_C:
+- 0.1
+- 1.0
+quantile_chunk_rows: 16
+structural_profile_file: structural_profiles.kernels.json
+profile_pairing_group: complete-reference-cases
+paired_embedding_shape:
+- 8192
+- 8192
+sensitivity_reference_profile: RUN_2_gaussian
+require_reference_id: true
+retain_input_ensemble: false
+validation_samples: 32
+compact_storage:
+  batch_size: 4
+  retained_input_samples: 8
+  preview_size: 96
+  temperature_shape:
+  - 1028
+  - 1028

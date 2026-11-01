@@ -1,0 +1,117 @@
+{
+  "status": "passed",
+  "reference_id": "RUN_4",
+  "profile": "RUN_4_gaussian",
+  "actual_native_lgcnn_queries": 17,
+  "n_samples_per_case": 4,
+  "batch_size": 3,
+  "retained_inputs_per_case": 2,
+  "cases": [
+    {
+      "n_measurements": 0,
+      "temperature_shape": [
+        4,
+        1028,
+        1028
+      ],
+      "maximum_exact_log10_error": 0.0,
+      "input_fingerprints": [
+        "e469ad026f2282a8ce5a83274e9703d063367ec6a9d439b49def66c8a7a339cc",
+        "d98bda0c29f5a04297abfeac24d0b722dd4e47607ff10befe209ac9e8b8d298f",
+        "c12ff31f183081c3bd7ee49dbfd0f403bb1b3b292a312e01d79325a1c1780c5f",
+        "977282dd06fe43c12a4ac3c9da69d002fcebcdad6878c4aeaa6a2a0675883109"
+      ],
+      "temperature_fingerprints": [
+        "683f0726d9a12268322b86a009a96eaefdb4f926acbcdeca5f39c91ab981574d",
+        "665269c03a81c278c926ed70140262b6d85d743a722f16ebca04db3b169b3add",
+        "665c75192999d84a39238e82a9d35688b9a6f1bdb7c0a2d708a9b6d89616c5b5",
+        "45e7f1c486edbfca13ea1dff12f0abcbbbabd6a23f6b43b194649e34e630d10f"
+      ]
+    },
+    {
+      "n_measurements": 64,
+      "temperature_shape": [
+        4,
+        1028,
+        1028
+      ],
+      "maximum_exact_log10_error": 2.464370574273289e-08,
+      "input_fingerprints": [
+        "d3efc1b5a40b23d1119c1615d9569f9ad0aa4d1da150ba8a8444f924b5a18eff",
+        "8c7ee5afb4a4025bffb08b2410460231c281cb6f365bf55ac2e197712c04ffc7",
+        "60cc5a2b9d61fd0ced71776cebe5aace1a84c60b334b072996832155bfcfcc08",
+        "643b5a2fa862e990adf199dc6f805d8f2afb5478c0f9a9b8041e4d5a720e17a6"
+      ],
+      "temperature_fingerprints": [
+        "53bbb91f262ddd82fb312e30c60c39029371e6c8b0b7707ec826b4a04229c379",
+        "7786671ba76ee6e575af312ba2d7b4efbef9f8c8faf8e89179048305c646347d",
+        "180ddaadc6d721fb09f9c299deab41a70f018103a0eba53fe1c3bac62f834ee5",
+        "e99cf70b68313b2311be80831a8229935cd913042dccb8f1dc9199c4c8aa3a8f"
+      ]
+    },
+    {
+      "n_measurements": 128,
+      "temperature_shape": [
+        4,
+        1028,
+        1028
+      ],
+      "maximum_exact_log10_error": 2.464370574273289e-08,
+      "input_fingerprints": [
+        "711d907fa9d106e55e160b813c6c40edcd3aeb771c91230fda2afabbe5922aea",
+        "6e9f31e583d7143fe32250295886c8a84b0091c1f55f58d2ea234a35e21bcc16",
+        "8b3da4f817dc692b21d0529db715d33dd5239ed5afa232571685e69c623fb8e7",
+        "415b243da7f2fb885d6ebbce7d88ac90de94ae1748caf12331e5eb7bff642d0e"
+      ],
+      "temperature_fingerprints": [
+        "d759a16c5825519171ef700e621036f4fbb6468425cb609ae1905d6a7a1d5668",
+        "da80608f0df9bc8875adead9ffe273b8f2cf761bfb406b9bad15795cde736bb3",
+        "da500ea055ccb50413b0025896bcae4658fef526ce02becc7f40fcfdf503b93d",
+        "00128948b6d9fe22b2740e5b5c1dcc5a83995be7b1f45d19d9edf8a04d209d39"
+      ]
+    },
+    {
+      "n_measurements": 256,
+      "temperature_shape": [
+        4,
+        1028,
+        1028
+      ],
+      "maximum_exact_log10_error": 2.480299521323559e-08,
+      "input_fingerprints": [
+        "45f334db7e11a8c234ad6f0c5c99e0c9a3c22c7faaecfb56961c791da3bfcda8",
+        "15a7e96d8e6c5b3cc92661544192c8ae22ec8200b6bbbdfc447b617f8d81636d",
+        "3ec5cf5dad84c99e9d1138df34063b21b0d342fcaabbfc9c8c21419bb2132eae",
+        "f5a7343012f93d0d08e1119bfc774b4ce189ae1c718104d1d1174db3ea448cc9"
+      ],
+      "temperature_fingerprints": [
+        "40c2661ac0e4048857ce9db7f3a341ff0cd8419706949190cf0c0219fb7c13ea",
+        "31309507b513687205ee4161cdee55def624e1e24f746baa35cf1aa0471ed383",
+        "0f1b123e16147ea01b5972ab2fecf0258c937e4ec02cc4b06db3bb119f126891",
+        "10e8d8ff3dcce21a286547dfbe5174098dcc4201a08bcaa96958c6166f1c508a"
+      ]
+    }
+  ],
+  "regenerated_unretained_last_batch_input": {
+    "status": "verified",
+    "reference_id": "RUN_4",
+    "profile": "RUN_4_gaussian",
+    "truth_index": 0,
+    "design": "balanced-000",
+    "n_measurements": 256,
+    "sample_index": 3,
+    "seed": 9078704300385464370,
+    "native_array_sha256": "f5a7343012f93d0d08e1119bfc774b4ce189ae1c718104d1d1174db3ea448cc9",
+    "recipe_sha256": "69a58eb2e6104cd442581624e1f4b2230d0b23806cd43bcf5dd8b60beab8d2fa",
+    "shape": [
+      2560,
+      2560
+    ],
+    "dtype": "float32"
+  },
+  "retained_bytes": 756340927,
+  "native_browser_pngs": 16,
+  "wall_seconds": 953.9839999999967,
+  "full_500_sample_lgcnn_propagations": 0,
+  "model_file_sha256": "0bcdab4c34e706b6cbd32adbeefbeecd28cc8684a6c14f038875b3e3769c661a"
+}

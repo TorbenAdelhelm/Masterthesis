@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import numpy as np
 from numpy.lib.format import open_memmap
+from scipy.linalg import cho_solve
 
 from ..sampling.conditional_density import condition_prefixes
 from ..sampling.controlled_fields import KnownMeanConditioner,physical_permeability
@@ -20,6 +21,8 @@ def preflight(cfg):
     checks={}
     for name,law in cfg["scenarios"].items():
         spec=GSToolsReferenceSpec(**law["covariance"]);sampler=b._prior(cfg,spec)
+        sampler.metadata['spec'].update(marginal='zero-mean unit Gaussian driving field',
+            assumption_status='controlled structural prior; no site-error calibration')
         unit=sampler.sample_residual(b.seed_for(cfg["seed"],"fft-preflight",name))
         rows=[]
         for design,kind,index in b._designs(cfg,name):
@@ -39,8 +42,16 @@ def preflight(cfg):
                     raise ArithmeticError("native exact-conditioning preflight failed")
                 offsets=(indices[:n,None]-indices[None,:n])*cfg["cell_size_m"]
                 eig=np.linalg.eigvalsh(spec.correlation(offsets[...,0],offsets[...,1]))
-                rows.append({"design":design,"n_measurements":n,"condition_number":float(eig[-1]/eig[0]),
-                    "maximum_exact_log10_error":error,"minimum_probe_variance_log10":float(var.min())})
+                row={"design":design,"n_measurements":n,"condition_number":float(eig[-1]/eig[0]),
+                    "maximum_exact_log10_error":error,"minimum_probe_variance_log10":float(var.min())}
+                if cfg.get('compact_storage'):
+                    innovation=data[:n]-law['mean_log10_k']-spec.sigma_R*unit[tuple(indices[:n].T)]
+                    beta=cho_solve((system.cholesky[:n,:n],True),innovation)
+                    direct=law['mean_log10_k']+spec.sigma_R*unit[tuple(indices[:n].T)]+system.cross_correlation(indices[:n])[:,:n]@beta
+                    direct_error=float(np.max(np.abs(direct-data[:n])))
+                    if direct_error>1.e-5:raise ArithmeticError('compact native exact-conditioning preflight failed')
+                    row['maximum_compact_exact_log10_error']=direct_error
+                rows.append(row)
         checks[name]={"sampler":sampler.metadata,"conditioning":rows}
         print(f"Native FFT/conditioning preflight passed: {name}",flush=True)
         del sampler,unit

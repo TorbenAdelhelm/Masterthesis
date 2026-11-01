@@ -44,13 +44,16 @@ class KnownMeanConditioner:
             self.condition_number = None
             self.cholesky = np.empty((0, 0))
 
-    def features(self, queries):
+    def cross_correlation(self, queries):
+        """Native query/data correlations, without a spatial whitening solve."""
         queries = _indices(queries, self.shape)
         if not len(self.indices):
             return np.empty((len(queries), 0))
         offsets = (queries[:, None] - self.indices[None, :]) * self.cell_size_m
-        cross = self.spec.correlation(offsets[..., 0], offsets[..., 1])
-        return solve_triangular(self.cholesky, cross.T, lower=True).T
+        return self.spec.correlation(offsets[..., 0], offsets[..., 1])
+
+    def features(self, queries):
+        return solve_triangular(self.cholesky, self.cross_correlation(queries).T, lower=True).T
 
     def _readings(self, readings, count):
         values = np.asarray(readings, dtype=float)

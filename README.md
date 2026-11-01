@@ -12,10 +12,13 @@ RUN_1. New matched-reference presets/catalog are separate from historical
 three-map/fixed-RUN_2 studies.
 
 For the requested **Gaussian/Matérn/exponential × 64/128/256 observations ×
-500 draws**, use [the three-kernel production workflow](docs/kernel_density_study.md)
-and `configs/controlled_field.kernels.500.yaml`. It retains every native input
-and output, provides an offline spatial browser, and supports `--stage resume`.
+500 draws**, use [the compact production workflow](docs/compact_kernel_study.md)
+and `configs/controlled_field.kernels.compact.500.yaml`. It retains every native
+temperature output, eight native permeability inputs per case and previews of
+all samples, targeting about 30–35 GB per reference. It provides native selected
+sample views, verified input regeneration and `--stage resume`.
 Use `--stage all` for a fresh run; `plan` creates metadata only.
+The earlier full-archive preset remains available for historical reproduction.
 
 This repository contains the thesis-specific forward uncertainty-quantification
 (UQ) framework around deterministic groundwater heat-plume surrogate models.

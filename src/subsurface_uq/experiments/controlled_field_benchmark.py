@@ -83,7 +83,7 @@ def _completed(directory, marker="files.json"):
 def load_config(path, *, reference_id=None):
     source = Path(path).resolve()
     cfg = yaml.safe_load(source.read_text(encoding="utf-8"))
-    if not isinstance(cfg, dict) or set(cfg)-{"require_reference_id","retain_input_ensemble","validation_samples"} not in (_KEYS, _KEYS | _PROFILE_KEYS):
+    if not isinstance(cfg, dict) or set(cfg)-{"require_reference_id","retain_input_ensemble","validation_samples","compact_storage"} not in (_KEYS, _KEYS | _PROFILE_KEYS):
         raise ValueError("declare every controlled-benchmark key; unknown keys are forbidden")
     if not isinstance(cfg.get('require_reference_id', False), bool):
         raise ValueError("require_reference_id must be boolean")
@@ -104,6 +104,20 @@ def load_config(path, *, reference_id=None):
     shape = cfg["shape"]
     if not isinstance(shape, list) or len(shape) != 2 or any(_positive_integer(v,"shape") < 3 for v in shape):
         raise ValueError("shape must be two integer dimensions >=3")
+    if "compact_storage" in cfg:
+        settings=cfg["compact_storage"]
+        if not isinstance(settings,dict) or set(settings)!={"batch_size","retained_input_samples","preview_size","temperature_shape"}:
+            raise ValueError("compact_storage requires batch_size, retained_input_samples, preview_size and temperature_shape")
+        for key in ("batch_size","retained_input_samples","preview_size"):
+            _positive_integer(settings[key],key)
+        if settings['batch_size']>cfg['n_samples'] or settings['retained_input_samples']>cfg['n_samples']:
+            raise ValueError("compact batch/retained counts cannot exceed n_samples")
+        if cfg.get('retain_input_ensemble'):
+            raise ValueError("compact_storage requires retain_input_ensemble: false")
+        target=settings['temperature_shape']
+        if (not isinstance(target,list) or len(target)!=2
+                or any(_positive_integer(n,'temperature_shape')>m or (m-n)%2 for m,n in zip(shape,target))):
+            raise ValueError("declare the native symmetrically cropped temperature_shape")
     if cfg["cell_size_m"] != 5. or cfg["permeability_units"] != "m2":
         raise ValueError("native 5 m grid and permeability in m2 required")
     if "structural_profile_file" in cfg:
@@ -214,7 +228,7 @@ def _probes(cfg,name):
 
 def _sources(source,cfg):
     files = [source,*sorted(Path(__file__).parents[1].rglob("*.py"))]
-    if cfg.get("retain_input_ensemble"):
+    if cfg.get("retain_input_ensemble") or cfg.get("compact_storage"):
         files.append(Path(__file__).parents[1]/"visualization/ensemble_browser.html")
     if cfg["model_config"] is not None:
         files.append(_relative_path(cfg["model_config"],source.parent))
@@ -253,6 +267,12 @@ def plan(source,cfg,output):
             retained_permeability_bytes=cells*4*cfg["n_samples"]*manifest["planned_cases"],
             peak_prior_scratch_bytes=cells*8*cfg["n_samples"],
             storage_note="add native temperature ensembles, summaries and filesystem overhead; prior scratch is removed after committed inputs")
+    if cfg.get("compact_storage"):
+        from .compact_fields import storage_estimate,execution_runtime
+        manifest.update(native_input_ensembles_retained=False,geometry_cache_bytes=0,
+            compact_storage=storage_estimate(cfg,manifest['planned_cases']),
+            compact_runtime=execution_runtime(),
+            input_sampling="bounded batches; exact covariance solves; shared global FFT seeds; selected inputs retained")
     if "structural_profile_file" in cfg:
         manifest.update(structural_profile_file=cfg["structural_profile_file"],
             profile_probability_weights=None,profile_pairing_group=cfg["profile_pairing_group"],
@@ -277,7 +297,7 @@ def validate(cfg,output,manifest):
         return
     target.mkdir(exist_ok=True)
     fft_checks={}
-    if cfg.get("retain_input_ensemble"):
+    if cfg.get("retain_input_ensemble") or cfg.get("compact_storage"):
         from .production_fields import preflight
         fft_checks=preflight(cfg)
     rows=[]; maximum_error=0.
@@ -386,6 +406,9 @@ def _prepare_case(cfg,name,trial,design,n,directory,truth,system,features,*,aver
 def prepare(cfg,output,manifest):
     if not _completed(output/"dense_validation"):
         raise ValueError("complete dense validation before preparing native inputs")
+    if cfg.get("compact_storage"):
+        from .compact_fields import prepare as compact_prepare
+        return compact_prepare(cfg,output,manifest)
     if cfg.get("retain_input_ensemble"):
         from .production_fields import prepare as prepare_retained
         return prepare_retained(cfg,output,manifest)
@@ -506,7 +529,8 @@ def _summarize(cfg,name,trial,design,n,directory,truth_temperature,truth_logs,mo
         "independent_half_batches":halves,"mean_field_truth_rmse_C":float(np.sqrt(np.mean((final.mean-truth_temperature)**2))),
         "descriptive_fraction_truth_pixels_between_empirical_q05_q95":field_coverage,
         "limits":"correlated pixels are descriptive; ranks aggregate across independent truths at fixed scalar/layout/count; nested-prefix agreement is not proof of MC convergence"})
-    sample=np.load(directory/"permeability_sample_0000.npy",mmap_mode="r")
+    sample=(np.load(directory/"permeability_selected.npy",mmap_mode="r")[0] if cfg.get("compact_storage")
+            else np.load(directory/"permeability_sample_0000.npy",mmap_mode="r"))
     mean_log=np.load(directory/"posterior_log10_mean.npy",mmap_mode="r")
     _figure(directory/"preview.png",(truth_logs,mean_log,np.log10(sample.astype(float)),truth_temperature,final.mean,final.std),
         ("Hidden truth log10 k","Conditional mean log10 k","First conditional log10 k",
@@ -533,6 +557,9 @@ def temperatures(source,cfg,output,manifest,model_factory):
     if manifest.get("model") is not None and manifest["model"]!=model.metadata:
         raise ValueError("frozen model context changed")
     manifest.update(status="propagating",model=model.metadata);_atomic(output/"manifest.json",manifest)
+    if cfg.get("compact_storage"):
+        from .compact_fields import propagate
+        return propagate(cfg,output,manifest,model)
     for name,law in cfg["scenarios"].items():
         retained=cfg.get("retain_input_ensemble",False)
         systems={} if retained else _geometry(cfg,name,law,output)
@@ -651,7 +678,7 @@ def report(cfg,output,manifest):
         "The RUN-based realism challenge remains separate: ../measurement_density_validation_20261025/reconstruction_validation.md. Its failed adequacy assessment is not changed by success under a synthetic law."]
     (output/"report.md").write_text("\n".join(text)+"\n",encoding="utf-8")
     report_files=["summary.json","summary.png","report.md"]
-    if cfg.get("retain_input_ensemble"):
+    if cfg.get("retain_input_ensemble") or cfg.get("compact_storage"):
         from ..visualization.ensemble_browser import write_browser
         report_files+=write_browser(cfg,output)
         with (output/"report.md").open("a",encoding="utf-8") as stream:
@@ -705,6 +732,10 @@ def run(config_path,output_dir,stage="all",*,model_factory=load_frozen_temperatu
             raise ValueError("configuration changed since planning")
         if _sources(source,cfg)!=manifest["source_sha256"]:
             raise ValueError("execution source or package installation changed since planning; use the original context or a fresh run")
+        if cfg.get("compact_storage"):
+            from .compact_fields import execution_runtime
+            if manifest.get('compact_runtime')!=execution_runtime():
+                raise ValueError("compact run numerical/runtime environment changed; use the recorded environment")
         _verify(Path(),manifest["source_sha256"])
         if manifest.get("report_sha256"):
             _verify(output,manifest["report_sha256"])

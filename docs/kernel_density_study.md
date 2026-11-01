@@ -1,6 +1,11 @@
 # Three-kernel conditional-field study
 
-The production preset is `configs/controlled_field.kernels.500.yaml`.
+For roughly **30–35 GB per reference**, use the new
+[compact production workflow](compact_kernel_study.md) and
+`configs/controlled_field.kernels.compact.500.yaml`. It preserves the scientific
+study and full native temperature analysis, with selected input retention.
+
+The full-archive preset described below is `configs/controlled_field.kernels.500.yaml`.
 It selects one reference RUN, uses its matching pressure/material/heat-pump
 inputs, and generates **500 draws for each of Gaussian, Matérn-3/2 and
 exponential covariance, at 64, 128 and 256 nested synthetic readings**.

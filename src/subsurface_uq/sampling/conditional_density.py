@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 import numpy as np
 from numpy.lib.format import open_memmap
-from scipy.linalg import solve_triangular
+from scipy.linalg import solve_triangular,cho_solve
 
 from .controlled_fields import KnownMeanConditioner,physical_permeability
 
@@ -67,3 +67,75 @@ def condition_prefixes(system,readings,prior_unit,counts,directories,*,chunk_siz
         values.flush();mean.flush();std.flush()
     del stores
     return {n:float(variance_sums[j]/size) for j,n in enumerate(counts)}
+
+
+def prefix_moments(system,readings,counts,directories,*,chunk_size=8192):
+    """Write exact analytic moments once, independently of any MC batch."""
+    d=system._readings(readings,len(system.indices))
+    counts=list(counts)
+    if (counts!=sorted(set(counts)) or not counts or counts[0]<0
+            or counts[-1]>len(d) or chunk_size<1):
+        raise ValueError("increasing prefixes ending at the full geometry required")
+    coefficients=np.zeros((len(d),len(counts)))
+    stores=[]
+    for j,n in enumerate(counts):
+        target=Path(directories[n]);target.mkdir(parents=True,exist_ok=True)
+        coefficients[:n,j]=solve_triangular(system.cholesky[:n,:n],d[:n]-system.mean_log10,lower=True)
+        mean=open_memmap(target/'posterior_log10_mean.npy',mode='w+',dtype=np.float32,shape=system.shape)
+        std=open_memmap(target/'posterior_log10_std.npy',mode='w+',dtype=np.float32,shape=system.shape)
+        stores.append((mean.ravel(),std.ravel()))
+    size=int(np.prod(system.shape));sums=np.zeros(len(counts))
+    for start in range(0,size,chunk_size):
+        stop=min(start+chunk_size,size)
+        queries=np.column_stack(np.unravel_index(np.arange(start,stop),system.shape))
+        features=system.features(queries);means=system.mean_log10+features@coefficients
+        squares=np.cumsum(features*features,axis=1)
+        for j,n in enumerate(counts):
+            variance=1-squares[:,n-1] if n else np.ones(stop-start)
+            if variance.min(initial=0)<-1.e-8:
+                raise ArithmeticError("negative conditional variance; no covariance alteration")
+            variance=system.spec.sigma_R**2*np.maximum(variance,0.)
+            stores[j][0][start:stop]=means[:,j];stores[j][1][start:stop]=np.sqrt(variance)
+            sums[j]+=variance.sum()
+    for mean,std in stores:mean.flush();std.flush()
+    return {n:float(sums[j]/size) for j,n in enumerate(counts)}
+
+
+def condition_sample_batch(system,readings,prior_unit,counts,directories,*,chunk_size=8192):
+    """Exact Matheron draws via C_XB @ solve(C_BB, innovation).
+
+    Solving on the small batch of right-hand sides avoids whitening the entire
+    grid again for every batch. No jitter, reduced precision or truncation.
+    The caller checks interpolation error and records every input fingerprint.
+    """
+    prior=np.asarray(prior_unit);counts=list(counts)
+    if (prior.ndim!=3 or tuple(prior.shape[1:])!=system.shape or len(prior)<1 or chunk_size<1
+            or not counts or counts!=sorted(set(counts)) or counts[0]<0
+            or counts[-1]!=len(system.indices)):
+        raise ValueError("matching prior batch and increasing observation prefixes required")
+    d=system._readings(readings,len(system.indices));samples=len(prior)
+    at_data=prior[:,system.indices[:,0],system.indices[:,1]].T
+    if not np.all(np.isfinite(at_data)):raise ValueError("nonfinite prior at observations")
+    positive=[n for n in counts if n]
+    coefficients=np.zeros((len(d),len(positive)*samples))
+    for j,n in enumerate(positive):
+        innovations=d[:n,None]-system.mean_log10-system.spec.sigma_R*at_data[:n]
+        coefficients[:n,j*samples:(j+1)*samples]=cho_solve((system.cholesky[:n,:n],True),innovations)
+    stores={}
+    for n in counts:
+        target=Path(directories[n]);target.mkdir(parents=True,exist_ok=True)
+        stores[n]=open_memmap(target/'permeability_samples.npy',mode='w+',dtype=np.float32,
+                            shape=(samples,*system.shape)).reshape(samples,-1)
+    flat=prior.reshape(samples,-1);size=flat.shape[1]
+    for start in range(0,size,chunk_size):
+        stop=min(start+chunk_size,size)
+        queries=np.column_stack(np.unravel_index(np.arange(start,stop),system.shape))
+        cross=system.cross_correlation(queries)
+        projected=cross@coefficients
+        base=system.mean_log10+system.spec.sigma_R*np.asarray(flat[:,start:stop]).T
+        if not np.all(np.isfinite(base)):raise ValueError("nonfinite prior; draw not replaced")
+        if 0 in stores:stores[0][:,start:stop]=physical_permeability(base).T
+        for j,n in enumerate(positive):
+            logs=base+projected[:,j*samples:(j+1)*samples]
+            stores[n][:,start:stop]=physical_permeability(logs).T
+    for values in stores.values():values.flush()

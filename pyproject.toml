@@ -15,6 +15,7 @@ dependencies = [
     "scipy>=1.10",
     "tqdm>=4.65",
     "matplotlib>=3.7",
+    "threadpoolctl>=3.1",
 ]
 
 [project.optional-dependencies]
@@ -36,6 +37,7 @@ subsurface-uq-reference-conditioning = "subsurface_uq.experiments.reference_cond
 subsurface-uq-conditioning-temperature = "subsurface_uq.experiments.conditioning_temperature:main"
 subsurface-uq-measurement-density = "subsurface_uq.experiments.measurement_density:main"
 subsurface-uq-controlled-fields = "subsurface_uq.experiments.controlled_field_benchmark:main"
+subsurface-uq-regenerate-input = "subsurface_uq.experiments.regenerate_input:main"
 subsurface-uq-structural-profiles = "subsurface_uq.experiments.structural_profiles:main"
 subsurface-uq-density-gallery = "subsurface_uq.experiments.conditional_density_visual:main"
 subsurface-uq-measurement-model-validation = "subsurface_uq.experiments.measurement_model_validation:main"
