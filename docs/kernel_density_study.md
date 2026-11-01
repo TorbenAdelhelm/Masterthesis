@@ -160,3 +160,11 @@ explicit interpolation/variance checks. The guard remains enabled for changed
 geometries and counts; no nugget or shorter replacement length was introduced.
 These are numerical/model-consistency checks, not independent geological
 validation or execution of the full 500-draw LGCNN study.
+
+A separate native integration check retained four input draws per kernel/count
+for RUN_4 and performed **12 actual frozen-LGCNN queries**: the three independent
+hidden truths plus the first conditional draw at 64/128/256 observations for
+each kernel. All outputs were finite 1028² fields. Per-query hashes, timing and
+normalization diagnostics are in
+[the forward-check record](kernel_density_native_forward_checks.json).
+This verifies the real model interface; it is not a completed 500-draw analysis.

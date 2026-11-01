@@ -178,7 +178,9 @@ def fit_figure(payload,path):
         row[1].bar(x+.16,[expected[d] for d in ["row","column"]],width=.32,label="Declared law")
         row[1].set_xticks(x,["Row","Column"]);row[1].set(title="Native 5 m roughness",ylabel="RMS log10 increment / m");row[1].legend(fontsize=8)
         for ax in row:ax.grid(alpha=.2)
-    fig.suptitle("Structural profiles: map statistics inform synthetic distributions\nEach declared family fitted independently; total heterogeneity, finite-map correction; no reconstruction target")
+    construction=("Correlation-area/anisotropy matched to "+payload["settings"]["correlation_area_anchor"]+" anchor"
+                  if "correlation_area_anchor" in payload["settings"] else "Each declared family fitted independently")
+    fig.suptitle("Structural profiles: map statistics inform synthetic distributions\n"+construction+"; finite-map variance correction; no reconstruction target")
     fig.savefig(path,dpi=140);plt.close(fig)
 
 
@@ -207,7 +209,7 @@ def validate(profile_path,report_dir):
                          "variograms":{k:v.tolist() for k,v in curves.items()}})
             if i==0:
                 np.save(target/"sample-0000.npy",field)
-                source=np.load(_relative_path(payload["source_maps"][p["source_map"]]["path"],profile_path.parent),mmap_mode="r")
+                source=np.load(_relative_path(payload["source_maps"][p["source_map"]]["path"].replace("\\","/"),profile_path.parent),mmap_mode="r")
                 fig,axes=plt.subplots(1,2,figsize=(9,4),layout="constrained")
                 arrays=[np.log10(source[::stride,::stride].astype(float)),logs[::stride,::stride]]
                 lower=min(a.min() for a in arrays);upper=max(a.max() for a in arrays)

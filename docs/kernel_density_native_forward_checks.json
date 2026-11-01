@@ -1,0 +1,475 @@
+{
+  "reference_id": "RUN_4",
+  "actual_calls": [
+    {
+      "profile": "RUN_4_exponential_radial",
+      "role": "hidden_truth",
+      "n_measurements": 0,
+      "input_sha256": "9b4f9ace281a38775ac07fb49753e22246f3c4ffdf6a2c86f03ed4b1c674941f",
+      "temperature_sha256": "10e5cb4199bac8322fb2dc82e389d18cc91fc6222b69b8b1f904c5a3f41fb4a0",
+      "shape": [
+        1028,
+        1028
+      ],
+      "temperature_range_C": [
+        10.621593475341797,
+        14.334800720214844
+      ],
+      "seconds": 12.59400000000096,
+      "normalization": {
+        "cnn1": {
+          "minimum": 8.661590195080393e-11,
+          "maximum": 4.178811074950772e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "cnn3": {
+          "minimum": 8.661590195080393e-11,
+          "maximum": 4.178811074950772e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "interpretation": "checkpoint normalization ranges; not a training-support certificate"
+      }
+    },
+    {
+      "profile": "RUN_4_exponential_radial",
+      "role": "first_conditional_draw",
+      "n_measurements": 64,
+      "input_sha256": "756c06a9602db3e4c794080f223673ac7ffdaee1d9f3f4d46b335e0d6326093b",
+      "temperature_sha256": "9050e20142b37882a0495e46c09855703d3c184e31cf52d3478289c5946f60d3",
+      "shape": [
+        1028,
+        1028
+      ],
+      "temperature_range_C": [
+        10.621593475341797,
+        15.714265823364258
+      ],
+      "seconds": 9.421999999998661,
+      "normalization": {
+        "cnn1": {
+          "minimum": 8.191038125549e-11,
+          "maximum": 5.5681046440270165e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "cnn3": {
+          "minimum": 8.976976106911394e-11,
+          "maximum": 4.24566604095844e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "interpretation": "checkpoint normalization ranges; not a training-support certificate"
+      }
+    },
+    {
+      "profile": "RUN_4_exponential_radial",
+      "role": "first_conditional_draw",
+      "n_measurements": 128,
+      "input_sha256": "0095c6e27654fbf9cca0009ea34113e445952343f7e2dc0a903a2366c1ed6ce4",
+      "temperature_sha256": "9b013e01f87208ab4aa361f888715ff21f9fd13f8ab5dabb2dad319ecf8a49a9",
+      "shape": [
+        1028,
+        1028
+      ],
+      "temperature_range_C": [
+        10.621593475341797,
+        15.073375701904297
+      ],
+      "seconds": 9.359000000000378,
+      "normalization": {
+        "cnn1": {
+          "minimum": 9.49588949139546e-11,
+          "maximum": 2.9037976467805038e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "cnn3": {
+          "minimum": 9.787249483084182e-11,
+          "maximum": 2.9037976467805038e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "interpretation": "checkpoint normalization ranges; not a training-support certificate"
+      }
+    },
+    {
+      "profile": "RUN_4_exponential_radial",
+      "role": "first_conditional_draw",
+      "n_measurements": 256,
+      "input_sha256": "94363c93c901583446950efd97b88477fe31e5d7730771afea978015c7d877a7",
+      "temperature_sha256": "2b47fd3dc4f760f098151df988d858b2e768e1fbc172b68fa25aa92cd4fee211",
+      "shape": [
+        1028,
+        1028
+      ],
+      "temperature_range_C": [
+        10.621593475341797,
+        14.307999610900879
+      ],
+      "seconds": 9.389999999999418,
+      "normalization": {
+        "cnn1": {
+          "minimum": 9.67449384492447e-11,
+          "maximum": 3.0351050561705506e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "cnn3": {
+          "minimum": 1.0015199780610828e-10,
+          "maximum": 3.0351050561705506e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "interpretation": "checkpoint normalization ranges; not a training-support certificate"
+      }
+    },
+    {
+      "profile": "RUN_4_gaussian",
+      "role": "hidden_truth",
+      "n_measurements": 0,
+      "input_sha256": "740f5ed5586f5b41c71bdfd26fc36579dfc36bdd0a035304c8781d94f97589ba",
+      "temperature_sha256": "c85be4be73cc3646f568a976eb108563128535996fc1962cb4117ad6defbf355",
+      "shape": [
+        1028,
+        1028
+      ],
+      "temperature_range_C": [
+        10.621593475341797,
+        12.484701156616211
+      ],
+      "seconds": 8.703000000001339,
+      "normalization": {
+        "cnn1": {
+          "minimum": 1.4460938002613943e-10,
+          "maximum": 2.4132180698188677e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "cnn3": {
+          "minimum": 1.4460938002613943e-10,
+          "maximum": 2.4132180698188677e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "interpretation": "checkpoint normalization ranges; not a training-support certificate"
+      }
+    },
+    {
+      "profile": "RUN_4_gaussian",
+      "role": "first_conditional_draw",
+      "n_measurements": 64,
+      "input_sha256": "d3efc1b5a40b23d1119c1615d9569f9ad0aa4d1da150ba8a8444f924b5a18eff",
+      "temperature_sha256": "53bbb91f262ddd82fb312e30c60c39029371e6c8b0b7707ec826b4a04229c379",
+      "shape": [
+        1028,
+        1028
+      ],
+      "temperature_range_C": [
+        10.621593475341797,
+        12.524904251098633
+      ],
+      "seconds": 8.671999999998661,
+      "normalization": {
+        "cnn1": {
+          "minimum": 1.3657042163828237e-10,
+          "maximum": 2.0887938045888177e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "cnn3": {
+          "minimum": 1.3657042163828237e-10,
+          "maximum": 2.0887938045888177e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "interpretation": "checkpoint normalization ranges; not a training-support certificate"
+      }
+    },
+    {
+      "profile": "RUN_4_gaussian",
+      "role": "first_conditional_draw",
+      "n_measurements": 128,
+      "input_sha256": "711d907fa9d106e55e160b813c6c40edcd3aeb771c91230fda2afabbe5922aea",
+      "temperature_sha256": "d759a16c5825519171ef700e621036f4fbb6468425cb609ae1905d6a7a1d5668",
+      "shape": [
+        1028,
+        1028
+      ],
+      "temperature_range_C": [
+        10.621593475341797,
+        12.403403282165527
+      ],
+      "seconds": 8.670999999998457,
+      "normalization": {
+        "cnn1": {
+          "minimum": 1.681314670820555e-10,
+          "maximum": 1.7375868521796178e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "cnn3": {
+          "minimum": 1.7864189294503063e-10,
+          "maximum": 1.7375868521796178e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "interpretation": "checkpoint normalization ranges; not a training-support certificate"
+      }
+    },
+    {
+      "profile": "RUN_4_gaussian",
+      "role": "first_conditional_draw",
+      "n_measurements": 256,
+      "input_sha256": "45f334db7e11a8c234ad6f0c5c99e0c9a3c22c7faaecfb56961c791da3bfcda8",
+      "temperature_sha256": "40c2661ac0e4048857ce9db7f3a341ff0cd8419706949190cf0c0219fb7c13ea",
+      "shape": [
+        1028,
+        1028
+      ],
+      "temperature_range_C": [
+        10.621593475341797,
+        12.348639488220215
+      ],
+      "seconds": 9.078000000001339,
+      "normalization": {
+        "cnn1": {
+          "minimum": 1.5531939623336655e-10,
+          "maximum": 2.573398605321131e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "cnn3": {
+          "minimum": 1.5531939623336655e-10,
+          "maximum": 2.572717372473221e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "interpretation": "checkpoint normalization ranges; not a training-support certificate"
+      }
+    },
+    {
+      "profile": "RUN_4_matern32_radial",
+      "role": "hidden_truth",
+      "n_measurements": 0,
+      "input_sha256": "7abb812bfd5937906df3a050876b4aff0a5a534264b109b506c9897e6be2805b",
+      "temperature_sha256": "49a602004883382a9f3d5226bbffae84b8918ab3f4c1b5a952446edcbe15146b",
+      "shape": [
+        1028,
+        1028
+      ],
+      "temperature_range_C": [
+        10.621593475341797,
+        12.751766204833984
+      ],
+      "seconds": 8.812999999998283,
+      "normalization": {
+        "cnn1": {
+          "minimum": 1.3391364406256656e-10,
+          "maximum": 3.0984936838507338e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "cnn3": {
+          "minimum": 1.3391364406256656e-10,
+          "maximum": 3.0984936838507338e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "interpretation": "checkpoint normalization ranges; not a training-support certificate"
+      }
+    },
+    {
+      "profile": "RUN_4_matern32_radial",
+      "role": "first_conditional_draw",
+      "n_measurements": 64,
+      "input_sha256": "46f83d75c7312fcc6fc34765aeaad822ab2f128e425f4f1164b5287e37bec1bc",
+      "temperature_sha256": "b81e3f4c5ebc5edb8a3b15a0cc540d60651c90e6d18c2d4ebe0d99630357cf02",
+      "shape": [
+        1028,
+        1028
+      ],
+      "temperature_range_C": [
+        10.621593475341797,
+        12.83229923248291
+      ],
+      "seconds": 9.0,
+      "normalization": {
+        "cnn1": {
+          "minimum": 1.0603132954978278e-10,
+          "maximum": 3.53761064886271e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "cnn3": {
+          "minimum": 1.2486055245286565e-10,
+          "maximum": 3.2150400119945743e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "interpretation": "checkpoint normalization ranges; not a training-support certificate"
+      }
+    },
+    {
+      "profile": "RUN_4_matern32_radial",
+      "role": "first_conditional_draw",
+      "n_measurements": 128,
+      "input_sha256": "d4e02f96cf109103628a5c891621facd0d7d1155aa2f4bc00e841514860500cc",
+      "temperature_sha256": "daf9fa81c8a9c222c695b3608ed16d1e040a9892fdab38eef0dbc0d4ddbd2edc",
+      "shape": [
+        1028,
+        1028
+      ],
+      "temperature_range_C": [
+        10.621593475341797,
+        12.524728775024414
+      ],
+      "seconds": 9.782000000002881,
+      "normalization": {
+        "cnn1": {
+          "minimum": 1.268303240209434e-10,
+          "maximum": 2.2158237467095887e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "cnn3": {
+          "minimum": 1.4291808014821328e-10,
+          "maximum": 1.904830071453034e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "interpretation": "checkpoint normalization ranges; not a training-support certificate"
+      }
+    },
+    {
+      "profile": "RUN_4_matern32_radial",
+      "role": "first_conditional_draw",
+      "n_measurements": 256,
+      "input_sha256": "f056a35517e755a5bc05a9d2f81066562ac0994eb37876e98895361d4bb9b48c",
+      "temperature_sha256": "909ee7d75d597bf32200474f224afd47ef9819ad5a41ebf4a5d1eb763adb4cfe",
+      "shape": [
+        1028,
+        1028
+      ],
+      "temperature_range_C": [
+        10.621593475341797,
+        12.235589981079102
+      ],
+      "seconds": 9.657000000002881,
+      "normalization": {
+        "cnn1": {
+          "minimum": 1.2912984570512265e-10,
+          "maximum": 2.7870876717628335e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "cnn3": {
+          "minimum": 1.344250127877089e-10,
+          "maximum": 2.750472072321486e-09,
+          "fraction_below": 0.0,
+          "fraction_above": 0.0,
+          "bounds": [
+            2.88910700918521e-11,
+            6.412517628007208e-09
+          ]
+        },
+        "interpretation": "checkpoint normalization ranges; not a training-support certificate"
+      }
+    }
+  ],
+  "full_500_sample_propagations": 0,
+  "input_preparation_samples_per_case": 4
+}
