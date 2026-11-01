@@ -7,6 +7,7 @@ zero within a batch. No field filtering, lossy scientific arrays or new law.
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 from pathlib import Path
 import shutil
 import time
@@ -34,7 +35,13 @@ def generator_sources():
     base=Path(__file__).parents[1]
     names=['experiments/compact_fields.py','experiments/controlled_field_benchmark.py',
            'sampling/conditional_density.py','sampling/controlled_fields.py','sampling/gstools_reference.py']
-    return {name:sha256_file(base/name) for name in names}
+    return {name:_source_digest(base/name) for name in names}
+
+
+def _source_digest(path):
+    # Python interprets CRLF and LF source line endings identically. Git
+    # checkouts and wheels can differ here without any generator-code change.
+    return sha256(Path(path).read_bytes().replace(b'\r\n',b'\n')).hexdigest()
 
 
 def storage_estimate(cfg,cases):
@@ -125,7 +132,8 @@ def prepare(cfg,output,manifest):
                     'counts':counts,'case_paths':{str(n):d.relative_to(root).as_posix() for n,d in directories.items()}})
                 first=False
             del truth
-            recipe={'schema_version':1,'profile':name,'trial':trial,'reference_id':cfg.get('reference_id'),
+            recipe={'schema_version':2,'source_fingerprint_policy':'sha256-python-source-lf',
+                'profile':name,'trial':trial,'reference_id':cfg.get('reference_id'),
                 'law':law,'configuration':_configuration(cfg),'designs':designs,
                 'numerical_runtime':numerical_runtime(),'generator_source_sha256':generator_sources(),
                 'selection_policy':'first fixed sample indices; no selection by field appearance or model result',

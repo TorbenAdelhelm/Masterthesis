@@ -10,7 +10,7 @@ import yaml
 from threadpoolctl import threadpool_limits
 
 from subsurface_uq.experiments import controlled_field_benchmark as b
-from subsurface_uq.experiments.compact_fields import storage_estimate
+from subsurface_uq.experiments.compact_fields import storage_estimate,_source_digest
 from subsurface_uq.experiments.regenerate_input import regenerate
 from subsurface_uq.sampling.conditional_density import condition_sample_batch,prefix_moments
 from subsurface_uq.sampling.controlled_fields import KnownMeanConditioner,physical_permeability
@@ -264,3 +264,12 @@ def test_compact_reference_selection_keeps_matching_context_and_portable_recipe(
     (tmp_path/'RUN_2.npy').unlink();(tmp_path/'model.yaml').unlink();source.unlink()
     result=regenerate(out/'RUN_2','B',6,3,tmp_path/'B-restored.npy')
     assert result['status']=='verified' and result['reference_id']=='RUN_2'
+
+
+def test_source_fingerprints_allow_line_ending_conversion_but_detect_code_changes(tmp_path):
+    first=tmp_path/'checkout.py';second=tmp_path/'wheel.py'
+    first.write_bytes(b'def sample(x):\r\n    return x + 1\r\n')
+    second.write_bytes(b'def sample(x):\n    return x + 1\n')
+    assert _source_digest(first)==_source_digest(second)
+    second.write_bytes(b'def sample(x):\n    return x + 2\n')
+    assert _source_digest(first)!=_source_digest(second)

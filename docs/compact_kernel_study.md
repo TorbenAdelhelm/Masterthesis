@@ -144,6 +144,11 @@ not an approximately matching replacement. Cross-environment bitwise identity
 is not assumed. `--design` and `--truth-index` select additional configurations
 when present. All sample indices in the regeneration command are zero-based.
 
+Version-2 recipes normalize Python source line endings to LF before hashing.
+An equivalent Windows Git checkout and a packaged wheel can therefore use the
+same recipe. Changes to generator code still fail verification, and the native
+field fingerprint is always checked without normalization or rounding.
+
 ## Implementation checks
 
 The complete local suite passed **692 tests**, including agreement with the
