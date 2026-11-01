@@ -83,10 +83,14 @@ def _completed(directory, marker="files.json"):
 def load_config(path, *, reference_id=None):
     source = Path(path).resolve()
     cfg = yaml.safe_load(source.read_text(encoding="utf-8"))
-    if not isinstance(cfg, dict) or set(cfg)-{"require_reference_id"} not in (_KEYS, _KEYS | _PROFILE_KEYS):
+    if not isinstance(cfg, dict) or set(cfg)-{"require_reference_id","retain_input_ensemble","validation_samples"} not in (_KEYS, _KEYS | _PROFILE_KEYS):
         raise ValueError("declare every controlled-benchmark key; unknown keys are forbidden")
     if not isinstance(cfg.get('require_reference_id', False), bool):
         raise ValueError("require_reference_id must be boolean")
+    if not isinstance(cfg.get('retain_input_ensemble',False),bool):
+        raise ValueError("retain_input_ensemble must be boolean")
+    if "validation_samples" in cfg and _positive_integer(cfg["validation_samples"],"validation_samples")<4:
+        raise ValueError("at least four dense validation draws required")
     if cfg.get('require_reference_id') and reference_id is None:
         raise ValueError("this matched-reference configuration requires --reference-id")
     if reference_id is not None and 'structural_profile_file' not in cfg:
@@ -121,7 +125,8 @@ def load_config(path, *, reference_id=None):
             selected=profile_names(artifact,reference_id)
             cfg['scenarios']={name:cfg['scenarios'][name] for name in selected}
             if cfg['sensitivity_reference_profile'] not in selected:
-                cfg['sensitivity_reference_profile']=selected[0]
+                family=expected[cfg['sensitivity_reference_profile']]['covariance']['family']
+                cfg['sensitivity_reference_profile']=next((n for n in selected if expected[n]['covariance']['family']==family),selected[0])
             cfg['reference_id']=reference_id
     counts = cfg["measurement_counts"]
     if (not isinstance(counts,list) or len(counts)<2 or counts[0]!=0
@@ -209,6 +214,8 @@ def _probes(cfg,name):
 
 def _sources(source,cfg):
     files = [source,*sorted(Path(__file__).parents[1].rglob("*.py"))]
+    if cfg.get("retain_input_ensemble"):
+        files.append(Path(__file__).parents[1]/"visualization/ensemble_browser.html")
     if cfg["model_config"] is not None:
         files.append(_relative_path(cfg["model_config"],source.parent))
     result={str(p):sha256_file(p) for p in files}
@@ -239,6 +246,13 @@ def plan(source,cfg,output):
         "sample_filtering":None,"measurement_error_variance":0.,
         "seed_contract":"SHA256 semantic streams; independent truth/posterior streams per scenario and outer trial; shared MC within trial across counts/layouts",
         "realism_test":"configs/measurement_density.validation.yaml; RUN withheld results remain separate and unchanged"}
+    if cfg.get("retain_input_ensemble"):
+        cells=int(np.prod(cfg["shape"]))
+        manifest.update(native_input_ensembles_retained=True,geometry_cache_bytes=0,
+            input_sampling="spatial blocks; shared FFT prior draws; all prefixes/draws projected together",
+            retained_permeability_bytes=cells*4*cfg["n_samples"]*manifest["planned_cases"],
+            peak_prior_scratch_bytes=cells*8*cfg["n_samples"],
+            storage_note="add native temperature ensembles, summaries and filesystem overhead; prior scratch is removed after committed inputs")
     if "structural_profile_file" in cfg:
         manifest.update(structural_profile_file=cfg["structural_profile_file"],
             profile_probability_weights=None,profile_pairing_group=cfg["profile_pairing_group"],
@@ -248,6 +262,7 @@ def plan(source,cfg,output):
     if cfg.get('reference_id') is not None:
         manifest.update(reference_id=cfg['reference_id'],reference_context=cfg.get('reference_context'))
     _atomic(output/"manifest.json",manifest)
+    print(f"Planned {calls} model evaluations in {output}. The plan stage writes metadata only; all executes the study.",flush=True)
     return manifest
 
 
@@ -261,6 +276,10 @@ def validate(cfg,output,manifest):
     if _completed(target):
         return
     target.mkdir(exist_ok=True)
+    fft_checks={}
+    if cfg.get("retain_input_ensemble"):
+        from .production_fields import preflight
+        fft_checks=preflight(cfg)
     rows=[]; maximum_error=0.
     for name,law in cfg["scenarios"].items():
         spec=GSToolsReferenceSpec(**law["covariance"]);probes=_probes(cfg,name)
@@ -270,7 +289,7 @@ def validate(cfg,output,manifest):
             joint=np.concatenate((data,probes));offsets=(joint[:,None]-joint[None,:])*cfg["cell_size_m"]
             c=spec.correlation(offsets[...,0],offsets[...,1]);chol=np.linalg.cholesky(c)
             rng=np.random.default_rng(seed_for(cfg["seed"],name,design,"dense-validation"))
-            t=cfg["validation_replicates"];s=cfg["n_samples"];d=len(data)
+            t=cfg["validation_replicates"];s=cfg.get("validation_samples",cfg["n_samples"]);d=len(data)
             truths=law["mean_log10_k"]+spec.sigma_R*(rng.standard_normal((t,len(joint)))@chol.T)
             priors=rng.standard_normal((t,s,len(joint)))@chol.T
             f=system.features(probes)
@@ -299,6 +318,7 @@ def validate(cfg,output,manifest):
     if maximum_error>1.e-8:
         raise ArithmeticError("known-law conditioner disagrees with independent dense Gaussian equations")
     _atomic(target/"summary.json",{"rows":rows,"maximum_dense_equation_error":maximum_error,
+        "dense_samples_per_trial":cfg.get("validation_samples",cfg["n_samples"]),"native_fft_checks":fft_checks,
         "independent_truths_per_row":cfg["validation_replicates"],"sampler":"independent dense joint Gaussian at native coordinates",
         "coverage_policy":"descriptive diagnostics at fixed probes; no tuning to the generated truths or pass-by-selection",
         "limits":"validates Gaussian conditioning algebra and model-consistent marginal ranks, not full-grid FFT or LGCNN physical accuracy"})
@@ -328,21 +348,23 @@ def _geometry(cfg,name,law,output):
     return systems
 
 
-def _prepare_case(cfg,name,trial,design,n,directory,truth,system,features):
+def _prepare_case(cfg,name,trial,design,n,directory,truth,system,features,*,average_variance=None):
     directory.mkdir(parents=True,exist_ok=True)
     if _completed(directory,"input_files.json"):
         return
     readings=truth[tuple(system.indices[:n].T)]
-    means=open_memmap(directory/"posterior_log10_mean.npy",mode="w+",dtype=np.float32,shape=tuple(cfg["shape"]))
-    stds=open_memmap(directory/"posterior_log10_std.npy",mode="w+",dtype=np.float32,shape=tuple(cfg["shape"]))
-    variance_sum=0.
-    for start in range(0,truth.size,cfg["chunk_size"]):
-        stop=min(start+cfg["chunk_size"],truth.size)
-        f=(features[start:stop] if features is not None else np.empty((stop-start,0)))
-        mean,var=system.moments(f,readings,count=n)
-        means.ravel()[start:stop]=mean;stds.ravel()[start:stop]=np.sqrt(var)
-        variance_sum+=float(var.sum())
-    means.flush();stds.flush()
+    if average_variance is None:
+        means=open_memmap(directory/"posterior_log10_mean.npy",mode="w+",dtype=np.float32,shape=tuple(cfg["shape"]))
+        stds=open_memmap(directory/"posterior_log10_std.npy",mode="w+",dtype=np.float32,shape=tuple(cfg["shape"]))
+        variance_sum=0.
+        for start in range(0,truth.size,cfg["chunk_size"]):
+            stop=min(start+cfg["chunk_size"],truth.size)
+            f=(features[start:stop] if features is not None else np.empty((stop-start,0)))
+            mean,var=system.moments(f,readings,count=n)
+            means.ravel()[start:stop]=mean;stds.ravel()[start:stop]=np.sqrt(var)
+            variance_sum+=float(var.sum())
+        means.flush();stds.flush();del means,stds
+        average_variance=variance_sum/truth.size
     stride=cfg["diagnostic_stride_cells"]
     rr,cc=np.meshgrid(np.arange(0,cfg["shape"][0],stride),np.arange(0,cfg["shape"][1],stride),indexing="ij")
     queries=np.column_stack((rr.ravel(),cc.ravel()))
@@ -354,17 +376,19 @@ def _prepare_case(cfg,name,trial,design,n,directory,truth,system,features):
     _atomic(directory/"input_summary.json",{"scenario":name,"trial":trial,"design":design,"n_measurements":n,
         "indices":system.indices[:n].tolist(),"observed_log10_k":readings.tolist(),
         "known_mean_log10":system.mean_log10,"covariance":asdict(system.spec),
-        "analytic_average_variance_log10":variance_sum/truth.size,
+        "analytic_average_variance_log10":average_variance,
         "withheld_descriptive_scores":scores,"diagnostic_grid_stride_cells":stride,
         "limits":"withheld pixel scores are descriptive within one correlated field; independent outer truths are the calibration units",
         "hidden_unobserved_truth_used_for_conditioning":False,"sample_filtering":None})
-    del means,stds
     _commit(directory,["posterior_log10_mean.npy","posterior_log10_std.npy","input_summary.json"],"input_files.json")
 
 
 def prepare(cfg,output,manifest):
     if not _completed(output/"dense_validation"):
         raise ValueError("complete dense validation before preparing native inputs")
+    if cfg.get("retain_input_ensemble"):
+        from .production_fields import prepare as prepare_retained
+        return prepare_retained(cfg,output,manifest)
     manifest["status"]="preparing_inputs";_atomic(output/"manifest.json",manifest)
     for name,law in cfg["scenarios"].items():
         systems=_geometry(cfg,name,law,output)
@@ -510,11 +534,19 @@ def temperatures(source,cfg,output,manifest,model_factory):
         raise ValueError("frozen model context changed")
     manifest.update(status="propagating",model=model.metadata);_atomic(output/"manifest.json",manifest)
     for name,law in cfg["scenarios"].items():
-        systems=_geometry(cfg,name,law,output);probes=_probes(cfg,name);spec=GSToolsReferenceSpec(**law["covariance"])
+        retained=cfg.get("retain_input_ensemble",False)
+        systems={} if retained else _geometry(cfg,name,law,output)
+        probes=_probes(cfg,name);spec=GSToolsReferenceSpec(**law["covariance"])
+        if retained:
+            for design,kind,index in _designs(cfg,name):
+                indices,_=_locations(cfg,name,kind,index)
+                systems[design]=(KnownMeanConditioner(cfg["shape"],spec,indices,mean_log10=law["mean_log10_k"],cell_size_m=cfg["cell_size_m"]),None)
         empty=KnownMeanConditioner(cfg["shape"],spec,np.empty((0,2),int),mean_log10=law["mean_log10_k"],cell_size_m=cfg["cell_size_m"])
         prior=None
         for trial in range(cfg["n_truths"]):
             root=output/name/f"truth-{trial:04d}"
+            if retained and not _completed(root,"ensemble_files.json"):
+                raise ValueError("retained input ensemble is incomplete")
             _completed(root,"truth_files.json")
             truth=np.load(root/"truth_log10.npy",mmap_mode="r");truth_temperature=_truth_temperature(root,model)
             states=[]
@@ -532,13 +564,18 @@ def temperatures(source,cfg,output,manifest,model_factory):
                 pending=[v for v in states if len(v[3])<=i]
                 if not pending:
                     continue
-                if prior is None:
+                if not retained and prior is None:
                     prior=_prior(cfg,spec)
                 seed=seed_for(cfg["seed"],_stream(cfg,name),trial,"posterior",i)
-                unit=prior.sample_residual(seed)
+                unit=None if retained else prior.sample_residual(seed)
                 for design,n,directory,records,store,system,features,readings in pending:
-                    logs=system.conditional_log_field(unit,readings,count=n,features=features,chunk_size=cfg["chunk_size"])
-                    field=physical_permeability(logs)
+                    if retained:
+                        inputs=np.load(directory/"permeability_samples.npy",mmap_mode="r")
+                        field=np.array(inputs[i],copy=True);del inputs
+                        logs=np.log10(field.astype(float))
+                    else:
+                        logs=system.conditional_log_field(unit,readings,count=n,features=features,chunk_size=cfg["chunk_size"])
+                        field=physical_permeability(logs)
                     exact=float(np.max(np.abs(np.log10(field[tuple(system.indices[:n].T)].astype(float))-readings),initial=0.))
                     if exact>1.e-5:
                         raise ArithmeticError("exact readings not preserved; draw not replaced")
@@ -614,6 +651,11 @@ def report(cfg,output,manifest):
         "The RUN-based realism challenge remains separate: ../measurement_density_validation_20261025/reconstruction_validation.md. Its failed adequacy assessment is not changed by success under a synthetic law."]
     (output/"report.md").write_text("\n".join(text)+"\n",encoding="utf-8")
     report_files=["summary.json","summary.png","report.md"]
+    if cfg.get("retain_input_ensemble"):
+        from ..visualization.ensemble_browser import write_browser
+        report_files+=write_browser(cfg,output)
+        with (output/"report.md").open("a",encoding="utf-8") as stream:
+            stream.write("\n[Browse every input/output draw and its spatial errors/deviations](ensemble_browser.html).\n")
     if "structural_profile_file" in cfg:
         from .profile_sensitivity import report as sensitivity_report
         sensitivity_report(cfg,output,manifest)
@@ -666,10 +708,12 @@ def run(config_path,output_dir,stage="all",*,model_factory=load_frozen_temperatu
         _verify(Path(),manifest["source_sha256"])
         if manifest.get("report_sha256"):
             _verify(output,manifest["report_sha256"])
-    if stage in {"validate","all"}:validate(cfg,output,manifest)
-    if stage in {"inputs","all"}:prepare(cfg,output,manifest)
-    if stage in {"temperatures","all"}:temperatures(source,cfg,output,manifest,model_factory)
-    if stage in {"report","all"}:report(cfg,output,manifest)
+    if stage=="resume" and manifest["status"]=="complete":
+        return manifest
+    if stage in {"validate","all","resume"}:validate(cfg,output,manifest)
+    if stage in {"inputs","all","resume"}:prepare(cfg,output,manifest)
+    if stage in {"temperatures","all","resume"}:temperatures(source,cfg,output,manifest,model_factory)
+    if stage in {"report","all","resume"}:report(cfg,output,manifest)
     _verify(Path(),manifest["source_sha256"])
     return manifest
 
@@ -678,8 +722,11 @@ def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config",required=True);parser.add_argument("--output-dir",required=True)
     parser.add_argument("--reference-id",help="Select one source RUN and its matching prepared physical inputs; append RUN ID to the output directory")
-    parser.add_argument("--stage",choices=("plan","validate","inputs","temperatures","report","all"),default="all")
-    args=parser.parse_args(argv);run(args.config,args.output_dir,args.stage,reference_id=args.reference_id)
+    parser.add_argument("--stage",choices=("plan","validate","inputs","temperatures","report","all","resume"),default="all",
+                        help="all runs a fresh study; resume continues a planned/interrupted study with unchanged code/config/assets")
+    args=parser.parse_args(argv)
+    result=run(args.config,args.output_dir,args.stage,reference_id=args.reference_id)
+    print(f"Study status: {result['status']}. Output: {output_directory(args.output_dir,args.reference_id)}",flush=True)
 
 
 if __name__=="__main__":

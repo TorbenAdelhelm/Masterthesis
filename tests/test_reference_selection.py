@@ -141,11 +141,16 @@ def test_gallery_selects_profile_and_matching_context_before_temperature_queries
     assert model.calls==17
 
 
-def test_cli_forwards_reference_id(monkeypatch,tmp_path):
+def test_cli_forwards_reference_id(monkeypatch,tmp_path,capsys):
     received={}
-    monkeypatch.setattr(controlled,'run',lambda *a,**kw:received.update(kw))
+    def planned(*args,**kwargs):
+        received.update(kwargs)
+        return {'status':'planned'}
+    monkeypatch.setattr(controlled,'run',planned)
     controlled.main(['--config','study.yaml','--output-dir',str(tmp_path),'--reference-id','RUN_4','--stage','plan'])
     assert received['reference_id']=='RUN_4'
+    message=capsys.readouterr().out
+    assert 'Study status: planned' in message and 'RUN_4' in message
 
 
 def test_preparation_cli_lists_and_refuses_input_only_reference(tmp_path,capsys):

@@ -33,8 +33,9 @@ Historical catalogs, inputs and results remain unchanged. The new
 `structural_profiles.complete_references.json` covers RUN_0, RUN_2, RUN_3 and
 RUN_4 separately, using the existing Matérn-3/2 structural estimator. The source
 maps and each case's preparation provenance are independently hashed. No
-geological weights are assigned. The Gaussian/exponential structural fits and
-the full three-kernel 500-sample experiment remain separate preparation work.
+geological weights are assigned. The full Gaussian/Matérn/exponential study is
+now available in [the three-kernel workflow](kernel_density_study.md), including
+its explicit correlation-area matching rule and all independent fit diagnostics.
 
 ## Prepare matching inputs on Linux
 
@@ -75,8 +76,9 @@ Do not edit or bypass the frozen catalog's hashes.
 
 ## Select and run one case
 
-The matched-reference presets require the argument explicitly. First plan a
-small Matérn pilot:
+The matched-reference presets require the argument explicitly. For the desired
+three-kernel study use [the production command](kernel_density_study.md#run-on-linux).
+The following older preset plans a small Matérn-only baseline:
 
 ```bash
 subsurface-uq-controlled-fields \

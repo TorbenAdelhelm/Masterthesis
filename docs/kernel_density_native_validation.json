@@ -1,0 +1,954 @@
+[
+  {
+    "reference_id": "RUN_0",
+    "planned_evaluations": 6003,
+    "maximum_dense_equation_error": 3.248956659263058e-12,
+    "native_fft_checks": {
+      "RUN_0_exponential_radial": {
+        "conditioning": [
+          {
+            "condition_number": 11.083214509660607,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 64
+          },
+          {
+            "condition_number": 29.536556881996802,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 128
+          },
+          {
+            "condition_number": 92.91112823163262,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 256
+          }
+        ],
+        "sampler": {
+          "KL_truncation": null,
+          "backend": "GSTools-matched covariance / FFT circulant embedding",
+          "cell_size_m": 5.0,
+          "covariance_tolerance": 1e-11,
+          "embedding_attempts": [
+            {
+              "maximum_eigenvalue": 621016.0016419342,
+              "minimum_eigenvalue": 0.0012832209249444124,
+              "negative_covariance_mass": 0.0,
+              "shape": [
+                8192,
+                8192
+              ]
+            }
+          ],
+          "embedding_shape": [
+            8192,
+            8192
+          ],
+          "extension": "C4 flat-crop window outside all requested row/column covariance lags only",
+          "native_increment_relative_representation_errors": {
+            "column": 3.009991970497126e-14,
+            "row": 8.115348007486123e-14
+          },
+          "native_shape": [
+            2560,
+            2560
+          ],
+          "numerical_negative_eigenvalue_correction_only": true,
+          "random_frequency_truncation": null,
+          "represented_unit_variance": 1.0,
+          "requested_lag_max_absolute_error": 2.220446049250313e-16,
+          "sample_filtering": null,
+          "sampling": "MC; iid real Gaussian spectral degrees of freedom; deterministic seed map",
+          "spec": {
+            "angle_convention": "degrees from positive column axis toward positive row axis",
+            "angle_deg": -85.70491594155908,
+            "assumption_status": "reference-texture-guided residual correlation, not calibrated uncertainty",
+            "center": "median",
+            "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
+            "covariance_geometry": "radial anisotropic; explicit rotation",
+            "ell_col_m": 1829.166883653716,
+            "ell_row_m": 1351.3536702460533,
+            "family": "exponential_radial",
+            "gstools_model": "Exponential(dim=2, var=1.0, len_scale=1.83e+03, anis=[0.739], angles=[-1.5])",
+            "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
+            "sigma_R": 1.0,
+            "sigma_R_units": "log10_permeability"
+          },
+          "workers": 4
+        }
+      },
+      "RUN_0_gaussian": {
+        "conditioning": [
+          {
+            "condition_number": 374.15783896626397,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 64
+          },
+          {
+            "condition_number": 82084.71740099868,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 9.059419880941277e-14,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 128
+          },
+          {
+            "condition_number": 7492435269.640153,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.1072586403315654e-08,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 256
+          }
+        ],
+        "sampler": {
+          "KL_truncation": null,
+          "backend": "GSTools-matched covariance / FFT circulant embedding",
+          "cell_size_m": 5.0,
+          "covariance_tolerance": 1e-11,
+          "embedding_attempts": [
+            {
+              "maximum_eigenvalue": 621244.0113256795,
+              "minimum_eigenvalue": -5.820766091346741e-11,
+              "negative_covariance_mass": 3.854006145357498e-14,
+              "shape": [
+                8192,
+                8192
+              ]
+            }
+          ],
+          "embedding_shape": [
+            8192,
+            8192
+          ],
+          "extension": "C4 flat-crop window outside all requested row/column covariance lags only",
+          "native_increment_relative_representation_errors": {
+            "column": 5.479961142360458e-09,
+            "row": 1.0175217366695214e-08
+          },
+          "native_shape": [
+            2560,
+            2560
+          ],
+          "numerical_negative_eigenvalue_correction_only": true,
+          "random_frequency_truncation": null,
+          "represented_unit_variance": 1.0000000000000386,
+          "requested_lag_max_absolute_error": 3.863576125695545e-14,
+          "sample_filtering": null,
+          "sampling": "MC; iid real Gaussian spectral degrees of freedom; deterministic seed map",
+          "spec": {
+            "angle_convention": "degrees from positive column axis toward positive row axis",
+            "angle_deg": -85.70491594155908,
+            "assumption_status": "reference-texture-guided residual correlation, not calibrated uncertainty",
+            "center": "median",
+            "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
+            "covariance_geometry": "radial anisotropic; explicit rotation",
+            "ell_col_m": 1829.166883653716,
+            "ell_row_m": 1351.3536702460533,
+            "family": "gaussian",
+            "gstools_model": "Gaussian(dim=2, var=1.0, len_scale=1.83e+03, anis=[0.739], angles=[-1.5], rescale=0.707)",
+            "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
+            "sigma_R": 1.0,
+            "sigma_R_units": "log10_permeability"
+          },
+          "workers": 4
+        }
+      },
+      "RUN_0_matern32_radial": {
+        "conditioning": [
+          {
+            "condition_number": 24.922892370638724,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 64
+          },
+          {
+            "condition_number": 116.99286884321072,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 128
+          },
+          {
+            "condition_number": 780.873572512801,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 256
+          }
+        ],
+        "sampler": {
+          "KL_truncation": null,
+          "backend": "GSTools-matched covariance / FFT circulant embedding",
+          "cell_size_m": 5.0,
+          "covariance_tolerance": 1e-11,
+          "embedding_attempts": [
+            {
+              "maximum_eigenvalue": 621241.0859376199,
+              "minimum_eigenvalue": 6.941909819578966e-09,
+              "negative_covariance_mass": 0.0,
+              "shape": [
+                8192,
+                8192
+              ]
+            }
+          ],
+          "embedding_shape": [
+            8192,
+            8192
+          ],
+          "extension": "C4 flat-crop window outside all requested row/column covariance lags only",
+          "native_increment_relative_representation_errors": {
+            "column": 0.0,
+            "row": 2.9672774072013664e-11
+          },
+          "native_shape": [
+            2560,
+            2560
+          ],
+          "numerical_negative_eigenvalue_correction_only": true,
+          "random_frequency_truncation": null,
+          "represented_unit_variance": 1.0,
+          "requested_lag_max_absolute_error": 3.3306690738754696e-16,
+          "sample_filtering": null,
+          "sampling": "MC; iid real Gaussian spectral degrees of freedom; deterministic seed map",
+          "spec": {
+            "angle_convention": "degrees from positive column axis toward positive row axis",
+            "angle_deg": -85.70491594155908,
+            "assumption_status": "reference-texture-guided residual correlation, not calibrated uncertainty",
+            "center": "median",
+            "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
+            "covariance_geometry": "radial anisotropic; explicit rotation",
+            "ell_col_m": 1829.166883653716,
+            "ell_row_m": 1351.3536702460533,
+            "family": "matern32_radial",
+            "gstools_model": "Matern(dim=2, var=1.0, len_scale=1.83e+03, anis=[0.739], angles=[-1.5], rescale=1.41, nu=1.5)",
+            "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
+            "sigma_R": 1.0,
+            "sigma_R_units": "log10_permeability"
+          },
+          "workers": 4
+        }
+      }
+    }
+  },
+  {
+    "reference_id": "RUN_2",
+    "planned_evaluations": 6003,
+    "maximum_dense_equation_error": 7.638334409421077e-14,
+    "native_fft_checks": {
+      "RUN_2_exponential_radial": {
+        "conditioning": [
+          {
+            "condition_number": 7.152985405538709,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 64
+          },
+          {
+            "condition_number": 18.44508010225266,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 128
+          },
+          {
+            "condition_number": 57.30529242920796,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 256
+          }
+        ],
+        "sampler": {
+          "KL_truncation": null,
+          "backend": "GSTools-matched covariance / FFT circulant embedding",
+          "cell_size_m": 5.0,
+          "covariance_tolerance": 1e-11,
+          "embedding_attempts": [
+            {
+              "maximum_eigenvalue": 416121.81451231387,
+              "minimum_eigenvalue": 0.0015354541112911186,
+              "negative_covariance_mass": 0.0,
+              "shape": [
+                8192,
+                8192
+              ]
+            }
+          ],
+          "embedding_shape": [
+            8192,
+            8192
+          ],
+          "extension": "C4 flat-crop window outside all requested row/column covariance lags only",
+          "native_increment_relative_representation_errors": {
+            "column": 0.0,
+            "row": 1.0378152175820988e-13
+          },
+          "native_shape": [
+            2560,
+            2560
+          ],
+          "numerical_negative_eigenvalue_correction_only": true,
+          "random_frequency_truncation": null,
+          "represented_unit_variance": 1.0,
+          "requested_lag_max_absolute_error": 3.3306690738754696e-16,
+          "sample_filtering": null,
+          "sampling": "MC; iid real Gaussian spectral degrees of freedom; deterministic seed map",
+          "spec": {
+            "angle_convention": "degrees from positive column axis toward positive row axis",
+            "angle_deg": 84.9802952561509,
+            "assumption_status": "reference-texture-guided residual correlation, not calibrated uncertainty",
+            "center": "median",
+            "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
+            "covariance_geometry": "radial anisotropic; explicit rotation",
+            "ell_col_m": 1562.439012122849,
+            "ell_row_m": 1059.776414802412,
+            "family": "exponential_radial",
+            "gstools_model": "Exponential(dim=2, var=1.0, len_scale=1.56e+03, anis=[0.678], angles=[1.48])",
+            "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
+            "sigma_R": 1.0,
+            "sigma_R_units": "log10_permeability"
+          },
+          "workers": 4
+        }
+      },
+      "RUN_2_gaussian": {
+        "conditioning": [
+          {
+            "condition_number": 60.14523043595386,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 64
+          },
+          {
+            "condition_number": 3018.292888285349,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 8.881784197001252e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 128
+          },
+          {
+            "condition_number": 31788526.760161825,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 3.785594060445874e-11,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 256
+          }
+        ],
+        "sampler": {
+          "KL_truncation": null,
+          "backend": "GSTools-matched covariance / FFT circulant embedding",
+          "cell_size_m": 5.0,
+          "covariance_tolerance": 1e-11,
+          "embedding_attempts": [
+            {
+              "maximum_eigenvalue": 416156.9807251047,
+              "minimum_eigenvalue": -4.3655745685100555e-11,
+              "negative_covariance_mass": 3.064244506289704e-14,
+              "shape": [
+                8192,
+                8192
+              ]
+            }
+          ],
+          "embedding_shape": [
+            8192,
+            8192
+          ],
+          "extension": "C4 flat-crop window outside all requested row/column covariance lags only",
+          "native_increment_relative_representation_errors": {
+            "column": 2.664475444158767e-09,
+            "row": 5.845096681106925e-09
+          },
+          "native_shape": [
+            2560,
+            2560
+          ],
+          "numerical_negative_eigenvalue_correction_only": true,
+          "random_frequency_truncation": null,
+          "represented_unit_variance": 1.0000000000000306,
+          "requested_lag_max_absolute_error": 3.064215547965432e-14,
+          "sample_filtering": null,
+          "sampling": "MC; iid real Gaussian spectral degrees of freedom; deterministic seed map",
+          "spec": {
+            "angle_convention": "degrees from positive column axis toward positive row axis",
+            "angle_deg": 84.9802952561509,
+            "assumption_status": "reference-texture-guided residual correlation, not calibrated uncertainty",
+            "center": "median",
+            "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
+            "covariance_geometry": "radial anisotropic; explicit rotation",
+            "ell_col_m": 1562.439012122849,
+            "ell_row_m": 1059.776414802412,
+            "family": "gaussian",
+            "gstools_model": "Gaussian(dim=2, var=1.0, len_scale=1.56e+03, anis=[0.678], angles=[1.48], rescale=0.707)",
+            "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
+            "sigma_R": 1.0,
+            "sigma_R_units": "log10_permeability"
+          },
+          "workers": 4
+        }
+      },
+      "RUN_2_matern32_radial": {
+        "conditioning": [
+          {
+            "condition_number": 12.507510949412353,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 64
+          },
+          {
+            "condition_number": 54.54271023377629,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 128
+          },
+          {
+            "condition_number": 349.27516258150285,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 256
+          }
+        ],
+        "sampler": {
+          "KL_truncation": null,
+          "backend": "GSTools-matched covariance / FFT circulant embedding",
+          "cell_size_m": 5.0,
+          "covariance_tolerance": 1e-11,
+          "embedding_attempts": [
+            {
+              "maximum_eigenvalue": 416156.78785794816,
+              "minimum_eigenvalue": 1.1997157744870482e-08,
+              "negative_covariance_mass": 0.0,
+              "shape": [
+                8192,
+                8192
+              ]
+            }
+          ],
+          "embedding_shape": [
+            8192,
+            8192
+          ],
+          "extension": "C4 flat-crop window outside all requested row/column covariance lags only",
+          "native_increment_relative_representation_errors": {
+            "column": 3.3571187015470065e-12,
+            "row": 7.1897209816176625e-12
+          },
+          "native_shape": [
+            2560,
+            2560
+          ],
+          "numerical_negative_eigenvalue_correction_only": true,
+          "random_frequency_truncation": null,
+          "represented_unit_variance": 1.0,
+          "requested_lag_max_absolute_error": 1.1102230246251565e-16,
+          "sample_filtering": null,
+          "sampling": "MC; iid real Gaussian spectral degrees of freedom; deterministic seed map",
+          "spec": {
+            "angle_convention": "degrees from positive column axis toward positive row axis",
+            "angle_deg": 84.9802952561509,
+            "assumption_status": "reference-texture-guided residual correlation, not calibrated uncertainty",
+            "center": "median",
+            "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
+            "covariance_geometry": "radial anisotropic; explicit rotation",
+            "ell_col_m": 1562.439012122849,
+            "ell_row_m": 1059.776414802412,
+            "family": "matern32_radial",
+            "gstools_model": "Matern(dim=2, var=1.0, len_scale=1.56e+03, anis=[0.678], angles=[1.48], rescale=1.41, nu=1.5)",
+            "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
+            "sigma_R": 1.0,
+            "sigma_R_units": "log10_permeability"
+          },
+          "workers": 4
+        }
+      }
+    }
+  },
+  {
+    "reference_id": "RUN_3",
+    "planned_evaluations": 6003,
+    "maximum_dense_equation_error": 1.7763568394002505e-15,
+    "native_fft_checks": {
+      "RUN_3_exponential_radial": {
+        "conditioning": [
+          {
+            "condition_number": 1.7781814615997351,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 64
+          },
+          {
+            "condition_number": 3.3548133209525393,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 128
+          },
+          {
+            "condition_number": 8.36235930536008,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 256
+          }
+        ],
+        "sampler": {
+          "KL_truncation": null,
+          "backend": "GSTools-matched covariance / FFT circulant embedding",
+          "cell_size_m": 5.0,
+          "covariance_tolerance": 1e-11,
+          "embedding_attempts": [
+            {
+              "maximum_eigenvalue": 94964.25042620624,
+              "minimum_eigenvalue": 0.003187219417836009,
+              "negative_covariance_mass": 0.0,
+              "shape": [
+                8192,
+                8192
+              ]
+            }
+          ],
+          "embedding_shape": [
+            8192,
+            8192
+          ],
+          "extension": "C4 flat-crop window outside all requested row/column covariance lags only",
+          "native_increment_relative_representation_errors": {
+            "column": 1.1187446221750244e-14,
+            "row": 3.35249346787963e-14
+          },
+          "native_shape": [
+            2560,
+            2560
+          ],
+          "numerical_negative_eigenvalue_correction_only": true,
+          "random_frequency_truncation": null,
+          "represented_unit_variance": 1.0,
+          "requested_lag_max_absolute_error": 2.220446049250313e-16,
+          "sample_filtering": null,
+          "sampling": "MC; iid real Gaussian spectral degrees of freedom; deterministic seed map",
+          "spec": {
+            "angle_convention": "degrees from positive column axis toward positive row axis",
+            "angle_deg": -86.02670697152442,
+            "assumption_status": "reference-texture-guided residual correlation, not calibrated uncertainty",
+            "center": "median",
+            "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
+            "covariance_geometry": "radial anisotropic; explicit rotation",
+            "ell_col_m": 754.7063334890229,
+            "ell_row_m": 500.6592936938085,
+            "family": "exponential_radial",
+            "gstools_model": "Exponential(dim=2, var=1.0, len_scale=7.55e+02, anis=[0.663], angles=[-1.5])",
+            "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
+            "sigma_R": 1.0,
+            "sigma_R_units": "log10_permeability"
+          },
+          "workers": 4
+        }
+      },
+      "RUN_3_gaussian": {
+        "conditioning": [
+          {
+            "condition_number": 1.6264945724036246,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 64
+          },
+          {
+            "condition_number": 5.521460558801283,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 128
+          },
+          {
+            "condition_number": 77.02409896806847,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 256
+          }
+        ],
+        "sampler": {
+          "KL_truncation": null,
+          "backend": "GSTools-matched covariance / FFT circulant embedding",
+          "cell_size_m": 5.0,
+          "covariance_tolerance": 1e-11,
+          "embedding_attempts": [
+            {
+              "maximum_eigenvalue": 94964.24868254046,
+              "minimum_eigenvalue": -1.4551915228366852e-11,
+              "negative_covariance_mass": 1.5103387438542787e-14,
+              "shape": [
+                8192,
+                8192
+              ]
+            }
+          ],
+          "embedding_shape": [
+            8192,
+            8192
+          ],
+          "extension": "C4 flat-crop window outside all requested row/column covariance lags only",
+          "native_increment_relative_representation_errors": {
+            "column": 2.87974746829778e-10,
+            "row": 6.63727730357916e-10
+          },
+          "native_shape": [
+            2560,
+            2560
+          ],
+          "numerical_negative_eigenvalue_correction_only": true,
+          "random_frequency_truncation": null,
+          "represented_unit_variance": 1.000000000000015,
+          "requested_lag_max_absolute_error": 1.509903313490213e-14,
+          "sample_filtering": null,
+          "sampling": "MC; iid real Gaussian spectral degrees of freedom; deterministic seed map",
+          "spec": {
+            "angle_convention": "degrees from positive column axis toward positive row axis",
+            "angle_deg": -86.02670697152442,
+            "assumption_status": "reference-texture-guided residual correlation, not calibrated uncertainty",
+            "center": "median",
+            "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
+            "covariance_geometry": "radial anisotropic; explicit rotation",
+            "ell_col_m": 754.7063334890229,
+            "ell_row_m": 500.6592936938085,
+            "family": "gaussian",
+            "gstools_model": "Gaussian(dim=2, var=1.0, len_scale=7.55e+02, anis=[0.663], angles=[-1.5], rescale=0.707)",
+            "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
+            "sigma_R": 1.0,
+            "sigma_R_units": "log10_permeability"
+          },
+          "workers": 4
+        }
+      },
+      "RUN_3_matern32_radial": {
+        "conditioning": [
+          {
+            "condition_number": 1.7213146153235332,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 0.0,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 64
+          },
+          {
+            "condition_number": 3.9403486961167293,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 128
+          },
+          {
+            "condition_number": 14.874052552521482,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 256
+          }
+        ],
+        "sampler": {
+          "KL_truncation": null,
+          "backend": "GSTools-matched covariance / FFT circulant embedding",
+          "cell_size_m": 5.0,
+          "covariance_tolerance": 1e-11,
+          "embedding_attempts": [
+            {
+              "maximum_eigenvalue": 94964.24868257716,
+              "minimum_eigenvalue": 1.0747709646196717e-07,
+              "negative_covariance_mass": 0.0,
+              "shape": [
+                8192,
+                8192
+              ]
+            }
+          ],
+          "embedding_shape": [
+            8192,
+            8192
+          ],
+          "extension": "C4 flat-crop window outside all requested row/column covariance lags only",
+          "native_increment_relative_representation_errors": {
+            "column": 0.0,
+            "row": 3.3779316960855835e-12
+          },
+          "native_shape": [
+            2560,
+            2560
+          ],
+          "numerical_negative_eigenvalue_correction_only": true,
+          "random_frequency_truncation": null,
+          "represented_unit_variance": 1.0,
+          "requested_lag_max_absolute_error": 2.220446049250313e-16,
+          "sample_filtering": null,
+          "sampling": "MC; iid real Gaussian spectral degrees of freedom; deterministic seed map",
+          "spec": {
+            "angle_convention": "degrees from positive column axis toward positive row axis",
+            "angle_deg": -86.02670697152442,
+            "assumption_status": "reference-texture-guided residual correlation, not calibrated uncertainty",
+            "center": "median",
+            "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
+            "covariance_geometry": "radial anisotropic; explicit rotation",
+            "ell_col_m": 754.7063334890229,
+            "ell_row_m": 500.6592936938085,
+            "family": "matern32_radial",
+            "gstools_model": "Matern(dim=2, var=1.0, len_scale=7.55e+02, anis=[0.663], angles=[-1.5], rescale=1.41, nu=1.5)",
+            "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
+            "sigma_R": 1.0,
+            "sigma_R_units": "log10_permeability"
+          },
+          "workers": 4
+        }
+      }
+    }
+  },
+  {
+    "reference_id": "RUN_4",
+    "planned_evaluations": 6003,
+    "maximum_dense_equation_error": 1.7763568394002505e-15,
+    "native_fft_checks": {
+      "RUN_4_exponential_radial": {
+        "conditioning": [
+          {
+            "condition_number": 2.0866763054678037,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 64
+          },
+          {
+            "condition_number": 4.198364141978412,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 128
+          },
+          {
+            "condition_number": 11.201093976373494,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 256
+          }
+        ],
+        "sampler": {
+          "KL_truncation": null,
+          "backend": "GSTools-matched covariance / FFT circulant embedding",
+          "cell_size_m": 5.0,
+          "covariance_tolerance": 1e-11,
+          "embedding_attempts": [
+            {
+              "maximum_eigenvalue": 121600.73657696371,
+              "minimum_eigenvalue": 0.0028891827493000427,
+              "negative_covariance_mass": 0.0,
+              "shape": [
+                8192,
+                8192
+              ]
+            }
+          ],
+          "embedding_shape": [
+            8192,
+            8192
+          ],
+          "extension": "C4 flat-crop window outside all requested row/column covariance lags only",
+          "native_increment_relative_representation_errors": {
+            "column": 0.0,
+            "row": 3.628222654310117e-14
+          },
+          "native_shape": [
+            2560,
+            2560
+          ],
+          "numerical_negative_eigenvalue_correction_only": true,
+          "random_frequency_truncation": null,
+          "represented_unit_variance": 1.0,
+          "requested_lag_max_absolute_error": 2.220446049250313e-16,
+          "sample_filtering": null,
+          "sampling": "MC; iid real Gaussian spectral degrees of freedom; deterministic seed map",
+          "spec": {
+            "angle_convention": "degrees from positive column axis toward positive row axis",
+            "angle_deg": -85.13805350291233,
+            "assumption_status": "reference-texture-guided residual correlation, not calibrated uncertainty",
+            "center": "median",
+            "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
+            "covariance_geometry": "radial anisotropic; explicit rotation",
+            "ell_col_m": 817.1425701209319,
+            "ell_row_m": 592.1047009082475,
+            "family": "exponential_radial",
+            "gstools_model": "Exponential(dim=2, var=1.0, len_scale=8.17e+02, anis=[0.725], angles=[-1.49])",
+            "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
+            "sigma_R": 1.0,
+            "sigma_R_units": "log10_permeability"
+          },
+          "workers": 4
+        }
+      },
+      "RUN_4_gaussian": {
+        "conditioning": [
+          {
+            "condition_number": 2.0825465617030314,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 64
+          },
+          {
+            "condition_number": 9.43832008579236,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 128
+          },
+          {
+            "condition_number": 262.2569648040377,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 256
+          }
+        ],
+        "sampler": {
+          "KL_truncation": null,
+          "backend": "GSTools-matched covariance / FFT circulant embedding",
+          "cell_size_m": 5.0,
+          "covariance_tolerance": 1e-11,
+          "embedding_attempts": [
+            {
+              "maximum_eigenvalue": 121600.73640979847,
+              "minimum_eigenvalue": -1.4551915228366852e-11,
+              "negative_covariance_mass": 1.768541800284607e-14,
+              "shape": [
+                8192,
+                8192
+              ]
+            }
+          ],
+          "embedding_shape": [
+            8192,
+            8192
+          ],
+          "extension": "C4 flat-crop window outside all requested row/column covariance lags only",
+          "native_increment_relative_representation_errors": {
+            "column": 4.780580407840844e-10,
+            "row": 9.192035066713243e-10
+          },
+          "native_shape": [
+            2560,
+            2560
+          ],
+          "numerical_negative_eigenvalue_correction_only": true,
+          "random_frequency_truncation": null,
+          "represented_unit_variance": 1.0000000000000178,
+          "requested_lag_max_absolute_error": 1.7763568394002505e-14,
+          "sample_filtering": null,
+          "sampling": "MC; iid real Gaussian spectral degrees of freedom; deterministic seed map",
+          "spec": {
+            "angle_convention": "degrees from positive column axis toward positive row axis",
+            "angle_deg": -85.13805350291233,
+            "assumption_status": "reference-texture-guided residual correlation, not calibrated uncertainty",
+            "center": "median",
+            "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
+            "covariance_geometry": "radial anisotropic; explicit rotation",
+            "ell_col_m": 817.1425701209319,
+            "ell_row_m": 592.1047009082475,
+            "family": "gaussian",
+            "gstools_model": "Gaussian(dim=2, var=1.0, len_scale=8.17e+02, anis=[0.725], angles=[-1.49], rescale=0.707)",
+            "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
+            "sigma_R": 1.0,
+            "sigma_R_units": "log10_permeability"
+          },
+          "workers": 4
+        }
+      },
+      "RUN_4_matern32_radial": {
+        "conditioning": [
+          {
+            "condition_number": 2.0620491327809005,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 64
+          },
+          {
+            "condition_number": 5.365326080614404,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 128
+          },
+          {
+            "condition_number": 23.328450010806772,
+            "design": "balanced-000",
+            "maximum_exact_log10_error": 1.7763568394002505e-15,
+            "minimum_probe_variance_log10": 0.0,
+            "n_measurements": 256
+          }
+        ],
+        "sampler": {
+          "KL_truncation": null,
+          "backend": "GSTools-matched covariance / FFT circulant embedding",
+          "cell_size_m": 5.0,
+          "covariance_tolerance": 1e-11,
+          "embedding_attempts": [
+            {
+              "maximum_eigenvalue": 121600.73640978611,
+              "minimum_eigenvalue": 7.940663533588408e-08,
+              "negative_covariance_mass": 0.0,
+              "shape": [
+                8192,
+                8192
+              ]
+            }
+          ],
+          "embedding_shape": [
+            8192,
+            8192
+          ],
+          "extension": "C4 flat-crop window outside all requested row/column covariance lags only",
+          "native_increment_relative_representation_errors": {
+            "column": 1.0516837096080125e-12,
+            "row": 3.956114115668009e-12
+          },
+          "native_shape": [
+            2560,
+            2560
+          ],
+          "numerical_negative_eigenvalue_correction_only": true,
+          "random_frequency_truncation": null,
+          "represented_unit_variance": 1.0,
+          "requested_lag_max_absolute_error": 2.220446049250313e-16,
+          "sample_filtering": null,
+          "sampling": "MC; iid real Gaussian spectral degrees of freedom; deterministic seed map",
+          "spec": {
+            "angle_convention": "degrees from positive column axis toward positive row axis",
+            "angle_deg": -85.13805350291233,
+            "assumption_status": "reference-texture-guided residual correlation, not calibrated uncertainty",
+            "center": "median",
+            "coordinate_order": "array rows/columns; GSTools x=columns,y=rows",
+            "covariance_geometry": "radial anisotropic; explicit rotation",
+            "ell_col_m": 817.1425701209319,
+            "ell_row_m": 592.1047009082475,
+            "family": "matern32_radial",
+            "gstools_model": "Matern(dim=2, var=1.0, len_scale=8.17e+02, anis=[0.725], angles=[-1.49], rescale=1.41, nu=1.5)",
+            "marginal": "pointwise untruncated lognormal around the heterogeneous reference",
+            "sigma_R": 1.0,
+            "sigma_R_units": "log10_permeability"
+          },
+          "workers": 4
+        }
+      }
+    }
+  }
+]

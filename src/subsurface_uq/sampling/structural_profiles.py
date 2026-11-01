@@ -1,12 +1,13 @@
 """Moment/variogram profiles of supplied maps, not geological error models.
 
-A profile is a stationary Matérn-3/2 log-Gaussian law. Its expected finite-map
+A profile is a stationary log-Gaussian law. Its expected finite-map
 spatial variance matches the observed map variance without normalizing draws.
 Mean-removal bias is accounted for through the variance of a grid average.
 """
 from __future__ import annotations
 
 from dataclasses import asdict
+from copy import deepcopy
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 from scipy.ndimage import label
@@ -77,13 +78,17 @@ def fitted_curves(spec,lags,cell):
             for name,(dr,dc) in DIRECTIONS.items()}
 
 
-def fit_profile(logs,*,cell_size_m,lags_cells,length_bounds_m,quadrature_order=48):
+def fit_profile(logs,*,cell_size_m,lags_cells,length_bounds_m,quadrature_order=48,
+                family="matern32_radial",fit_residual="log"):
     """Fit one explicitly assumed covariance family to map structure only.
 
-    Equal weights for log semivariance at each declared direction/lag balance
-    short and long scales. Correlated pixel pairs do not count as iid evidence.
+    The default weights log semivariance equally at each direction/lag.
+    variance_scaled uses absolute residuals divided by map spatial variance.
+    Correlated pixel pairs do not count as iid evidence.
     """
     logs=np.asarray(logs,dtype=float)
+    if fit_residual not in {"log","variance_scaled"}:
+        raise ValueError("fit_residual must be log or variance_scaled")
     curves=variogram_curves(logs,lags_cells)
     if any(np.any(v<=0) for v in curves.values()) or np.var(logs)<=0:
         raise ValueError("positive directional increments and spatial variance required")
@@ -92,7 +97,7 @@ def fit_profile(logs,*,cell_size_m,lags_cells,length_bounds_m,quadrature_order=4
     empirical=np.concatenate(list(curves.values()))
     def parameters(z):
         row,col=np.exp(z[:2]);angle=float(np.rad2deg(z[2]))
-        unit=GSToolsReferenceSpec("matern32_radial",row,col,sigma_R=1.,angle_deg=angle)
+        unit=GSToolsReferenceSpec(family,row,col,sigma_R=1.,angle_deg=angle)
         q=approximate_grid_mean_correlation(unit,quad)
         if not 0<q<1:
             raise ArithmeticError("invalid rectangle covariance integral")
@@ -101,9 +106,14 @@ def fit_profile(logs,*,cell_size_m,lags_cells,length_bounds_m,quadrature_order=4
         values=np.concatenate(list(fitted_curves(parameters(z),lags_cells,cell_size_m).values()))
         if np.any(values<=0):
             raise ArithmeticError("nonpositive fitted semivariance")
-        return np.log(values)-np.log(empirical)
+        return (np.log(values)-np.log(empirical) if fit_residual=="log"
+                else (values-empirical)/variance)
     gradients=[np.sqrt(2*curves[k][0])/cell_size_m for k in ("row","column")]
-    guess=np.sqrt(3*variance)*1.05/np.array(gradients)
+    # Smooth-family small-lag expansion; exponential has a linear variogram.
+    # Each family is optimized independently against the identical criterion.
+    factor=3 if family=="matern32_radial" else 1
+    guess=(variance*cell_size_m/np.array([curves[k][0] for k in ("row","column")])
+           if family=="exponential_radial" else np.sqrt(factor*variance)*1.05/np.array(gradients))
     bounds=([np.log(length_bounds_m[0])]*2+[-np.pi/2],[np.log(length_bounds_m[1])]*2+[np.pi/2])
     attempts=[];successful=[]
     for angle in [0.,np.pi/4,-np.pi/4]:
@@ -128,11 +138,46 @@ def fit_profile(logs,*,cell_size_m,lags_cells,length_bounds_m,quadrature_order=4
         "expected_grid_spatial_variance_log10":spec.sigma_R**2*(1-qexact),
         "empirical_variograms":{k:v.tolist() for k,v in curves.items()},
         "fitted_variograms":{k:v.tolist() for k,v in predicted.items()},
+        "fit_residual":fit_residual,
+        "variance_scaled_variogram_rmse":float(np.sqrt(np.mean(((np.concatenate(list(predicted.values()))-empirical)/variance)**2))),
         "log_variogram_rmse":float(np.sqrt(np.mean((np.log(np.concatenate(list(predicted.values())))-np.log(empirical))**2))),
         "maximum_multiplicative_variogram_mismatch":float(np.exp(np.max(np.abs(np.log(np.concatenate(list(predicted.values()))/empirical))))),
         "optimization_attempts":attempts,
         "length_at_bound":bool(np.any(np.minimum(best.x[:2]-np.array(bounds[0][:2]),np.array(bounds[1][:2])-best.x[:2])<.01)),
         "interpretation":"stationary synthetic-map structure fit; total heterogeneity, not reconstruction-error or instrument-noise calibration"}
+
+
+def area_matched_profile(anchor,family,*,shape,cell_size_m,lags_cells):
+    """Hold anisotropy and integral correlation area fixed across roughness laws.
+
+    For ALL three implemented conventions, integral rho(h) dh equals
+    2*pi*ell_row*ell_col. Thus preserving the two lengths and rotation is an
+    analytical area/anisotropy match, not a claim of equal point correlations.
+    Marginal sigma is recomputed to preserve expected finite-map variance.
+    """
+    result=deepcopy(anchor)
+    old=GSToolsReferenceSpec(**anchor["law"]["covariance"])
+    unit=GSToolsReferenceSpec(family,old.ell_row_m,old.ell_col_m,sigma_R=1.,angle_deg=old.angle_deg)
+    q=grid_mean_correlation(unit,shape,cell_size_m)
+    spec=GSToolsReferenceSpec(family,old.ell_row_m,old.ell_col_m,
+        sigma_R=float(np.sqrt(anchor["spatial_variance_log10"]/(1-q))),angle_deg=old.angle_deg)
+    predicted=fitted_curves(spec,lags_cells,cell_size_m)
+    empirical=np.concatenate(list(anchor["empirical_variograms"].values()))
+    values=np.concatenate(list(predicted.values()))
+    result.update(law={"mean_log10_k":anchor["law"]["mean_log10_k"],"covariance":asdict(spec)},
+        pointwise_sd_log10=spec.sigma_R,grid_mean_unit_variance=q,
+        expected_grid_mean_variance_log10=spec.sigma_R**2*q,
+        expected_grid_spatial_variance_log10=spec.sigma_R**2*(1-q),
+        fitted_variograms={k:v.tolist() for k,v in predicted.items()},
+        log_variogram_rmse=float(np.sqrt(np.mean(np.log(values/empirical)**2))),
+        variance_scaled_variogram_rmse=float(np.sqrt(np.mean(((values-empirical)/anchor["spatial_variance_log10"])**2))),
+        maximum_multiplicative_variogram_mismatch=float(np.exp(np.max(np.abs(np.log(values/empirical))))),
+        parameterization="correlation-area/anisotropy match to independently fitted anchor; family-specific finite-map variance correction",
+        correlation_area_m2=float(2*np.pi*spec.ell_row_m*spec.ell_col_m),anchor_family=old.family)
+    result.pop("quadrature_grid_mean_unit_variance",None)
+    result.pop("optimization_attempts",None)
+    result["length_at_bound"]=anchor["length_at_bound"]
+    return result
 
 
 def structural_features(logs,*,cell_size_m,mean_log10,sigma_log10,stride=8):

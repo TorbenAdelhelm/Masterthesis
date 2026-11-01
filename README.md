@@ -11,6 +11,12 @@ RUN_0, RUN_2, RUN_3 and RUN_4; the published ZIP also contains an input-only
 RUN_1. New matched-reference presets/catalog are separate from historical
 three-map/fixed-RUN_2 studies.
 
+For the requested **Gaussian/Matérn/exponential × 64/128/256 observations ×
+500 draws**, use [the three-kernel production workflow](docs/kernel_density_study.md)
+and `configs/controlled_field.kernels.500.yaml`. It retains every native input
+and output, provides an offline spatial browser, and supports `--stage resume`.
+Use `--stage all` for a fresh run; `plan` creates metadata only.
+
 This repository contains the thesis-specific forward uncertainty-quantification
 (UQ) framework around deterministic groundwater heat-plume surrogate models.
 The current scientific baseline focuses on uncertainty in the permeability
@@ -20,11 +26,11 @@ The main [controlled conditional-field benchmark](docs/controlled_field_benchmar
 draws independent hidden permeability truths from a declared log-Gaussian law,
 reveals nested exact synthetic boreholes, and propagates conditional fields
 through the frozen LGCNN. Ranks, coverage, CRPS and measurement-density summaries
-are evaluated across independent hidden truths. The primary laws are now
+are evaluated across independent hidden truths. The earlier laws are
 [documented structural profiles derived from RUN 1/2/3](docs/structural_profiles.md),
 with fitted log means, total heterogeneity and anisotropic correlation scales.
 They describe synthetic processed-map structures; geological probabilities
-remain unspecified. The primary configurations are
+remain unspecified. Those historical configurations are
 `configs/controlled_field.profiles.pilot.yaml` and
 `configs/controlled_field.profiles.main.yaml`.
 The [completed profile-sensitivity pilot](docs/structural_profile_results.md)

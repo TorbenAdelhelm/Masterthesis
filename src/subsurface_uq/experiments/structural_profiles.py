@@ -16,7 +16,7 @@ import yaml
 from ..io import sha256_file,git_head,runtime_versions
 from ..sampling.gstools_reference import GSToolsReferenceSpec,GSToolsReferenceFFTSampler
 from ..sampling.controlled_fields import physical_permeability
-from ..sampling.structural_profiles import (fit_profile,structural_features,variogram_curves,
+from ..sampling.structural_profiles import (fit_profile,area_matched_profile,structural_features,variogram_curves,
     fitted_curves,DIRECTIONS)
 from .reference_conditioning import _relative_path,_name,_write,_identity,_positive_integer
 from .controlled_field_benchmark import seed_for,array_hash
@@ -29,8 +29,16 @@ _KEYS={"references","preparation_manifest","cell_size_m","permeability_units","l
 
 def load_config(path):
     source=Path(path).resolve();cfg=yaml.safe_load(source.read_text(encoding="utf-8"))
-    if not isinstance(cfg,dict) or set(cfg)!=_KEYS:
+    if not isinstance(cfg,dict) or set(cfg)-{"families","fit_residual","correlation_area_anchor"}!=_KEYS:
         raise ValueError("declare exactly the structural-profile settings")
+    families=cfg.get("families",["matern32_radial"])
+    if (not isinstance(families,list) or not families or len(set(families))!=len(families)
+            or not set(families)<={"gaussian","matern32_radial","exponential_radial"}):
+        raise ValueError("distinct supported covariance families required")
+    if cfg.get("fit_residual","log") not in {"log","variance_scaled"}:
+        raise ValueError("fit_residual must be log or variance_scaled")
+    if "correlation_area_anchor" in cfg and ("families" not in cfg or cfg["correlation_area_anchor"] not in families):
+        raise ValueError("correlation-area anchor must be one of the declared families")
     if cfg["cell_size_m"]!=5. or cfg["permeability_units"]!="m2":
         raise ValueError("native 5 m intrinsic-permeability maps in m2 required")
     for name in ["quadrature_order","structural_samples","diagnostic_stride_cells","workers"]:
@@ -58,7 +66,10 @@ def load_config(path):
 
 def verify_artifact(path, *, reference_id=None):
     path=Path(path).resolve();payload=json.loads(path.read_text())
-    if payload.get("schema_version")!=1 or payload.get("family")!="matern32_radial":
+    if not ((payload.get("schema_version")==1 and payload.get("family")=="matern32_radial")
+            or (payload.get("schema_version")==2 and payload.get("families")
+                and set(payload["families"])<={"gaussian","matern32_radial","exponential_radial"}
+                and all(p["law"]["covariance"]["family"] in payload["families"] for p in payload["profiles"].values()))):
         raise ValueError("supported structural-profile artifact required")
     files={str(path):sha256_file(path)}
     selected = payload["source_maps"]
@@ -94,6 +105,11 @@ def fit(config_path,output_path,report_dir):
         "variance_estimator":"sigma² = observed population spatial variance/(1-q); q is the exact discrete correlation of a grid average",
         "fit_criterion":"equal-weight squared log-semivariogram residuals at all declared directions and lags; no iid-pixel likelihood",
         "mean_estimator":"full-map spatial log10 mean, treated as a fixed generative-prior parameter"}
+    if "families" in cfg:
+        payload.pop("family")
+        payload.update(schema_version=2,families=cfg["families"])
+    if cfg.get("fit_residual")=="variance_scaled":
+        payload["fit_criterion"]="equal-weight squared semivariogram residuals divided by source spatial variance; all declared directions/lags; no iid-pixel likelihood"
     for name,raw in cfg["references"].items():
         path=_relative_path(raw,source.parent);field=np.load(path,mmap_mode="r",allow_pickle=False)
         if field.ndim!=2 or not np.all(np.isfinite(field)) or np.any(field<=0):
@@ -102,19 +118,27 @@ def fit(config_path,output_path,report_dir):
         if "native_shape" in payload and payload["native_shape"]!=list(logs.shape):
             raise ValueError("all structural maps must share a native grid")
         payload["native_shape"]=list(logs.shape)
-        result=fit_profile(logs,cell_size_m=cfg["cell_size_m"],lags_cells=cfg["lags_cells"],
-            length_bounds_m=cfg["length_bounds_m"],quadrature_order=cfg["quadrature_order"])
-        law=result["law"];spec=GSToolsReferenceSpec(**law["covariance"])
-        features=structural_features(logs,cell_size_m=cfg["cell_size_m"],mean_log10=law["mean_log10_k"],
-            sigma_log10=spec.sigma_R,stride=cfg["diagnostic_stride_cells"])
-        result.update(source_map=name,source_features=features,
-            expected_native_gradient_rms={direction:float(np.sqrt(2*spec.sigma_R**2*(1-spec.correlation(dr*cfg["cell_size_m"],dc*cfg["cell_size_m"])))/cfg["cell_size_m"])
-                for direction,(dr,dc) in list(DIRECTIONS.items())[:2]},
-            local_coordinate_convention="angle from positive column toward positive row; no historical geographic registration inferred")
-        payload["profiles"][name+"_structural"]=result
+        fits={family:fit_profile(logs,cell_size_m=cfg["cell_size_m"],lags_cells=cfg["lags_cells"],
+                length_bounds_m=cfg["length_bounds_m"],quadrature_order=cfg["quadrature_order"],family=family,
+                fit_residual=cfg.get("fit_residual","log")) for family in cfg.get("families",["matern32_radial"])}
+        for family in cfg.get("families",["matern32_radial"]):
+            result=fits[family]
+            if "correlation_area_anchor" in cfg:
+                result=area_matched_profile(fits[cfg["correlation_area_anchor"]],family,
+                    shape=logs.shape,cell_size_m=cfg["cell_size_m"],lags_cells=cfg["lags_cells"])
+                result["independent_family_fit"]=fits[family]
+            law=result["law"];spec=GSToolsReferenceSpec(**law["covariance"])
+            features=structural_features(logs,cell_size_m=cfg["cell_size_m"],mean_log10=law["mean_log10_k"],
+                sigma_log10=spec.sigma_R,stride=cfg["diagnostic_stride_cells"])
+            result.update(source_map=name,source_features=features,
+                expected_native_gradient_rms={direction:float(np.sqrt(2*spec.sigma_R**2*(1-spec.correlation(dr*cfg["cell_size_m"],dc*cfg["cell_size_m"])))/cfg["cell_size_m"])
+                    for direction,(dr,dc) in list(DIRECTIONS.items())[:2]},
+                local_coordinate_convention="angle from positive column toward positive row; no historical geographic registration inferred")
+            key=name+"_"+family if "families" in cfg else name+"_structural"
+            payload["profiles"][key]=result
+            print(f"structural fit {key}: mean={law['mean_log10_k']:.4f}, point SD={spec.sigma_R:.4f}, lengths={spec.ell_row_m:.0f}/{spec.ell_col_m:.0f} m, angle={spec.angle_deg:.1f}",flush=True)
         payload["source_maps"][name]={"path":Path(os.path.relpath(path,output.parent)).as_posix(),"sha256":sha256_file(path),
             "shape":list(field.shape),"dtype":str(field.dtype),"units":"m2"}
-        print(f"structural fit {name}: mean={law['mean_log10_k']:.4f}, point SD={spec.sigma_R:.4f}, lengths={spec.ell_row_m:.0f}/{spec.ell_col_m:.0f} m, angle={spec.angle_deg:.1f}",flush=True)
     if cfg["preparation_manifest"] is not None:
         manifests=cfg['preparation_manifest']
         manifests=manifests if isinstance(manifests,list) else [manifests]
@@ -154,7 +178,7 @@ def fit_figure(payload,path):
         row[1].bar(x+.16,[expected[d] for d in ["row","column"]],width=.32,label="Declared law")
         row[1].set_xticks(x,["Row","Column"]);row[1].set(title="Native 5 m roughness",ylabel="RMS log10 increment / m");row[1].legend(fontsize=8)
         for ax in row:ax.grid(alpha=.2)
-    fig.suptitle("Structural profiles: map statistics inform a synthetic distribution\nCommon Matérn-3/2 family; total heterogeneity, finite-map correction; no reconstruction target")
+    fig.suptitle("Structural profiles: map statistics inform synthetic distributions\nEach declared family fitted independently; total heterogeneity, finite-map correction; no reconstruction target")
     fig.savefig(path,dpi=140);plt.close(fig)
 
 

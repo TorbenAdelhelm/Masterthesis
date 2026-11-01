@@ -1,0 +1,16 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Conditional-field study</title>
+<style>body{font:16px system-ui;margin:24px;color:#172b36;background:#f4f7f7}select,button,input{font:inherit;padding:6px}main{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:20px}article{background:white;padding:14px;border-radius:10px}canvas{width:100%;image-rendering:auto}h2{font-size:17px}small{display:block}a{color:#176b83}@media(max-width:850px){main{grid-template-columns:repeat(2,1fr)}}</style>
+<h1>Conditional permeability → frozen LGCNN</h1>
+<p>Every retained draw is selectable. The left, middle and right columns show fields, errors against the independent hidden truth, and deviations from conditional means.</p>
+<p><select id="case" aria-label="Configuration"></select> <button id="prev">Previous</button> Sample <input id="sample" type="number" min="1" value="1" style="width:75px"> <span id="total"></span> <button id="next">Next</button></p>
+<p id="description"></p><main id="panels"></main>
+<p>Pictures use point subsampling for display; input and output cover different physical extents because LGCNN returns a central crop. All scales are shared across configurations. Full native arrays, spatial previews, risk maps and uncertainty summaries are retained alongside this page.</p>
+<script>
+const study=__STUDY_DATA__, picker=document.getElementById('case'), sample=document.getElementById('sample'), panels=document.getElementById('panels');
+study.cases.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.label;picker.append(o)});
+const order=[0,2,4,1,3,5],canvases={},images={};
+order.forEach(i=>{const role=study.roles[i],article=document.createElement('article'),title=document.createElement('h2'),canvas=document.createElement('canvas'),range=document.createElement('small');title.textContent=study.labels[i];canvas.width=canvas.height=study.tile;range.textContent='Colour scale: '+study.limits[role].map(v=>v.toPrecision(4)).join(' to ');article.append(title,canvas,range);panels.append(article);canvases[role]=canvas});
+let generation=0;
+function update(){const current=++generation,c=study.cases[Number(picker.value)],n=Math.max(1,Math.min(c.n_samples,Number(sample.value)||1));sample.value=n;sample.max=c.n_samples;document.getElementById('total').textContent='of '+c.n_samples;document.getElementById('description').textContent=c.label+' — native arrays: '+c.native_arrays;study.roles.forEach(role=>{const key=c.images[role];let img=images[key];if(!img){img=new Image();img.src='browser/'+key;images[key]=img}const draw=()=>{if(current!==generation)return;const i=n-1,ctx=canvases[role].getContext('2d');ctx.clearRect(0,0,study.tile,study.tile);ctx.drawImage(img,(i%study.columns)*study.tile,Math.floor(i/study.columns)*study.tile,study.tile,study.tile,0,0,study.tile,study.tile)};if(img.complete&&img.naturalWidth)draw();else img.onload=draw})}
+picker.onchange=sample.onchange=update;document.getElementById('prev').onclick=()=>{sample.value=Number(sample.value)-1;update()};document.getElementById('next').onclick=()=>{sample.value=Number(sample.value)+1;update()};update();
+</script></html>

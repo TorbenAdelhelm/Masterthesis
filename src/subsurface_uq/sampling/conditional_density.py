@@ -22,9 +22,9 @@ def condition_prefixes(system,readings,prior_unit,counts,directories,*,chunk_siz
     if not isinstance(system,KnownMeanConditioner):
         raise ValueError("known-mean Gaussian conditioner required")
     counts=list(counts);shape=system.shape;prior=np.asarray(prior_unit)
-    if (not counts or counts!=sorted(set(counts)) or counts[0]<1 or counts[-1]!=len(system.indices)
+    if (not counts or counts!=sorted(set(counts)) or counts[0]<0 or counts[-1]!=len(system.indices)
             or any(isinstance(n,bool) or not isinstance(n,(int,np.integer)) for n in counts)):
-        raise ValueError("increasing positive prefixes ending at the full geometry required")
+        raise ValueError("increasing nonnegative prefixes ending at the full geometry required")
     if prior.ndim!=3 or tuple(prior.shape[1:])!=shape or len(prior)<2 or chunk_size<1:
         raise ValueError("multiple matching native prior fields and positive block size required")
     d=system._readings(readings,counts[-1]);samples=len(prior);width=samples+1
@@ -57,7 +57,7 @@ def condition_prefixes(system,readings,prior_unit,counts,directories,*,chunk_siz
             logs=base+projected[:,j*width:j*width+samples]
             values[:,start:stop]=physical_permeability(logs).T
             mean[start:stop]=system.mean_log10+projected[:,j*width+samples]
-            unit_variance=1-squared[:,n-1]
+            unit_variance=1-squared[:,n-1] if n else np.ones(stop-start)
             if unit_variance.min(initial=0)<-1.e-8:
                 raise ArithmeticError("negative conditional variance; no covariance alteration")
             variance=system.spec.sigma_R**2*np.maximum(unit_variance,0.)
