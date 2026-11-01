@@ -1,5 +1,9 @@
 # Controlled conditional-field benchmark
 
+For one source RUN with its matching physical context, use the new
+[`--reference-id` workflow](reference_selection.md). Historical presets below
+retain their original fixed-context interpretation when no ID is supplied.
+
 This is the main LGCNN input-UQ experiment. The RUN reconstruction challenge is
 the separate realism test. The first establishes a correct, useful experimental
 pipeline under an explicit geological law; the second tests whether a candidate

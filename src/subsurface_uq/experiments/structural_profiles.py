@@ -40,6 +40,11 @@ def load_config(path):
         raise ValueError("adequate quadrature and >=4 validation draws required")
     if not isinstance(cfg["references"],dict) or not cfg["references"]:
         raise ValueError("named source maps required")
+    provenance=cfg['preparation_manifest']
+    if provenance is not None:
+        paths=provenance if isinstance(provenance,list) else [provenance]
+        if not paths or any(not isinstance(v,str) or not v for v in paths) or len(set(paths))!=len(paths):
+            raise ValueError('preparation_manifest must be a path or a list of distinct paths')
     lags=cfg["lags_cells"]
     if not isinstance(lags,list) or not lags or sorted(set(lags))!=lags or lags[0]!=1:
         raise ValueError("increasing lags beginning at the native increment required")
@@ -51,12 +56,19 @@ def load_config(path):
     return source,cfg
 
 
-def verify_artifact(path):
+def verify_artifact(path, *, reference_id=None):
     path=Path(path).resolve();payload=json.loads(path.read_text())
     if payload.get("schema_version")!=1 or payload.get("family")!="matern32_radial":
         raise ValueError("supported structural-profile artifact required")
     files={str(path):sha256_file(path)}
-    for row in [*payload["source_maps"].values(),*payload.get("supporting_files",[])]:
+    selected = payload["source_maps"]
+    if reference_id is not None:
+        from .reference_selection import profile_names
+        profile_names(payload, reference_id)
+        selected = {reference_id: selected[reference_id]}
+    supporting=[row for row in payload.get('supporting_files',[])
+                if reference_id is None or 'reference_ids' not in row or reference_id in row['reference_ids']]
+    for row in [*selected.values(),*supporting]:
         target=_relative_path(row["path"].replace("\\","/"),path.parent)
         if sha256_file(target)!=row["sha256"]:
             raise ValueError("structural profile source map or provenance file changed")
@@ -104,8 +116,16 @@ def fit(config_path,output_path,report_dir):
             "shape":list(field.shape),"dtype":str(field.dtype),"units":"m2"}
         print(f"structural fit {name}: mean={law['mean_log10_k']:.4f}, point SD={spec.sigma_R:.4f}, lengths={spec.ell_row_m:.0f}/{spec.ell_col_m:.0f} m, angle={spec.angle_deg:.1f}",flush=True)
     if cfg["preparation_manifest"] is not None:
-        path=_relative_path(cfg["preparation_manifest"],source.parent)
-        payload["supporting_files"].append({"path":Path(os.path.relpath(path,output.parent)).as_posix(),"sha256":sha256_file(path),"role":"native-map preparation provenance"})
+        manifests=cfg['preparation_manifest']
+        manifests=manifests if isinstance(manifests,list) else [manifests]
+        if not manifests or len(set(manifests))!=len(manifests):
+            raise ValueError('declare distinct preparation provenance files')
+        for name in manifests:
+            path=_relative_path(name,source.parent)
+            item={"path":Path(os.path.relpath(path,output.parent)).as_posix(),"sha256":sha256_file(path),"role":"native-map preparation provenance"}
+            if isinstance(cfg['preparation_manifest'],list):
+                item['reference_ids']=[row['reference_run'] for row in json.loads(path.read_text(encoding='utf-8'))['references']]
+            payload['supporting_files'].append(item)
     payload["profile_set_id"]=_identity({"settings":cfg,"sources":payload["source_maps"],"profiles":payload["profiles"]},"structural-")
     _write(output,payload)
     # Archive the actual estimator/configuration for reproducibility.

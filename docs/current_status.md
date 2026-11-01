@@ -4,6 +4,26 @@ This file is a concise snapshot of what the repository implements *now*. It is
 intended to prevent design notes and old baseline plans from being mistaken for
 current functionality.
 
+## Reference selection and complete native source inventory (2026-11-01)
+
+The controlled benchmark and spatial gallery accept `--reference-id`, bind the
+selected source profile to the matching prepared physical RUN, and isolate
+results in `OUTPUT_ROOT/RUN_ID/`. New matched-reference presets require the flag;
+historical configurations retain their previous behavior without it. Missing or
+inconsistent matching inputs fail before creating a study or evaluating the model.
+
+The checksum-verified DaRUS `real_perm_4dp.zip` contains complete native outputs
+for RUN_0, RUN_2, RUN_3 and RUN_4, plus an input-only RUN_1. The previous preparation
+default explicitly chose RUN_1/2/3; it was not the complete simulation inventory.
+New preparation discovers complete cases and can prepare one matched RUN by ID.
+The four matching native contexts and a separate four-reference Matérn structural
+catalog have been prepared without altering historical three-map evidence.
+
+See [source inventory, preparation and commands](reference_selection.md).
+The 500-draw preset is a single-reference Matérn specification; this change does
+not supply the separate Gaussian/exponential structural fits or claim completion
+of the three-kernel production study.
+
 ## Complete spatial density study at 32–512 observations (2026-10-26)
 
 The [spatial study and atlas index](conditional_density_visual_results.md)

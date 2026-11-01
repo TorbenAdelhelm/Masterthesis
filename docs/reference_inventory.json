@@ -1,0 +1,241 @@
+{
+  "source_doi": "10.18419/DARUS-5065",
+  "archive_md5": "e008c65555bf8e435ba84a678990236b",
+  "published_md5": "e008c65555bf8e435ba84a678990236b",
+  "matches_published_archive": true,
+  "zip_inventory": [
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_4/permeability.h5",
+      "bytes": 104859648,
+      "crc32": "a1b67732"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_4/settings.yaml",
+      "bytes": 241,
+      "crc32": "b20c92a0"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_4/pflotran.h5",
+      "bytes": 786442408,
+      "crc32": "1559a5d1"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/settings.yaml",
+      "bytes": 248,
+      "crc32": "c1629d3c"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_3/permeability.h5",
+      "bytes": 104859648,
+      "crc32": "20cdab3b"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_3/settings.yaml",
+      "bytes": 241,
+      "crc32": "b20c92a0"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_3/pflotran.h5",
+      "bytes": 786442408,
+      "crc32": "d265d800"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_0/permeability.h5",
+      "bytes": 104859648,
+      "crc32": "3764203d"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_0/settings.yaml",
+      "bytes": 241,
+      "crc32": "b20c92a0"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_0/pflotran.h5",
+      "bytes": 786442408,
+      "crc32": "bf44eef8"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_1/permeability.h5",
+      "bytes": 104859648,
+      "crc32": "355c2bed"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_1/settings.yaml",
+      "bytes": 241,
+      "crc32": "b20c92a0"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_2/permeability.h5",
+      "bytes": 104859648,
+      "crc32": "dfd84215"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_2/settings.yaml",
+      "bytes": 241,
+      "crc32": "b20c92a0"
+    },
+    {
+      "name": "dataset_100hp_giant_real_fixP0_0025/RUN_2/pflotran.h5",
+      "bytes": 786442408,
+      "crc32": "345bc028"
+    }
+  ],
+  "local_inventory": [
+    {
+      "reference_id": "RUN_0",
+      "pflotran_h5": true,
+      "permeability_h5": true,
+      "pflotran.h5": [
+        {
+          "name": "   0 Time  0.00000E+00 y/Permeability X [m^2]",
+          "shape": [
+            6553600
+          ]
+        },
+        {
+          "name": "   1 Time  2.75000E+01 y/Permeability X [m^2]",
+          "shape": [
+            6553600
+          ]
+        }
+      ],
+      "permeability.h5": [
+        {
+          "name": "Cell Ids",
+          "shape": [
+            6553600
+          ]
+        },
+        {
+          "name": "permeability",
+          "shape": [
+            6553600
+          ]
+        }
+      ]
+    },
+    {
+      "reference_id": "RUN_1",
+      "pflotran_h5": false,
+      "permeability_h5": true,
+      "permeability.h5": [
+        {
+          "name": "Cell Ids",
+          "shape": [
+            6553600
+          ]
+        },
+        {
+          "name": "permeability",
+          "shape": [
+            6553600
+          ]
+        }
+      ]
+    },
+    {
+      "reference_id": "RUN_2",
+      "pflotran_h5": true,
+      "permeability_h5": true,
+      "pflotran.h5": [
+        {
+          "name": "   0 Time  0.00000E+00 y/Permeability X [m^2]",
+          "shape": [
+            6553600
+          ]
+        },
+        {
+          "name": "   1 Time  2.75000E+01 y/Permeability X [m^2]",
+          "shape": [
+            6553600
+          ]
+        }
+      ],
+      "permeability.h5": [
+        {
+          "name": "Cell Ids",
+          "shape": [
+            6553600
+          ]
+        },
+        {
+          "name": "permeability",
+          "shape": [
+            6553600
+          ]
+        }
+      ]
+    },
+    {
+      "reference_id": "RUN_3",
+      "pflotran_h5": true,
+      "permeability_h5": true,
+      "pflotran.h5": [
+        {
+          "name": "   0 Time  0.00000E+00 y/Permeability X [m^2]",
+          "shape": [
+            6553600
+          ]
+        },
+        {
+          "name": "   1 Time  2.75000E+01 y/Permeability X [m^2]",
+          "shape": [
+            6553600
+          ]
+        }
+      ],
+      "permeability.h5": [
+        {
+          "name": "Cell Ids",
+          "shape": [
+            6553600
+          ]
+        },
+        {
+          "name": "permeability",
+          "shape": [
+            6553600
+          ]
+        }
+      ]
+    },
+    {
+      "reference_id": "RUN_4",
+      "pflotran_h5": true,
+      "permeability_h5": true,
+      "pflotran.h5": [
+        {
+          "name": "   0 Time  0.00000E+00 y/Permeability X [m^2]",
+          "shape": [
+            6553600
+          ]
+        },
+        {
+          "name": "   1 Time  2.75000E+01 y/Permeability X [m^2]",
+          "shape": [
+            6553600
+          ]
+        }
+      ],
+      "permeability.h5": [
+        {
+          "name": "Cell Ids",
+          "shape": [
+            6553600
+          ]
+        },
+        {
+          "name": "permeability",
+          "shape": [
+            6553600
+          ]
+        }
+      ]
+    }
+  ],
+  "legacy_preparation_default": [
+    "RUN_1",
+    "RUN_2",
+    "RUN_3"
+  ]
+}

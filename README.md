@@ -4,6 +4,13 @@
 Use this branch for the controlled conditional-field experiment and separate
 RUN-based reconstruction realism challenge.
 
+Use [`--reference-id RUN_N`](docs/reference_selection.md) to select one source
+profile **and its matching pressure/material/heat-pump inputs**. Results are
+stored below the selected RUN ID. The audited complete native DaRUS cases are
+RUN_0, RUN_2, RUN_3 and RUN_4; the published ZIP also contains an input-only
+RUN_1. New matched-reference presets/catalog are separate from historical
+three-map/fixed-RUN_2 studies.
+
 This repository contains the thesis-specific forward uncertainty-quantification
 (UQ) framework around deterministic groundwater heat-plume surrogate models.
 The current scientific baseline focuses on uncertainty in the permeability

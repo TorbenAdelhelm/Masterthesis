@@ -59,6 +59,28 @@ def test_frozen_loader_uses_actual_declared_assets_and_native_grid(tmp_path,monk
         model.predict_temperature(field[:7])
 
 
+def test_selected_run_expands_prepared_path_and_reaches_runtime(tmp_path,monkeypatch):
+    source,config=_assets(tmp_path)
+    directory=tmp_path/'cases/RUN_4/prepared_pki'
+    (directory/'Inputs').mkdir(parents=True)
+    (directory/'Inputs/RUN_4.pt').write_bytes(b'matching RUN_4 context')
+    (directory/'info.yaml').write_text(yaml.safe_dump({'CellsNumber':[8,8],'CellsSize':[5.,5.],
+        'reference_pilot_fixed_run':'RUN_4'}))
+    config['release25']['prepared_pki_dir']='cases/{reference_id}/prepared_pki'
+    source.write_text(yaml.safe_dump(config))
+    settings={};bundle=SimpleNamespace(info={'Inputs':{'Permeability':{'min':1e-12,'max':1e-8}}})
+    def runtime(**kwargs):
+        settings.update(kwargs)
+        return SimpleNamespace(adapter=SimpleNamespace(cnn1=bundle,cnn2=bundle),
+                               scenario=SimpleNamespace(shape=(8,8),fixed='RUN_4'))
+    monkeypatch.setattr(frozen.Release25Runtime,'from_paths',runtime)
+    monkeypatch.setattr(frozen,'configure_release25_streamlines',lambda *a,**kw:None)
+    model=frozen.load_frozen_temperature_model(source,torch_threads=1,reference_id='RUN_4')
+    assert settings['run_id']=='RUN_4' and settings['prepared_pki_dir']==directory
+    assert model.metadata['fixed_run_id']=='RUN_4'
+    assert model.surrogate.fixed_inputs=='RUN_4'
+
+
 @pytest.mark.parametrize("section,key,value,reason",[
     ("release25","random_k",True,"real-K"),
     ("release25","cell_size_m",20.,"native 5"),

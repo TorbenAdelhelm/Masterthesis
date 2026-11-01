@@ -231,12 +231,41 @@ def prepare_data(args) -> dict[str, object]:
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset-root", required=True)
-    parser.add_argument("--cnn1-dir", required=True, help="Extracted real-K CNN1 standard model folder")
-    parser.add_argument("--release25-repo", required=True, help="Original release25 repo or its code directory")
-    parser.add_argument("--reference-runs", nargs="+", default=["RUN_1", "RUN_2", "RUN_3"])
-    parser.add_argument("--fixed-run", default="RUN_2")
-    parser.add_argument("--output-dir", default="data/reference_pilot")
+    parser.add_argument("--cnn1-dir", help="Extracted real-K CNN1 standard model folder")
+    parser.add_argument("--release25-repo", help="Original release25 repo or its code directory")
+    parser.add_argument("--reference-runs", nargs="+", help="Explicit source RUNs; default: discover complete native runs")
+    parser.add_argument("--fixed-run", help="Fixed context for legacy multi-reference preparation; default RUN_2 if available")
+    parser.add_argument("--reference-id", help="Prepare only this RUN with its matching physical inputs; output-dir is a parent directory")
+    parser.add_argument("--list-references", action="store_true", help="Inspect available raw RUNs without preparing arrays or requiring model assets")
+    parser.add_argument("--output-dir")
     args = parser.parse_args(argv)
+    from subsurface_uq.sampling.reference_inventory import discover_reference_runs
+    from subsurface_uq.experiments.reference_selection import reference_name
+    inventory = discover_reference_runs(args.dataset_root)
+    if args.list_references:
+        print(json.dumps(inventory, indent=2))
+        return 0
+    if not args.cnn1_dir or not args.release25_repo:
+        parser.error('--cnn1-dir and --release25-repo are required for preparation')
+    if args.reference_id is not None:
+        selected = reference_name(args.reference_id)
+        row = next((v for v in inventory if v['reference_id'] == selected), None)
+        if row is None or not row['can_prepare_matched_context']:
+            parser.error(f'{selected} has no complete native simulation inputs; matching pressure/material data are required')
+        if args.reference_runs not in (None, [selected]) or args.fixed_run not in (None, selected):
+            parser.error('--reference-id cannot be combined with different reference-runs or fixed-run')
+        args.reference_runs = [selected]
+        args.fixed_run = selected
+        args.output_dir = str(Path(args.output_dir or 'data/reference_cases') / selected)
+    else:
+        complete = [row['reference_id'] for row in inventory if row['can_prepare_matched_context']]
+        args.reference_runs = args.reference_runs or complete
+        if not args.reference_runs:
+            parser.error('no complete native RUNs found; declare explicit reference-runs for an input-only source')
+        args.fixed_run = args.fixed_run or ('RUN_2' if 'RUN_2' in complete else complete[0] if complete else None)
+        if args.fixed_run is None:
+            parser.error('a complete --fixed-run is required')
+        args.output_dir = args.output_dir or 'data/reference_pilot'
     prepare_data(args)
     return 0
 

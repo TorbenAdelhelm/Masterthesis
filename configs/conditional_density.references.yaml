@@ -1,0 +1,20 @@
+# Matérn spatial illustration: eight draws per count, matching RUN context, 25 model calls.
+structural_profile_file: structural_profiles.complete_references.json
+profile_name: RUN_2_structural
+measurement_counts:
+- 64
+- 128
+- 256
+n_samples: 8
+candidate_stride_cells: 32
+seed: 2026110104
+embedding_shape:
+- 8192
+- 8192
+workers: 4
+chunk_size: 8192
+model_config: frozen_temperature.by_reference.example.yaml
+model_asset_root: ..
+torch_threads: 8
+plot_stride_cells: 4
+require_reference_id: true

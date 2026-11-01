@@ -76,7 +76,7 @@ class _CaptureVelocityShape:
         return result
 
 
-def load_frozen_temperature_model(path, *, asset_root=None, torch_threads=8):
+def load_frozen_temperature_model(path, *, asset_root=None, torch_threads=8, reference_id=None):
     """Load actual checkpoints and fixed inputs; hash the evaluated context.
 
     Assets resolve relative to ``asset_root`` or the model YAML's directory.
@@ -93,6 +93,8 @@ def load_frozen_temperature_model(path, *, asset_root=None, torch_threads=8):
         "repo", "cnn1_dir", "cnn2_dir", "prepared_pki_dir", "fixed_run_id", "device",
         "cell_size_m", "background_temperature", "random_k",
     })
+    from ..experiments.reference_selection import apply_model_reference
+    release = apply_model_reference(release, reference_id)
     qoi = _mapping(raw.get("qoi"), "qoi", {"receptors", "mean_anomaly_roi"})
     streams = _mapping(raw.get("streamlines", {}), "streamlines", {
         "mode", "method", "max_nfev", "diagnostics", "slow_seconds",
@@ -140,6 +142,8 @@ def load_frozen_temperature_model(path, *, asset_root=None, torch_threads=8):
         raise ValueError("invalid streamline diagnostics/slow_seconds")
     info = paths["prepared_pki_dir"]/"info.yaml"
     prepared = yaml.safe_load(info.read_text(encoding="utf-8"))
+    if reference_id is not None and prepared.get('reference_pilot_fixed_run',run)!=run:
+        raise ValueError('prepared input metadata belongs to a different reference RUN')
     shape = tuple(prepared["CellsNumber"])
     if len(shape) != 2 or any(_integer(v, "grid dimension", 3) != v for v in shape):
         raise ValueError("prepared inputs must describe a 2-D grid")

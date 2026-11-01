@@ -34,6 +34,7 @@ from ..rq1.analysis import global_uncertainty_metrics, prefix_field_convergence,
 from ..validation.reconstruction import predictive_scores
 from .conditioning_temperature import _figure
 from .reference_conditioning import _identity, _name, _positive_integer, _relative_path, _write
+from .reference_selection import profile_names, model_context, output_directory
 
 
 _KEYS = {"scenarios", "shape", "cell_size_m", "permeability_units", "measurement_counts",
@@ -79,11 +80,17 @@ def _completed(directory, marker="files.json"):
     return True
 
 
-def load_config(path):
+def load_config(path, *, reference_id=None):
     source = Path(path).resolve()
     cfg = yaml.safe_load(source.read_text(encoding="utf-8"))
-    if not isinstance(cfg, dict) or set(cfg) not in (_KEYS, _KEYS | _PROFILE_KEYS):
+    if not isinstance(cfg, dict) or set(cfg)-{"require_reference_id"} not in (_KEYS, _KEYS | _PROFILE_KEYS):
         raise ValueError("declare every controlled-benchmark key; unknown keys are forbidden")
+    if not isinstance(cfg.get('require_reference_id', False), bool):
+        raise ValueError("require_reference_id must be boolean")
+    if cfg.get('require_reference_id') and reference_id is None:
+        raise ValueError("this matched-reference configuration requires --reference-id")
+    if reference_id is not None and 'structural_profile_file' not in cfg:
+        raise ValueError("reference selection requires a structural profile catalog")
     for key in ("n_truths", "n_samples", "n_designs", "candidate_stride_cells", "workers", "chunk_size",
                 "validation_replicates", "validation_probes", "diagnostic_stride_cells", "torch_threads", "quantile_chunk_rows"):
         _positive_integer(cfg[key], key)
@@ -103,13 +110,19 @@ def load_config(path):
                        for n,m in zip(embedding,shape))):
             raise ValueError("paired embedding requires powers of two >=3 times the crop")
         from .structural_profiles import verify_artifact
-        artifact,_=verify_artifact(_relative_path(cfg["structural_profile_file"],source.parent))
+        artifact,_=verify_artifact(_relative_path(cfg["structural_profile_file"],source.parent),reference_id=reference_id)
         expected={name:p["law"] for name,p in artifact["profiles"].items()}
         if (cfg["scenarios"]!=expected or shape!=artifact["native_shape"]
                 or cfg["cell_size_m"]!=artifact["cell_size_m"]):
             raise ValueError("scenario laws/grid must exactly match the frozen structural profile artifact")
         if cfg["sensitivity_reference_profile"] not in expected:
             raise ValueError("declare a sensitivity reference from the structural profiles")
+        if reference_id is not None:
+            selected=profile_names(artifact,reference_id)
+            cfg['scenarios']={name:cfg['scenarios'][name] for name in selected}
+            if cfg['sensitivity_reference_profile'] not in selected:
+                cfg['sensitivity_reference_profile']=selected[0]
+            cfg['reference_id']=reference_id
     counts = cfg["measurement_counts"]
     if (not isinstance(counts,list) or len(counts)<2 or counts[0]!=0
             or any(_positive_integer(v,"measurement count",zero=True)!=v for v in counts)
@@ -148,6 +161,9 @@ def load_config(path):
     if cfg["model_config"] is not None:
         _relative_path(cfg["model_config"],source.parent)
     _relative_path(cfg["model_asset_root"],source.parent)
+    if reference_id is not None and cfg['model_config'] is not None:
+        cfg['reference_context']=model_context(_relative_path(cfg['model_config'],source.parent),
+            _relative_path(cfg['model_asset_root'],source.parent),reference_id,cfg['shape'])
     return source,cfg
 
 
@@ -198,8 +214,9 @@ def _sources(source,cfg):
     result={str(p):sha256_file(p) for p in files}
     if "structural_profile_file" in cfg:
         from .structural_profiles import verify_artifact
-        _,extra=verify_artifact(_relative_path(cfg["structural_profile_file"],source.parent))
+        _,extra=verify_artifact(_relative_path(cfg["structural_profile_file"],source.parent),reference_id=cfg.get('reference_id'))
         result.update(extra)
+    result.update(cfg.get('reference_context',{}).get('files_sha256',{}))
     return result
 
 
@@ -228,6 +245,8 @@ def plan(source,cfg,output):
             paired_embedding_shape=cfg["paired_embedding_shape"],
             seed_contract="common FFT Gaussian driving modes across profiles; shared truth/posterior seeds and geometry by trial; truth and posterior independent; outer trials independent",
             sensitivity_interpretation="paired joint-profile contrasts; different profiles have their own synthetic data; no parameter-wise attribution or geological probability mixture")
+    if cfg.get('reference_id') is not None:
+        manifest.update(reference_id=cfg['reference_id'],reference_context=cfg.get('reference_context'))
     _atomic(output/"manifest.json",manifest)
     return manifest
 
@@ -480,8 +499,11 @@ def temperatures(source,cfg,output,manifest,model_factory):
         raise ValueError("a model configuration is required for LGCNN propagation")
     if manifest["status"] not in {"inputs_ready","propagating","propagated","complete"}:
         raise ValueError("native inputs must be prepared before model propagation")
+    reference_kwargs={'reference_id':cfg['reference_id']} if cfg.get('reference_id') is not None else {}
     model=model_factory(_relative_path(cfg["model_config"],source.parent),
-        asset_root=_relative_path(cfg["model_asset_root"],source.parent),torch_threads=cfg["torch_threads"])
+        asset_root=_relative_path(cfg["model_asset_root"],source.parent),torch_threads=cfg["torch_threads"],**reference_kwargs)
+    if reference_kwargs and model.metadata.get('fixed_run_id')!=cfg['reference_id']:
+        raise ValueError("model context does not match the selected reference ID")
     if tuple(model.input_shape)!=tuple(cfg["shape"]) or model.cell_size_m!=cfg["cell_size_m"]:
         raise ValueError("benchmark grid must match the frozen model; no resampling")
     if manifest.get("model") is not None and manifest["model"]!=model.metadata:
@@ -574,7 +596,7 @@ def report(cfg,output,manifest):
             "between_trial_variance_estimate_sem_C2":float(variance.std(ddof=1)/np.sqrt(len(cases))) if len(cases)>1 else None,
             "paired_variance_reduction_from_prior_C2":float(change.mean()),
             "paired_reduction_sem_C2":float(change.std(ddof=1)/np.sqrt(len(change))) if len(change)>1 else None})
-    _atomic(output/"summary.json",{"study_id":manifest["study_id"],"temperature_calibration":calibration,
+    _atomic(output/"summary.json",{"study_id":manifest["study_id"],"reference_id":cfg.get('reference_id'),"temperature_calibration":calibration,
         "input_probe_calibration":input_calibration,"density":density,
         "interpretation":"controlled known-law conditional input UQ; exact data; same frozen LGCNN for truth and draws",
         "limits":"separate scenarios/layouts; outer trial intervals include finite MC error; no geological or PFLOTRAN validation; no claim of tail convergence"})
@@ -631,8 +653,8 @@ def _summary_figure(cfg,output,density,calibration):
     fig.savefig(output/"summary.png",dpi=150);plt.close(fig)
 
 
-def run(config_path,output_dir,stage="all",*,model_factory=load_frozen_temperature_model):
-    source,cfg=load_config(config_path);output=Path(output_dir).resolve()
+def run(config_path,output_dir,stage="all",*,model_factory=load_frozen_temperature_model,reference_id=None):
+    source,cfg=load_config(config_path,reference_id=reference_id);output=output_directory(output_dir,reference_id)
     if stage in {"plan","all"}:
         manifest=plan(source,cfg,output)
     else:
@@ -655,8 +677,9 @@ def run(config_path,output_dir,stage="all",*,model_factory=load_frozen_temperatu
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config",required=True);parser.add_argument("--output-dir",required=True)
+    parser.add_argument("--reference-id",help="Select one source RUN and its matching prepared physical inputs; append RUN ID to the output directory")
     parser.add_argument("--stage",choices=("plan","validate","inputs","temperatures","report","all"),default="all")
-    args=parser.parse_args(argv);run(args.config,args.output_dir,args.stage)
+    args=parser.parse_args(argv);run(args.config,args.output_dir,args.stage,reference_id=args.reference_id)
 
 
 if __name__=="__main__":

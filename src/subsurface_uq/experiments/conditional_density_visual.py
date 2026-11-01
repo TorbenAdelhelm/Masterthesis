@@ -20,15 +20,18 @@ from ..surrogates.frozen_temperature import load_frozen_temperature_model
 from .structural_profiles import verify_artifact
 from .controlled_field_benchmark import seed_for,array_hash,_atomic,_commit,_completed,_verify
 from .reference_conditioning import _relative_path,_positive_integer,_identity
+from .reference_selection import profile_names,model_context,output_directory
 
 
 _KEYS={'structural_profile_file','profile_name','measurement_counts','n_samples','candidate_stride_cells',
        'seed','embedding_shape','workers','chunk_size','model_config','model_asset_root','torch_threads','plot_stride_cells'}
 
 
-def load_config(path):
+def load_config(path,*,reference_id=None):
     source=Path(path).resolve();cfg=yaml.safe_load(source.read_text(encoding='utf-8'))
-    if not isinstance(cfg,dict) or set(cfg)!=_KEYS:raise ValueError('declare exactly the density-visual study settings')
+    if not isinstance(cfg,dict) or set(cfg)-{'require_reference_id'}!=_KEYS:raise ValueError('declare exactly the density-visual study settings')
+    if not isinstance(cfg.get('require_reference_id',False),bool):raise ValueError('require_reference_id must be boolean')
+    if cfg.get('require_reference_id') and reference_id is None:raise ValueError('this matched-reference configuration requires --reference-id')
     for key in ['n_samples','candidate_stride_cells','workers','chunk_size','torch_threads','plot_stride_cells']:
         _positive_integer(cfg[key],key)
     _positive_integer(cfg['seed'],'seed',zero=True)
@@ -36,7 +39,16 @@ def load_config(path):
     if (not isinstance(counts,list) or not counts or sorted(set(counts))!=counts
             or any(_positive_integer(n,'observations')!=n for n in counts) or cfg['n_samples']!=8):
         raise ValueError('increasing positive observation counts and exactly eight samples required')
-    artifact,files=verify_artifact(_relative_path(cfg['structural_profile_file'],source.parent))
+    artifact,files=verify_artifact(_relative_path(cfg['structural_profile_file'],source.parent),reference_id=reference_id)
+    if reference_id is not None:
+        names=profile_names(artifact,reference_id)
+        if cfg['profile_name'] not in names:
+            if len(names)!=1:raise ValueError('select a profile_name belonging to the requested reference')
+            cfg['profile_name']=names[0]
+        cfg['reference_id']=reference_id
+        cfg['reference_context']=model_context(_relative_path(cfg['model_config'],source.parent),
+            _relative_path(cfg['model_asset_root'],source.parent),reference_id,artifact['native_shape'])
+        files.update(cfg['reference_context']['files_sha256'])
     if cfg['profile_name'] not in artifact['profiles']:raise ValueError('unknown structural profile')
     shape=artifact['native_shape'];embedding=cfg['embedding_shape']
     if (not isinstance(embedding,list) or len(embedding)!=2
@@ -71,6 +83,8 @@ def plan(source,cfg,artifact,files,system,design,output):
         'nested_locations':True,'independent_hidden_truths':1,'observation_error_variance':0.,
         'sample_filtering':None,'geometry_cache_bytes':0,
         'interpretation':'one synthetic known-law realization; paired illustrative density response, no calibration or geological inference'}
+    if cfg.get('reference_id') is not None:
+        manifest.update(reference_id=cfg['reference_id'],reference_context=cfg['reference_context'])
     _atomic(output/'manifest.json',manifest)
     _atomic(output/'observations.json',{'indices':system.indices.tolist(),'design':design})
     return manifest
@@ -125,8 +139,10 @@ def inputs(cfg,manifest,system,output):
 def temperatures(source,cfg,manifest,output,model_factory):
     if not _completed(output,'input_files.json'):raise ValueError('complete and verify all inputs before model propagation')
     already_complete=manifest['status']=='complete'
+    reference_kwargs={'reference_id':cfg['reference_id']} if cfg.get('reference_id') is not None else {}
     model=model_factory(_relative_path(cfg['model_config'],source.parent),
-        asset_root=_relative_path(cfg['model_asset_root'],source.parent),torch_threads=cfg['torch_threads'])
+        asset_root=_relative_path(cfg['model_asset_root'],source.parent),torch_threads=cfg['torch_threads'],**reference_kwargs)
+    if reference_kwargs and model.metadata.get('fixed_run_id')!=cfg['reference_id']:raise ValueError('model context does not match the selected reference ID')
     if tuple(model.input_shape)!=tuple(manifest['shape']) or model.cell_size_m!=5.:raise ValueError('model/profile grid mismatch')
     if manifest.get('model') is not None and manifest['model']!=model.metadata:raise ValueError('model context changed')
     manifest.update(status='propagating',model=model.metadata);_atomic(output/'manifest.json',manifest)
@@ -177,8 +193,8 @@ def temperatures(source,cfg,manifest,output,model_factory):
     _atomic(output/'manifest.json',manifest)
 
 
-def run(config_path,output_dir,stage='all',*,model_factory=load_frozen_temperature_model):
-    source,cfg,artifact,files,system,design=load_config(config_path);output=Path(output_dir).resolve()
+def run(config_path,output_dir,stage='all',*,model_factory=load_frozen_temperature_model,reference_id=None):
+    source,cfg,artifact,files,system,design=load_config(config_path,reference_id=reference_id);output=output_directory(output_dir,reference_id)
     if stage in {'plan','all'}:manifest=plan(source,cfg,artifact,files,system,design,output)
     else:
         manifest=json.loads((output/'manifest.json').read_text());_check_sources(manifest,files)
@@ -201,8 +217,9 @@ def run(config_path,output_dir,stage='all',*,model_factory=load_frozen_temperatu
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config',required=True);parser.add_argument('--output-dir',required=True)
+    parser.add_argument('--reference-id',help='Select the source RUN and matching physical inputs; isolate results below this RUN ID')
     parser.add_argument('--stage',choices=['plan','inputs','temperatures','report','all'],default='all')
-    args=parser.parse_args(argv);run(args.config,args.output_dir,args.stage)
+    args=parser.parse_args(argv);run(args.config,args.output_dir,args.stage,reference_id=args.reference_id)
 
 
 if __name__=='__main__':main()
