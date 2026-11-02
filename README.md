@@ -19,6 +19,9 @@ all samples, targeting about 30–35 GB per reference. It provides native select
 sample views, verified input regeneration and `--stage resume`.
 Use `--stage all` for a fresh run; `plan` creates metadata only.
 The earlier full-archive preset remains available for historical reproduction.
+The compact presets automatically use CUDA when a real GPU convolution check
+succeeds, otherwise CPU. Run `subsurface-uq-check-device --json` to check the
+Linux environment before starting; the selected device is recorded in results.
 
 This repository contains the thesis-specific forward uncertainty-quantification
 (UQ) framework around deterministic groundwater heat-plume surrogate models.

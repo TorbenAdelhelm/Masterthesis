@@ -38,6 +38,7 @@ subsurface-uq-conditioning-temperature = "subsurface_uq.experiments.conditioning
 subsurface-uq-measurement-density = "subsurface_uq.experiments.measurement_density:main"
 subsurface-uq-controlled-fields = "subsurface_uq.experiments.controlled_field_benchmark:main"
 subsurface-uq-regenerate-input = "subsurface_uq.experiments.regenerate_input:main"
+subsurface-uq-check-device = "subsurface_uq.surrogates.inference_device:main"
 subsurface-uq-structural-profiles = "subsurface_uq.experiments.structural_profiles:main"
 subsurface-uq-density-gallery = "subsurface_uq.experiments.conditional_density_visual:main"
 subsurface-uq-measurement-model-validation = "subsurface_uq.experiments.measurement_model_validation:main"

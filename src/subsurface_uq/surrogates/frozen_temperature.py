@@ -13,6 +13,7 @@ import yaml
 
 from ..io import sha256_file
 from .bounded_streamlines import configure_release25_streamlines
+from .inference_device import configure_inference_numerics, describe_inference_device, select_inference_device
 from .release25 import Release25Surrogate
 from .release25_runtime import Release25Runtime, _checkpoint, _one_file
 
@@ -81,7 +82,7 @@ def load_frozen_temperature_model(path, *, asset_root=None, torch_threads=8, ref
 
     Assets resolve relative to ``asset_root`` or the model YAML's directory.
     An explicit asset root permits reuse of older repository-relative RQ1 YAML.
-    All RUN references share the declared pressure/material/source scenario.
+    An explicitly selected RUN uses its matching fixed physical inputs.
     """
     import torch
 
@@ -168,10 +169,14 @@ def load_frozen_temperature_model(path, *, asset_root=None, torch_threads=8, ref
                 "torch_threads": _integer(torch_threads, "torch_threads", 1),
                 "uncertainty": "permeability input only; model weights and pressure/material/sources fixed",
                 "input_law": "supplied by the conditional FFT study; model YAML grf/sampling blocks ignored"}
+    device = select_inference_device(release.get("device", "cpu"))
+    metadata["inference_device"] = device
+    metadata["inference_numerics"] = configure_inference_numerics(device["selected"])
+    print(describe_inference_device(device), flush=True)
     torch.set_num_threads(torch_threads)
     runtime = Release25Runtime.from_paths(release25_repo=paths["repo"], cnn1_dir=paths["cnn1_dir"],
         cnn2_dir=paths["cnn2_dir"], prepared_pki_dir=paths["prepared_pki_dir"], run_id=run,
-        device=release.get("device", "cpu"), random_k=False, streamline_method=method)
+        device=device["selected"], random_k=False, streamline_method=method)
     if tuple(runtime.scenario.shape) != shape:
         raise ValueError("prepared tensor shape differs from its metadata")
     configure_release25_streamlines(runtime.adapter, mode=mode, max_nfev=max_nfev,
@@ -185,5 +190,5 @@ def load_frozen_temperature_model(path, *, asset_root=None, torch_threads=8, ref
         if not np.all(np.isfinite(bounds[role])) or bounds[role][0] >= bounds[role][1]:
             raise ValueError("invalid checkpoint permeability normalization range")
     surrogate = Release25Surrogate(_CaptureVelocityShape(runtime.adapter), runtime.scenario.fixed,
-                                   device=release.get("device", "cpu"))
+                                   device=device["selected"])
     return FrozenTemperatureModel(surrogate, shape, 5., float(background), receptors, roi, metadata, bounds)

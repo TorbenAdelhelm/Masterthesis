@@ -134,7 +134,7 @@ chunk_size: 8192
 validation_replicates: 256
 validation_probes: 8
 diagnostic_stride_cells: 32
-model_config: frozen_temperature.by_reference.example.yaml
+model_config: frozen_temperature.by_reference.auto.example.yaml
 model_asset_root: ..
 torch_threads: 8
 risk_thresholds_C:

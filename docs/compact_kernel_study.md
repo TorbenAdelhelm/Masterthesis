@@ -18,6 +18,8 @@ git switch feat/reference-field-uq
 git pull --ff-only
 python -m pip install -e ".[geostat,perlin]"
 
+subsurface-uq-check-device
+
 subsurface-uq-controlled-fields \
   --config configs/controlled_field.kernels.compact.500.yaml \
   --reference-id RUN_4 \
@@ -41,6 +43,56 @@ The production budget remains **6,003 successful model evaluations per RUN**:
 4,500 conditional draws, 1,500 zero-observation baseline draws and three hidden
 truths. One hidden truth is used per kernel; 500 conditional samples do not
 constitute 500 independent truths for coverage calibration.
+
+## Automatic CUDA selection
+
+Both compact presets use `frozen_temperature.by_reference.auto.example.yaml`,
+with `release25.device: auto`. At model loading the runner checks the first
+visible CUDA device with an actual float32 convolution. A successful check
+selects `cuda:0` for both CNNs and the permeability tensor wrapper. Otherwise
+it prints the reason and uses CPU. Field generation, conditioning, streamline
+integration, storage and statistical analysis remain on CPU.
+
+The standalone check needs neither model weights nor reference inputs:
+
+```bash
+subsurface-uq-check-device --json
+# Optional: require CUDA and return a nonzero exit status if it is unusable.
+subsurface-uq-check-device --device cuda
+```
+
+The check reports the actual selected device, PyTorch/CUDA build versions,
+GPU name, total memory, compute capability and GPU UUID when available.
+`CUDA_VISIBLE_DEVICES` controls which devices are visible; `cuda:N` explicitly
+selects a visible index. To force a device for the study, set `device: cpu`,
+`device: cuda` or `device: cuda:N` in a copy of the auto model YAML and point
+the study's `model_config` to that copy. An explicit CUDA request fails if its
+probe fails; it does not silently select CPU.
+
+CUDA must be supported by the installed PyTorch build and driver. Use the
+[official PyTorch installation selector](https://pytorch.org/get-started/locally/)
+if a compatible GPU is present but the check selects CPU. The study does not
+install drivers or replace PyTorch automatically. The small convolution check
+does not establish that the full 2560² model fits into GPU memory; use the
+compact pilot to check the native workload before production.
+
+The actual selection is stored at `manifest.json` → `model.inference_device`.
+Device availability is checked before model loading, with no per-sample device
+switching or replacement draws after errors. If automatic selection resolves
+to a different device on resume, the frozen-model-context check stops before
+any further predictions. Use the original device/environment to continue.
+CPU/CUDA output identity is not assumed: keep one execution context per study.
+For CUDA inference the loader disables TF32 and cuDNN benchmarking and requests
+deterministic cuDNN convolutions, recording the controls in
+`model.inference_numerics`. It uses the precision API supported by the installed
+PyTorch version. No autocast or half-precision inference is introduced. See
+[PyTorch CUDA precision controls](https://docs.pytorch.org/docs/stable/notes/cuda.html)
+and [convolution reproducibility](https://docs.pytorch.org/docs/stable/notes/randomness.html).
+
+These updated presets and code are for **fresh runs**. Preserve the original
+checkout/configuration/environment for an existing run; its source guards
+intentionally reject updates. The earlier CPU-only matched-reference model
+YAML and full-archive presets retain their explicit CPU setting.
 
 ## Retained data and disk budget
 

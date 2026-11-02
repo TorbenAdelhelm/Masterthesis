@@ -152,6 +152,28 @@ def test_interrupted_prior_generation_reuses_committed_batch_draws(tmp_path,monk
     assert model.calls==48 and not list(out.rglob('batch_scratch'))
 
 
+def test_resume_rejects_a_changed_auto_selected_device_before_predicting(tmp_path):
+    source,cfg=compact_config(tmp_path);out=tmp_path/'compact';model=TestModel()
+    model.metadata={**model.metadata,'inference_device':{'requested':'auto','selected':'cpu'}}
+    original=model.predict_temperature
+    def interrupted(field):
+        if model.calls==2:raise RuntimeError('interrupted on CPU')
+        return original(field)
+    model.predict_temperature=interrupted
+    with pytest.raises(RuntimeError,match='interrupted on CPU'):
+        b.run(source,out,model_factory=lambda *a,**kw:model)
+    records={p:p.read_bytes() for p in out.rglob('prediction_records.json')}
+    changed=TestModel()
+    changed.metadata={**model.metadata,'inference_device':{'requested':'auto','selected':'cuda:0'}}
+    with pytest.raises(ValueError,match='selected inference device'):
+        b.run(source,out,'resume',model_factory=lambda *a,**kw:changed)
+    assert changed.calls==0
+    assert all(p.read_bytes()==data for p,data in records.items())
+    model.predict_temperature=original
+    b.run(source,out,'resume',model_factory=lambda *a,**kw:model)
+    assert model.calls==48
+
+
 @pytest.mark.parametrize('filename',['permeability_selected.npy','log_permeability_previews.npy'])
 def test_compact_retained_corruption_refuses_resume(tmp_path,filename):
     source,cfg=compact_config(tmp_path);out=tmp_path/'compact';model=TestModel()

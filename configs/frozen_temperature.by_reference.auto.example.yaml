@@ -1,0 +1,22 @@
+# Paths resolve relative to the repository root. Auto checks the first visible
+# CUDA device with a real convolution; falls back to CPU before model loading.
+release25:
+  repo: external/release25-repo/Heat-Plume-Prediction
+  cnn1_dir: models/LGCNN_step1_realK
+  cnn2_dir: models/LGCNN_step3_realK
+  prepared_pki_dir: data/reference_cases/{reference_id}/prepared_pki
+  fixed_run_id: RUN_2
+  device: auto
+  cell_size_m: 5.0
+  background_temperature: 10.6
+  random_k: false
+qoi:
+  # Fixed output cells/ROI; not automatically moved to each RUN's pumps.
+  receptors: [[312, 532], [372, 532], [301, 489]]
+  mean_anomaly_roi: [296, 596, 456, 636]
+streamlines:
+  mode: bounded
+  method: RK45
+  max_nfev: 100000
+  diagnostics: false
+  slow_seconds: 2.0

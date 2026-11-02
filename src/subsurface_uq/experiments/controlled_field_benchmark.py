@@ -555,7 +555,8 @@ def temperatures(source,cfg,output,manifest,model_factory):
     if tuple(model.input_shape)!=tuple(cfg["shape"]) or model.cell_size_m!=cfg["cell_size_m"]:
         raise ValueError("benchmark grid must match the frozen model; no resampling")
     if manifest.get("model") is not None and manifest["model"]!=model.metadata:
-        raise ValueError("frozen model context changed")
+        raise ValueError("frozen model context changed (including the selected inference device); "
+                         "use the original device/environment to resume or a fresh output directory")
     manifest.update(status="propagating",model=model.metadata);_atomic(output/"manifest.json",manifest)
     if cfg.get("compact_storage"):
         from .compact_fields import propagate

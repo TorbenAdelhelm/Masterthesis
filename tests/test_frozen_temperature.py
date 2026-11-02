@@ -81,6 +81,29 @@ def test_selected_run_expands_prepared_path_and_reaches_runtime(tmp_path,monkeyp
     assert model.surrogate.fixed_inputs=='RUN_4'
 
 
+@pytest.mark.parametrize('selected', ['cpu', 'cuda:0'])
+def test_auto_device_reaches_both_runtime_and_permeability_tensor_wrapper(tmp_path,monkeypatch,selected):
+    source,config=_assets(tmp_path)
+    config['release25']['device']='auto';source.write_text(yaml.safe_dump(config))
+    record={'requested':'auto','selected':selected,'gpu':None,'reason':'test selection'}
+    monkeypatch.setattr(frozen,'select_inference_device',lambda requested:record if requested=='auto' else pytest.fail('wrong device request'))
+    monkeypatch.setattr(frozen,'configure_inference_numerics',lambda actual:{'selected':actual,'dtype':'float32'})
+    bundle=SimpleNamespace(info={'Inputs':{'Permeability':{'min':1e-12,'max':1e-8}}})
+    received={}
+    def runtime(**kwargs):
+        received.update(kwargs)
+        return SimpleNamespace(adapter=SimpleNamespace(cnn1=bundle,cnn2=bundle),
+                               scenario=SimpleNamespace(shape=(8,8),fixed='fixed'))
+    monkeypatch.setattr(frozen.Release25Runtime,'from_paths',runtime)
+    monkeypatch.setattr(frozen,'configure_release25_streamlines',lambda *a,**kw:None)
+    model=frozen.load_frozen_temperature_model(source,torch_threads=1)
+    assert received['device']==selected
+    assert model.surrogate.device==selected
+    assert model.metadata['inference_device']==record
+    assert model.metadata['inference_numerics']['selected']==selected
+    assert model.metadata['release25']['device']=='auto'
+
+
 @pytest.mark.parametrize("section,key,value,reason",[
     ("release25","random_k",True,"real-K"),
     ("release25","cell_size_m",20.,"native 5"),
