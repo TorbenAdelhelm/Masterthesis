@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main, "feat/reference-field-uq"]
+    branches: [main, "feat/reference-field-uq", "feat/output-field-gaussian-uq"]
   pull_request:
 
 jobs:
@@ -25,6 +25,7 @@ jobs:
         run: python -m pytest --junitxml=test-results.xml
       - name: Check installed study commands
         run: |
+          subsurface-uq-output-field-assessment --help
           subsurface-uq-reference-kernel-study --help
           subsurface-uq-reference-conditioning --help
           subsurface-uq-conditioning-temperature --help

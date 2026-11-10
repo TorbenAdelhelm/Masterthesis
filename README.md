@@ -1,6 +1,13 @@
 # Master Thesis — Subsurface UQ
 
-**Current working branch:** [`feat/reference-field-uq`](https://github.com/TorbenAdelhelm/Masterthesis/tree/feat/reference-field-uq).
+The [output-field assessment](docs/output_field_assessment.md) evaluates whether
+retained native temperature ensembles can be compressed by a train-only KL basis
+and approximated by a Gaussian coefficient law. It separates held-out compression
+errors from Gaussian-law errors, compares affected-area distributions and spatial
+exceedance maps, and exports paired sample identities for later input-to-output
+emulation. It runs from completed study results without new LGCNN evaluations.
+**Current working branch:** [`feat/output-field-gaussian-uq`](https://github.com/TorbenAdelhelm/Masterthesis/tree/feat/output-field-gaussian-uq),
+based on `feat/reference-field-uq`.
 Use this branch for the controlled conditional-field experiment and separate
 RUN-based reconstruction realism challenge.
 

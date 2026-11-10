@@ -1,5 +1,17 @@
 # Current implementation status
 
+## Output-field KL / Gaussian adequacy workflow (2026-11-10)
+
+The [output-field assessment](output_field_assessment.md) consumes completed native
+temperature ensembles with verified checksums and no new LGCNN calls. Training-only
+snapshot KL avoids a spatial covariance matrix; held-out native reconstructions
+isolate compression error. A separate normal coefficient candidate is compared
+through affected-area distributions, spatial exceedance maps and joint-projection
+normality screens. Rank caps, discarded variance, finite-sample precision and source
+identities are explicit. Reports do not automatically certify Gaussianity or
+decision adequacy. Sample-indexed output coefficients support later paired
+input-to-output emulation; such an emulator is not yet fitted by this workflow.
+
 This file is a concise snapshot of what the repository implements *now*. It is
 intended to prevent design notes and old baseline plans from being mistaken for
 current functionality.
